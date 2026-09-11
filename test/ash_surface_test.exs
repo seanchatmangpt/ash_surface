@@ -1,3 +1,16 @@
+defmodule AshSurfaceTest.RealPost do
+  use Ash.Resource, data_layer: Ash.DataLayer.Ets
+
+  attributes do
+    uuid_primary_key :id
+    attribute :title, :string, public?: true, allow_nil?: false
+  end
+
+  actions do
+    defaults [:read, create: [:title]]
+  end
+end
+
 defmodule AshSurfaceTest do
   use ExUnit.Case, async: true
 
@@ -52,6 +65,31 @@ defmodule AshSurfaceTest do
            }
 
     assert surface.contract["ashManifestSchemaVersion"] == Manifest.schema_version()
+  end
+
+  test "consumes a real Ash.Info.Manifest generated from an Ash resource" do
+    assert {:ok, generated} =
+             Manifest.generate(
+               otp_app: :ash_surface,
+               action_entrypoints: [
+                 {AshSurfaceTest.RealPost, :read},
+                 {AshSurfaceTest.RealPost, :create}
+               ]
+             )
+
+    assert Enum.map(generated.entrypoints, &{&1.resource, &1.action.name}) == [
+             {AshSurfaceTest.RealPost, :create},
+             {AshSurfaceTest.RealPost, :read}
+           ]
+
+    assert {:ok, surface} = AshSurface.from_manifest(generated)
+
+    assert surface.action_ids == [
+             "AshSurfaceTest.RealPost#create",
+             "AshSurfaceTest.RealPost#read"
+           ]
+
+    assert [%{name: "RealPost"}] = generated.resources
   end
 
   test "unknown action profile is refused" do
