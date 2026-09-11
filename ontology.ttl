@@ -1,0 +1,73 @@
+@prefix aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#> .
+@prefix surf: <https://github.com/seanchatmangpt/ash_surface#> .
+
+surf:AshSurfaceSpec a aex:AshExtensionSpec ;
+    aex:packageName "ash_surface" ;
+    aex:moduleName "AshSurface.Resource" ;
+    aex:extensionTarget "resource" ;
+    aex:singleExtensionKind "ash_surface" ;
+    aex:taskModuleName "AshSurface" ;
+    aex:formatterModule "AshSurface.Formatter" ;
+    aex:workflowReactor false ;
+    aex:workflowReversible false ;
+    aex:provenanceSource "ash_manifest" ;
+    aex:validateDelegateModule "AshSurface.Resource.Validator" ;
+    aex:validateDelegateFunction "validate" .
+
+surf:SurfaceSection a aex:DslSection ;
+    aex:sectionOf surf:AshSurfaceSpec ;
+    aex:sectionName "surface" ;
+    aex:sectionOrder 1 ;
+    aex:sectionDescribe "Declares consumer projection intent for public Ash actions without duplicating Ash semantics." .
+
+surf:ProjectionEntity a aex:DslEntity ;
+    aex:entityOf surf:SurfaceSection ;
+    aex:entityOrder 1 ;
+    aex:entityName "projection" ;
+    aex:entityStruct "AshSurface.Dsl.Projection" ;
+    aex:entityIdentifier "action" .
+
+surf:ProjectionActionArg a aex:EntityArg ;
+    aex:argOf surf:ProjectionEntity ;
+    aex:argOrder 1 ;
+    aex:argName "action" .
+
+surf:ProjectionActionField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 1 ;
+    aex:fieldName "action" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired true ;
+    aex:fieldDoc "Public Ash action name this projection describes." .
+
+surf:ProjectionConsumerField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 2 ;
+    aex:fieldName "consumer" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Optional consumer class such as web, mobile, or internal." .
+
+surf:ProjectionTransportField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 3 ;
+    aex:fieldName "transport" ;
+    aex:fieldType "one_of" ;
+    aex:fieldRequired false ;
+    aex:fieldDefault ":auto" ;
+    aex:fieldDoc "Pre-dispatch transport preference; auto preserves all admitted alternatives." .
+
+surf:TransportAuto a aex:FieldOneOfValue ;
+    aex:oneOfValueOf surf:ProjectionTransportField ;
+    aex:oneOfValueOrder 1 ;
+    aex:oneOfValueName "auto" .
+
+surf:TransportHttp a aex:FieldOneOfValue ;
+    aex:oneOfValueOf surf:ProjectionTransportField ;
+    aex:oneOfValueOrder 2 ;
+    aex:oneOfValueName "http" .
+
+surf:TransportChannel a aex:FieldOneOfValue ;
+    aex:oneOfValueOf surf:ProjectionTransportField ;
+    aex:oneOfValueOrder 3 ;
+    aex:oneOfValueName "phoenix_channel" .
