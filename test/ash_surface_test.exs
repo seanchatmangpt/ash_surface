@@ -2,12 +2,12 @@ defmodule AshSurfaceTest.RealPost do
   use Ash.Resource, data_layer: Ash.DataLayer.Ets
 
   attributes do
-    uuid_primary_key :id
-    attribute :title, :string, public?: true, allow_nil?: false
+    uuid_primary_key(:id)
+    attribute(:title, :string, public?: true, allow_nil?: false)
   end
 
   actions do
-    defaults [:read, create: [:title]]
+    defaults([:read, create: [:title]])
   end
 end
 
