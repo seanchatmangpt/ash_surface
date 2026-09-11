@@ -25,7 +25,9 @@ defmodule AshSurface.MixProject do
   defp deps do
     [
       {:ash, "~> 3.33.1"},
-      {:jason, "~> 1.4"}
+      {:spark, "~> 2.7"},
+      {:jason, "~> 1.4"},
+      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false}
     ]
   end
 
