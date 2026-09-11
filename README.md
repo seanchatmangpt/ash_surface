@@ -23,7 +23,7 @@ Ash resources/actions/policies
             ▼
      Ash.Info.Manifest
             │
-       custom.ash_surface     ← projection metadata only
+       custom.ash_surface       ← BEAM-side projection metadata only
             │
             ▼
         AshSurface
@@ -33,10 +33,13 @@ AshTypescript  AshPhoenix   future projectors
       │
 public JSON manifest
       │
-      ▼
-framework-neutral JS runtime
-      │
-React / Vue / Expo / TanStack adapters
+      ├─ Ash-owned normalized semantics
+      └─ AshSurface envelope     ← derived action identity + projection metadata
+                │
+                ▼
+       framework-neutral JS runtime
+                │
+      React / Vue / Expo / TanStack adapters
 ```
 
 The core rule is:
@@ -51,10 +54,15 @@ The core rule is:
 
 1. accepts an existing `%Ash.Info.Manifest{}`;
 2. validates projection profile entries against the exact manifest action set;
-3. stores metadata only under `custom.ash_surface`;
-4. serializes through `Ash.Info.Manifest.JsonSerializer`;
-5. binds the Ash manifest schema version and AshSurface wrapper schema version;
-6. emits a stable SHA-256 content digest.
+3. stores BEAM-side metadata only under `custom.ash_surface`;
+4. serializes Ash-owned semantics through `Ash.Info.Manifest.JsonSerializer`;
+5. adds a small `surface` envelope because Ash's serializer intentionally omits
+   extension `custom` data, entrypoint config, and action names;
+6. limits that envelope to **derived action identity + projection metadata**, never
+   a duplicate resource/type/action schema;
+7. binds the Ash manifest schema version and AshSurface wrapper schema version;
+8. emits a stable SHA-256 content digest covering both Ash semantics and projection
+   metadata.
 
 Unknown action metadata is refused instead of creating a dangling second model.
 
