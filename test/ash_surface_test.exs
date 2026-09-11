@@ -65,6 +65,22 @@ defmodule AshSurfaceTest do
            }
 
     assert surface.contract["ashManifestSchemaVersion"] == Manifest.schema_version()
+    assert surface.contract["surface"]["profile"] == %{"audience" => "public"}
+
+    assert surface.contract["surface"]["actions"] == [
+             %{
+               "action" => "create",
+               "id" => "AshSurfaceTest.Post#create",
+               "profile" => %{},
+               "resource" => "AshSurfaceTest.Post"
+             },
+             %{
+               "action" => "read",
+               "id" => "AshSurfaceTest.Post#read",
+               "profile" => %{"consumer" => "web"},
+               "resource" => "AshSurfaceTest.Post"
+             }
+           ]
   end
 
   test "consumes a real Ash.Info.Manifest generated from an Ash resource" do
@@ -99,6 +115,13 @@ defmodule AshSurfaceTest do
              )
   end
 
+  test "projection metadata participates in the cross-language digest" do
+    assert {:ok, public} = AshSurface.from_manifest(manifest(), profile: %{audience: :public})
+    assert {:ok, internal} = AshSurface.from_manifest(manifest(), profile: %{audience: :internal})
+
+    refute public.digest == internal.digest
+  end
+
   test "digest is stable across equivalent map insertion order" do
     profile_a = %{audience: :public, flags: %{b: 2, a: 1}}
     profile_b = %{flags: %{a: 1, b: 2}, audience: :public}
@@ -106,6 +129,13 @@ defmodule AshSurfaceTest do
     assert {:ok, a} = AshSurface.from_manifest(manifest(), profile: profile_a)
     assert {:ok, b} = AshSurface.from_manifest(manifest(), profile: profile_b)
     assert a.digest == b.digest
+  end
+
+  test "non-data projection metadata is refused" do
+    assert {:error, {:profile_value_not_serializable, fun}} =
+             AshSurface.from_manifest(manifest(), profile: %{hook: fn -> :ambient_behavior end})
+
+    assert is_function(fun)
   end
 
   test "transport selection preserves alternatives and forbids post-dispatch fallback" do
