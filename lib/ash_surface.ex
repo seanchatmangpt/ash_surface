@@ -6,6 +6,11 @@ defmodule AshSurface do
   `Ash.Info.Manifest`, adds only projection metadata under `custom.ash_surface`,
   verifies that metadata against the exact public action set, and exposes a
   versioned, content-addressed contract for downstream projectors.
+
+  Ash's JSON manifest serializer intentionally omits extension `custom` data and
+  entrypoint config. The cross-language wrapper therefore carries only the missing
+  *derived identity and projection metadata* in its own `surface` envelope while
+  all resource/type/action semantics remain owned by the serialized Ash manifest.
   """
 
   alias Ash.Info.Manifest
@@ -66,7 +71,7 @@ defmodule AshSurface do
          profile <- normalize_data(raw_profile),
          :ok <- validate_profile_actions(profile, action_ids),
          decorated <- decorate_manifest(manifest, profile),
-         contract <- contract(decorated),
+         contract <- contract(decorated, profile),
          digest <- digest(contract) do
       {:ok,
        %Surface{
@@ -91,8 +96,7 @@ defmodule AshSurface do
   @doc "Returns the stable identity of an exact manifest entrypoint."
   @spec action_id(Ash.Info.Manifest.Entrypoint.t()) :: String.t()
   def action_id(%Ash.Info.Manifest.Entrypoint{resource: resource, action: action}) do
-    resource_name = resource |> Module.split() |> Enum.join(".")
-    "#{resource_name}##{action.name}"
+    "#{module_name(resource)}##{action.name}"
   end
 
   @doc "Returns the path to the framework-neutral JavaScript runtime adapter."
@@ -105,11 +109,35 @@ defmodule AshSurface do
   @spec runtime_source() :: {:ok, binary()} | {:error, File.posix()}
   def runtime_source, do: File.read(runtime_path())
 
-  defp contract(%Manifest{} = manifest) do
+  defp contract(%Manifest{} = manifest, profile) do
     %{
       "surfaceSchemaVersion" => @surface_schema_version,
       "ashManifestSchemaVersion" => Manifest.schema_version(),
-      "manifest" => Ash.Info.Manifest.JsonSerializer.to_map(manifest)
+      "manifest" => Ash.Info.Manifest.JsonSerializer.to_map(manifest),
+      "surface" => surface_envelope(manifest, profile)
+    }
+  end
+
+  defp surface_envelope(%Manifest{} = manifest, profile) do
+    actions_profile = Map.get(profile, "actions", %{})
+
+    actions =
+      manifest.entrypoints
+      |> Enum.map(fn entrypoint ->
+        id = action_id(entrypoint)
+
+        %{
+          "id" => id,
+          "resource" => module_name(entrypoint.resource),
+          "action" => to_string(entrypoint.action.name),
+          "profile" => Map.get(actions_profile, id, %{})
+        }
+      end)
+      |> Enum.sort_by(& &1["id"])
+
+    %{
+      "profile" => Map.delete(profile, "actions"),
+      "actions" => actions
     }
   end
 
@@ -227,4 +255,6 @@ defmodule AshSurface do
   defp normalize_key(key) when is_binary(key), do: key
   defp normalize_key(key) when is_atom(key), do: Atom.to_string(key)
   defp normalize_key(key), do: to_string(key)
+
+  defp module_name(module), do: module |> Module.split() |> Enum.join(".")
 end
