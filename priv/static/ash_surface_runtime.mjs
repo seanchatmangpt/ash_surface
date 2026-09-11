@@ -1,23 +1,69 @@
+import { z } from "zod";
+
 /**
- * AshSurface runtime adapter for AshTypescript's public JSON manifest.
+ * JavaScript projection of an AshSurface contract.
  *
- * The manifest remains authoritative for which generated RPC functions exist.
- * This module adds only action lookup and pre-dispatch transport selection.
- * It does not cache server state, revalidate trusted responses, or retry a
- * request on another transport after dispatch.
+ * This file is ordinary executable JavaScript. JSDoc is the static/editor typing
+ * surface and Zod is the executable boundary schema. TypeScript is not required,
+ * emitted, or consumed.
  */
 
-export const SURFACE_RUNTIME_VERSION = "0.1.0";
-const SUPPORTED_MANIFEST_MAJOR = 1;
+export const SURFACE_RUNTIME_VERSION = "0.2.0";
+const SUPPORTED_SURFACE_MAJOR = 0;
+const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
 
-export class SurfaceRuntimeError extends Error {
-  constructor(code, message, options = {}) {
-    super(message, options.cause ? { cause: options.cause } : undefined);
-    this.name = "SurfaceRuntimeError";
-    this.code = code;
-    this.receipt = options.receipt ?? null;
-  }
-}
+const jsonRecordSchema = z.record(z.string(), z.unknown());
+
+export const surfaceActionSchema = z
+  .object({
+    id: z.string().min(1),
+    resource: z.string().min(1),
+    action: z.string().min(1),
+    profile: jsonRecordSchema.default({}),
+  })
+  .passthrough();
+
+export const ashSurfaceContractSchema = z
+  .object({
+    surfaceSchemaVersion: z.string().min(1),
+    ashManifestSchemaVersion: z.string().min(1),
+    manifest: jsonRecordSchema,
+    surface: z
+      .object({
+        profile: jsonRecordSchema.default({}),
+        actions: z.array(surfaceActionSchema),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+/**
+ * @typedef {Object} SurfaceAction
+ * @property {string} id Stable Ash action identity.
+ * @property {string} resource Fully-qualified Ash resource module name.
+ * @property {string} action Ash action name.
+ * @property {Record<string, unknown>} profile Projection-only metadata.
+ */
+
+/**
+ * @typedef {Object} TransportAdapter
+ * @property {(context: {action: SurfaceAction, input: unknown, contract: AshSurfaceContract, signal?: AbortSignal}) => Promise<unknown>} invoke
+ * @property {((action: SurfaceAction, contract: AshSurfaceContract) => boolean) | boolean} [available]
+ */
+
+/**
+ * @typedef {Object} ActionSchemas
+ * @property {{parse(value: unknown): unknown}} [input] Zod-compatible input schema.
+ * @property {{parse(value: unknown): unknown}} [output] Zod-compatible output schema.
+ */
+
+/**
+ * @typedef {Object} AshSurfaceContract
+ * @property {string} surfaceSchemaVersion
+ * @property {string} ashManifestSchemaVersion
+ * @property {Record<string, unknown>} manifest Canonical serialized Ash semantics.
+ * @property {{profile: Record<string, unknown>, actions: SurfaceAction[]}} surface
+ */
 
 /**
  * @typedef {Object} SurfaceDecision
@@ -31,75 +77,93 @@ export class SurfaceRuntimeError extends Error {
  * @property {"not_dispatched"|"completed"|"unknown_after_dispatch"} dispatchState
  */
 
+export class SurfaceRuntimeError extends Error {
+  constructor(code, message, options = {}) {
+    super(message, options.cause ? { cause: options.cause } : undefined);
+    this.name = "SurfaceRuntimeError";
+    this.code = code;
+    this.receipt = options.receipt ?? null;
+    this.issues = options.issues ?? null;
+  }
+}
+
 /**
- * Builds a framework-neutral action surface from AshTypescript's public JSON
- * manifest and generated RPC module.
+ * Creates the JavaScript application-facing client directly from an AshSurface
+ * contract. No AshTypescript manifest or generated TypeScript artifact is used.
  *
  * @param {Object} options
- * @param {Object} options.manifest AshTypescript JSON manifest (schema major 1)
- * @param {Object} options.rpc imported generated AshTypescript RPC module
- * @param {Object|null} [options.channel] joined Phoenix Channel for channel variants
- * @param {"http"|"phoenix_channel"} [options.prefer="http"] preferred transport
- * @returns {Object}
+ * @param {unknown} options.contract Untrusted AshSurface JSON contract.
+ * @param {Partial<Record<"http"|"phoenix_channel", TransportAdapter>>} options.transports
+ * @param {"http"|"phoenix_channel"} [options.prefer="http"]
+ * @param {Record<string, ActionSchemas>} [options.schemas] Zod schemas keyed by stable action id.
+ * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, get(id: string): Object|null, inspect(id: string): Object}}
  */
-export function createSurface({ manifest, rpc, channel = null, prefer = "http" }) {
-  assertManifest(manifest);
+export function createClient({ contract, transports = {}, prefer = "http", schemas = {} }) {
+  const admittedContract = parseContract(contract);
   assertPreferred(prefer);
-
-  if (!rpc || typeof rpc !== "object") {
-    throw new SurfaceRuntimeError("INVALID_RPC_MODULE", "rpc must be an imported generated RPC module");
-  }
+  assertTransportAdapters(transports);
 
   const actions = Object.create(null);
-  const namespaces = Object.create(null);
+  const resources = Object.create(null);
 
-  for (const action of manifest.actions) {
-    const id = actionId(action);
-
-    if (actions[id]) {
-      throw new SurfaceRuntimeError("DUPLICATE_ACTION_ID", `duplicate action identity: ${id}`);
+  for (const action of admittedContract.surface.actions) {
+    if (actions[action.id]) {
+      throw new SurfaceRuntimeError("DUPLICATE_ACTION_ID", `duplicate action identity: ${action.id}`);
     }
 
     const descriptor = Object.freeze({
-      id,
-      namespace: action.namespace ?? null,
+      id: action.id,
       resource: action.resource,
-      actionType: action.actionType,
-      manifest: action,
+      action: action.action,
+      profile: Object.freeze({ ...action.profile }),
       inspect() {
-        return inspectAction(action, rpc, channel, prefer);
+        return inspectAction(action, admittedContract, transports, prefer);
       },
-      async invoke(config = {}) {
-        const { result } = await invokeWithReceipt(action, config, { rpc, channel, prefer });
+      async invoke(input, options = {}) {
+        const { result } = await invokeWithReceipt(
+          action,
+          input,
+          options,
+          admittedContract,
+          transports,
+          prefer,
+          schemas[action.id],
+        );
         return result;
       },
-      async invokeWithReceipt(config = {}) {
-        return invokeWithReceipt(action, config, { rpc, channel, prefer });
+      async invokeWithReceipt(input, options = {}) {
+        return invokeWithReceipt(
+          action,
+          input,
+          options,
+          admittedContract,
+          transports,
+          prefer,
+          schemas[action.id],
+        );
       },
     });
 
-    actions[id] = descriptor;
+    actions[action.id] = descriptor;
+    resources[action.resource] ??= Object.create(null);
 
-    const namespace = action.namespace ?? "default";
-    namespaces[namespace] ??= Object.create(null);
-
-    if (namespaces[namespace][action.functionName]) {
+    if (resources[action.resource][action.action]) {
       throw new SurfaceRuntimeError(
-        "DUPLICATE_NAMESPACE_FUNCTION",
-        `duplicate function ${action.functionName} in namespace ${namespace}`,
+        "DUPLICATE_RESOURCE_ACTION",
+        `duplicate action ${action.action} on resource ${action.resource}`,
       );
     }
 
-    namespaces[namespace][action.functionName] = descriptor;
+    resources[action.resource][action.action] = descriptor;
   }
 
-  freezeRecordValues(namespaces);
+  freezeRecordValues(resources);
 
   return Object.freeze({
     runtimeVersion: SURFACE_RUNTIME_VERSION,
-    manifestVersion: manifest.version,
+    contract: admittedContract,
     actions: Object.freeze(actions),
-    namespaces: Object.freeze(namespaces),
+    resources: Object.freeze(resources),
     get(id) {
       return actions[id] ?? null;
     },
@@ -111,121 +175,128 @@ export function createSurface({ manifest, rpc, channel = null, prefer = "http" }
   });
 }
 
-function inspectAction(action, rpc, channel, prefer) {
+function parseContract(contract) {
+  const parsed = ashSurfaceContractSchema.safeParse(contract);
+
+  if (!parsed.success) {
+    throw new SurfaceRuntimeError("INVALID_SURFACE_CONTRACT", "AshSurface contract failed Zod validation", {
+      issues: parsed.error.issues,
+    });
+  }
+
+  const [major] = parsed.data.surfaceSchemaVersion.split(".").map(Number);
+  if (major !== SUPPORTED_SURFACE_MAJOR) {
+    throw new SurfaceRuntimeError(
+      "UNSUPPORTED_SURFACE_VERSION",
+      `AshSurface contract major ${parsed.data.surfaceSchemaVersion} is unsupported`,
+    );
+  }
+
+  return parsed.data;
+}
+
+function inspectAction(action, contract, transports, prefer) {
   const declared = declaredTransports(action);
-  const available = availableTransports(action, rpc, channel);
-  const decision = selectTransport(actionId(action), declared, available, prefer);
+  const available = availableTransports(action, contract, transports, declared);
+  const decision = selectTransport(action.id, declared, available, prefer);
 
   return Object.freeze({
-    id: actionId(action),
+    id: action.id,
     declared: Object.freeze([...declared]),
     available: Object.freeze([...available]),
     decision: Object.freeze({ ...decision }),
   });
 }
 
-async function invokeWithReceipt(action, config, runtime) {
-  const id = actionId(action);
-  const declared = declaredTransports(action);
-  const available = availableTransports(action, runtime.rpc, runtime.channel);
-  const decision = selectTransport(id, declared, available, runtime.prefer);
+async function invokeWithReceipt(
+  action,
+  input,
+  options,
+  contract,
+  transports,
+  prefer,
+  actionSchemas,
+) {
+  let admittedInput = input;
 
-  if (decision.selected === "http") {
-    const fn = runtime.rpc[action.functionName];
-    return invokeHttp(fn, config, decision);
+  if (actionSchemas?.input) {
+    try {
+      admittedInput = actionSchemas.input.parse(input);
+    } catch (cause) {
+      throw new SurfaceRuntimeError(
+        "INPUT_VALIDATION_FAILED",
+        `input failed Zod validation for ${action.id}`,
+        { cause },
+      );
+    }
   }
 
-  const channelName = action.variantNames?.channel;
-  const fn = runtime.rpc[channelName];
-  return invokeChannel(fn, runtime.channel, config, decision);
-}
+  const declared = declaredTransports(action);
+  const available = availableTransports(action, contract, transports, declared);
+  const decision = selectTransport(action.id, declared, available, prefer);
+  const adapter = transports[decision.selected];
 
-async function invokeHttp(fn, config, decision) {
   try {
-    const result = await fn(config);
-    return { result, receipt: complete(decision) };
+    const result = await adapter.invoke({
+      action,
+      input: admittedInput,
+      contract,
+      signal: options.signal,
+    });
+
+    let admittedOutput = result;
+    if (actionSchemas?.output) {
+      try {
+        admittedOutput = actionSchemas.output.parse(result);
+      } catch (cause) {
+        throw new SurfaceRuntimeError(
+          "OUTPUT_VALIDATION_FAILED",
+          `output failed Zod validation for ${action.id}`,
+          { cause, receipt: complete(decision) },
+        );
+      }
+    }
+
+    return { result: admittedOutput, receipt: complete(decision) };
   } catch (cause) {
+    if (cause instanceof SurfaceRuntimeError && cause.code === "OUTPUT_VALIDATION_FAILED") {
+      throw cause;
+    }
+
     throw new SurfaceRuntimeError(
       "TRANSPORT_OUTCOME_UNKNOWN",
-      `HTTP transport failed after dispatch for ${decision.actionId}; no automatic cross-transport retry was attempted`,
+      `${decision.selected} transport failed after dispatch for ${action.id}; no automatic cross-transport retry was attempted`,
       { cause, receipt: unknownAfterDispatch(decision) },
     );
   }
 }
 
-function invokeChannel(fn, channel, config, decision) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
+function declaredTransports(action) {
+  const requested = action.profile?.transport ?? "auto";
 
-    const resolveOnce = (result) => {
-      if (settled) return;
-      settled = true;
-      resolve({ result, receipt: complete(decision) });
-    };
+  if (requested === "auto") return [...KNOWN_TRANSPORTS];
+  if (KNOWN_TRANSPORTS.includes(requested)) return [requested];
 
-    const rejectOnce = (code, message, cause) => {
-      if (settled) return;
-      settled = true;
-      reject(
-        new SurfaceRuntimeError(code, message, {
-          cause,
-          receipt: unknownAfterDispatch(decision),
-        }),
-      );
-    };
+  throw new SurfaceRuntimeError(
+    "UNKNOWN_TRANSPORT",
+    `unknown transport projection ${String(requested)} for ${action.id}`,
+  );
+}
 
-    try {
-      fn({
-        ...config,
-        channel,
-        resultHandler: resolveOnce,
-        errorHandler: (error) =>
-          rejectOnce(
-            "TRANSPORT_OUTCOME_UNKNOWN",
-            `Phoenix Channel transport errored after dispatch for ${decision.actionId}; no HTTP fallback was attempted`,
-            error,
-          ),
-        timeoutHandler: () =>
-          rejectOnce(
-            "TRANSPORT_OUTCOME_UNKNOWN",
-            `Phoenix Channel transport timed out after dispatch for ${decision.actionId}; no HTTP fallback was attempted`,
-          ),
-      });
-    } catch (cause) {
-      rejectOnce(
-        "TRANSPORT_OUTCOME_UNKNOWN",
-        `Phoenix Channel invocation failed after dispatch for ${decision.actionId}`,
-        cause,
-      );
+function availableTransports(action, contract, transports, declared) {
+  return declared.filter((name) => {
+    const adapter = transports[name];
+    if (!adapter || typeof adapter.invoke !== "function") return false;
+
+    if (typeof adapter.available === "function") {
+      return adapter.available(action, contract) === true;
     }
+
+    return adapter.available !== false;
   });
 }
 
-function declaredTransports(action) {
-  const declared = ["http"];
-  if (action.variants?.channel === true && action.variantNames?.channel) {
-    declared.push("phoenix_channel");
-  }
-  return declared;
-}
-
-function availableTransports(action, rpc, channel) {
-  const available = [];
-  if (typeof rpc[action.functionName] === "function") available.push("http");
-
-  if (
-    action.variants?.channel === true &&
-    action.variantNames?.channel &&
-    channel &&
-    typeof rpc[action.variantNames.channel] === "function"
-  ) {
-    available.push("phoenix_channel");
-  }
-
-  return available;
-}
-
-function selectTransport(actionIdValue, declared, available, preferred) {
+function selectTransport(actionId, declared, available, preferred) {
   const selected = available.includes(preferred)
     ? preferred
     : declared.find((candidate) => available.includes(candidate));
@@ -233,10 +304,10 @@ function selectTransport(actionIdValue, declared, available, preferred) {
   if (!selected) {
     throw new SurfaceRuntimeError(
       "UNSUPPORTED_TRANSPORT",
-      `no admitted transport implementation is available for ${actionIdValue}`,
+      `no admitted transport implementation is available for ${actionId}`,
       {
         receipt: {
-          actionId: actionIdValue,
+          actionId,
           declared: [...declared],
           available: [...available],
           preferred,
@@ -250,7 +321,7 @@ function selectTransport(actionIdValue, declared, available, preferred) {
   }
 
   return {
-    actionId: actionIdValue,
+    actionId,
     declared: [...declared],
     available: [...available],
     selected,
@@ -269,28 +340,20 @@ function unknownAfterDispatch(decision) {
   return Object.freeze({ ...decision, dispatchState: "unknown_after_dispatch" });
 }
 
-function actionId(action) {
-  const namespace = action.namespace ?? "default";
-  return `${namespace}:${action.resource}:${action.functionName}`;
-}
-
-function assertManifest(manifest) {
-  if (!manifest || typeof manifest !== "object" || !Array.isArray(manifest.actions)) {
-    throw new SurfaceRuntimeError("INVALID_MANIFEST", "manifest.actions must be an array");
-  }
-
-  const [major] = String(manifest.version ?? "").split(".").map(Number);
-  if (major !== SUPPORTED_MANIFEST_MAJOR) {
-    throw new SurfaceRuntimeError(
-      "UNSUPPORTED_MANIFEST_VERSION",
-      `AshTypescript manifest major ${manifest.version ?? "<missing>"} is unsupported`,
-    );
-  }
-}
-
 function assertPreferred(prefer) {
-  if (prefer !== "http" && prefer !== "phoenix_channel") {
+  if (!KNOWN_TRANSPORTS.includes(prefer)) {
     throw new SurfaceRuntimeError("UNKNOWN_TRANSPORT", `unknown preferred transport: ${prefer}`);
+  }
+}
+
+function assertTransportAdapters(transports) {
+  if (!transports || typeof transports !== "object") {
+    throw new SurfaceRuntimeError("INVALID_TRANSPORTS", "transports must be an object");
+  }
+
+  const unknown = Object.keys(transports).filter((name) => !KNOWN_TRANSPORTS.includes(name));
+  if (unknown.length > 0) {
+    throw new SurfaceRuntimeError("UNKNOWN_TRANSPORT", `unknown transport adapter(s): ${unknown.join(", ")}`);
   }
 }
 
