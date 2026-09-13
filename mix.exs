@@ -1,7 +1,7 @@
 defmodule AshSurface.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "26.9.13"
   @source_url "https://github.com/seanchatmangpt/ash_surface"
 
   def project do

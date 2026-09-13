@@ -15,7 +15,8 @@ defmodule AshSurface do
 
   alias Ash.Info.Manifest
 
-  @surface_schema_version "0.1.0"
+  @surface_schema_version "26.9.13"
+  @generator_identity "ash_surface:v26.9.13"
 
   defmodule Surface do
     @moduledoc "A verified Ash surface contract and its exact normalized manifest."
@@ -113,6 +114,7 @@ defmodule AshSurface do
     %{
       "surfaceSchemaVersion" => @surface_schema_version,
       "ashManifestSchemaVersion" => Manifest.schema_version(),
+      "generatorIdentity" => @generator_identity,
       "manifest" => Ash.Info.Manifest.JsonSerializer.to_map(manifest),
       "surface" => surface_envelope(manifest, profile)
     }
@@ -125,12 +127,29 @@ defmodule AshSurface do
       manifest.entrypoints
       |> Enum.map(fn entrypoint ->
         id = action_id(entrypoint)
+        act_prof = Map.get(actions_profile, id, %{})
+
+        # Infer authority boundary default from action type
+        default_boundary =
+          case entrypoint.action.type do
+            :read -> "OBSERVE"
+            _ -> "DO"
+          end
+
+        authority_boundary = Map.get(act_prof, "authorityBoundary", default_boundary)
+        do_authority = Map.get(act_prof, "doAuthority", authority_boundary == "DO")
 
         %{
           "id" => id,
+          "semanticId" => Map.get(act_prof, "semanticId", "ash:#{id}"),
           "resource" => module_name(entrypoint.resource),
           "action" => to_string(entrypoint.action.name),
-          "profile" => Map.get(actions_profile, id, %{})
+          "authorityBoundary" => authority_boundary,
+          "doAuthority" => do_authority,
+          "receiptRequired" => Map.get(act_prof, "receiptRequired", true),
+          "evidenceRequired" => Map.get(act_prof, "evidenceRequired", false),
+          "possibleRefusals" => Map.get(act_prof, "possibleRefusals", []),
+          "profile" => act_prof
         }
       end)
       |> Enum.sort_by(& &1["id"])

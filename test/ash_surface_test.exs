@@ -72,15 +72,27 @@ defmodule AshSurfaceTest do
     assert surface.contract["surface"]["actions"] == [
              %{
                "action" => "create",
+               "authorityBoundary" => "DO",
+               "doAuthority" => true,
+               "evidenceRequired" => false,
                "id" => "AshSurfaceTest.Post#create",
+               "possibleRefusals" => [],
                "profile" => %{},
-               "resource" => "AshSurfaceTest.Post"
+               "receiptRequired" => true,
+               "resource" => "AshSurfaceTest.Post",
+               "semanticId" => "ash:AshSurfaceTest.Post#create"
              },
              %{
                "action" => "read",
+               "authorityBoundary" => "OBSERVE",
+               "doAuthority" => false,
+               "evidenceRequired" => false,
                "id" => "AshSurfaceTest.Post#read",
+               "possibleRefusals" => [],
                "profile" => %{"consumer" => "web"},
-               "resource" => "AshSurfaceTest.Post"
+               "receiptRequired" => true,
+               "resource" => "AshSurfaceTest.Post",
+               "semanticId" => "ash:AshSurfaceTest.Post#read"
              }
            ]
   end

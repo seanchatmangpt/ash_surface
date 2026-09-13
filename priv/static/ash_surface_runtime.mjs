@@ -8,8 +8,8 @@ import { z } from "zod";
  * emitted, or consumed.
  */
 
-export const SURFACE_RUNTIME_VERSION = "0.2.0";
-const SUPPORTED_SURFACE_MAJOR = 0;
+export const SURFACE_RUNTIME_VERSION = "26.9.13";
+const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
@@ -17,9 +17,57 @@ const jsonRecordSchema = z.record(z.string(), z.unknown());
 export const surfaceActionSchema = z
   .object({
     id: z.string().min(1),
+    semanticId: z.string().min(1).default("ash:Action"),
     resource: z.string().min(1),
     action: z.string().min(1),
+    authorityBoundary: z.enum(["OBSERVE", "SELECT", "CONSTRUCT", "DO"]).default("DO"),
+    doAuthority: z.boolean().default(true),
+    receiptRequired: z.boolean().default(true),
+    evidenceRequired: z.boolean().default(false),
+    possibleRefusals: z.array(z.string()).default([]),
     profile: jsonRecordSchema.default({}),
+  })
+  .passthrough();
+
+export const observationProjectionSchema = z
+  .object({
+    observationId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    observedAt: z.string().min(1),
+    stateDigest: z.string().min(1),
+    facts: jsonRecordSchema,
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: z.string().default("ALIVE"),
+    projectionPurpose: z.string().default("consumer_state_observation"),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+  })
+  .passthrough();
+
+export const planningEpisodeSchema = z
+  .object({
+    episodeId: z.string().min(1),
+    worldStateRef: z.string().min(1),
+    taskNetworkRef: z.string().nullable().optional(),
+    plannerIdentity: z.string().min(1),
+    policyIdentity: z.string().min(1),
+    policyStanding: z.enum(["VALID_STRONG", "VALID_STRONG_CYCLIC", "REFUSED"]).default("VALID_STRONG"),
+    candidateActions: z.array(z.unknown()).default([]),
+    authorityCeiling: z.enum(["SELECT", "CONSTRUCT"]).default("SELECT"),
+  })
+  .passthrough();
+
+export const eventProjectionSchema = z
+  .object({
+    eventId: z.string().min(1),
+    sequence: z.number().int().nonnegative(),
+    subjectRef: z.string().min(1),
+    eventType: z.string().min(1),
+    stateDigest: z.string().min(1),
+    evidenceRef: z.string().nullable().optional(),
+    receiptRef: z.string().nullable().optional(),
+    payload: jsonRecordSchema.nullable().optional(),
+    occurredAt: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
   })
   .passthrough();
 
@@ -27,6 +75,7 @@ export const ashSurfaceContractSchema = z
   .object({
     surfaceSchemaVersion: z.string().min(1),
     ashManifestSchemaVersion: z.string().min(1),
+    generatorIdentity: z.string().optional(),
     manifest: jsonRecordSchema,
     surface: z
       .object({
@@ -40,8 +89,14 @@ export const ashSurfaceContractSchema = z
 /**
  * @typedef {Object} SurfaceAction
  * @property {string} id Stable Ash action identity.
+ * @property {string} semanticId Formal semantic URI.
  * @property {string} resource Fully-qualified Ash resource module name.
  * @property {string} action Ash action name.
+ * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"} authorityBoundary
+ * @property {boolean} doAuthority
+ * @property {boolean} receiptRequired
+ * @property {boolean} evidenceRequired
+ * @property {string[]} possibleRefusals
  * @property {Record<string, unknown>} profile Projection-only metadata.
  */
 
@@ -49,6 +104,7 @@ export const ashSurfaceContractSchema = z
  * @typedef {Object} TransportAdapter
  * @property {(context: {action: SurfaceAction, input: unknown, contract: AshSurfaceContract, signal?: AbortSignal}) => Promise<unknown>} invoke
  * @property {((action: SurfaceAction, contract: AshSurfaceContract) => boolean) | boolean} [available]
+ * @property {((commandId: string) => Promise<{status: "COMPLETED"|"NOT_OBSERVED"|"STILL_UNKNOWN", receipt?: unknown}>)} [reconcile]
  */
 
 /**
@@ -61,6 +117,7 @@ export const ashSurfaceContractSchema = z
  * @typedef {Object} AshSurfaceContract
  * @property {string} surfaceSchemaVersion
  * @property {string} ashManifestSchemaVersion
+ * @property {string} [generatorIdentity]
  * @property {Record<string, unknown>} manifest Canonical serialized Ash semantics.
  * @property {{profile: Record<string, unknown>, actions: SurfaceAction[]}} surface
  */
@@ -89,81 +146,120 @@ export class SurfaceRuntimeError extends Error {
 
 /**
  * Creates the JavaScript application-facing client directly from an AshSurface
- * contract. No AshTypescript manifest or generated TypeScript artifact is used.
+ * contract.
  *
  * @param {Object} options
  * @param {unknown} options.contract Untrusted AshSurface JSON contract.
  * @param {Partial<Record<"http"|"phoenix_channel", TransportAdapter>>} options.transports
  * @param {"http"|"phoenix_channel"} [options.prefer="http"]
  * @param {Record<string, ActionSchemas>} [options.schemas] Zod schemas keyed by stable action id.
- * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, get(id: string): Object|null, inspect(id: string): Object}}
+ * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, events: Object, reconcile(commandId: string, transportName?: "http"|"phoenix_channel"): Promise<Object>, get(id: string): Object|null, inspect(id: string): Object}}
  */
-export function createClient({ contract, transports = {}, prefer = "http", schemas = {} }) {
-  const admittedContract = parseContract(contract);
+export function createClient(options) {
+  if (!options || typeof options !== "object") {
+    throw new SurfaceRuntimeError("INVALID_OPTIONS", "createClient options must be an object");
+  }
+
+  const contract = parseContract(options.contract);
+  const transports = options.transports ?? {};
+  const prefer = options.prefer ?? "http";
+  const schemas = options.schemas ?? {};
+
   assertPreferred(prefer);
   assertTransportAdapters(transports);
 
-  const actions = Object.create(null);
-  const resources = Object.create(null);
+  const actions = {};
+  const resources = {};
+  const eventListeners = new Map();
 
-  for (const action of admittedContract.surface.actions) {
+  for (const action of contract.surface.actions) {
     if (actions[action.id]) {
-      throw new SurfaceRuntimeError("DUPLICATE_ACTION_ID", `duplicate action identity: ${action.id}`);
-    }
-
-    const descriptor = Object.freeze({
-      id: action.id,
-      resource: action.resource,
-      action: action.action,
-      profile: Object.freeze({ ...action.profile }),
-      inspect() {
-        return inspectAction(action, admittedContract, transports, prefer);
-      },
-      async invoke(input, options = {}) {
-        const { result } = await invokeWithReceipt(
-          action,
-          input,
-          options,
-          admittedContract,
-          transports,
-          prefer,
-          schemas[action.id],
-        );
-        return result;
-      },
-      async invokeWithReceipt(input, options = {}) {
-        return invokeWithReceipt(
-          action,
-          input,
-          options,
-          admittedContract,
-          transports,
-          prefer,
-          schemas[action.id],
-        );
-      },
-    });
-
-    actions[action.id] = descriptor;
-    resources[action.resource] ??= Object.create(null);
-
-    if (resources[action.resource][action.action]) {
       throw new SurfaceRuntimeError(
-        "DUPLICATE_RESOURCE_ACTION",
-        `duplicate action ${action.action} on resource ${action.resource}`,
+        "DUPLICATE_ACTION_ID",
+        `duplicate action id: ${action.id}`,
       );
     }
 
-    resources[action.resource][action.action] = descriptor;
+    const actionSchemas = schemas[action.id];
+    const actionClient = Object.freeze({
+      id: action.id,
+      semanticId: action.semanticId,
+      authorityBoundary: action.authorityBoundary,
+      doAuthority: action.doAuthority,
+      possibleRefusals: Object.freeze([...(action.possibleRefusals || [])]),
+      resource: action.resource,
+      action: action.action,
+      profile: Object.freeze({ ...action.profile }),
+      invoke(input, callOptions = {}) {
+        return invokeWithReceipt(
+          action,
+          input,
+          callOptions,
+          contract,
+          transports,
+          prefer,
+          actionSchemas,
+        ).then(({ result }) => result);
+      },
+      invokeWithReceipt(input, callOptions = {}) {
+        return invokeWithReceipt(
+          action,
+          input,
+          callOptions,
+          contract,
+          transports,
+          prefer,
+          actionSchemas,
+        );
+      },
+      inspect() {
+        return inspectAction(action, contract, transports, prefer);
+      },
+    });
+
+    actions[action.id] = actionClient;
+
+    if (!resources[action.resource]) resources[action.resource] = {};
+    resources[action.resource][action.action] = actionClient;
   }
 
+  freezeRecordValues(actions);
   freezeRecordValues(resources);
+
+  const events = Object.freeze({
+    subscribe(subjectRef, callback) {
+      if (!eventListeners.has(subjectRef)) eventListeners.set(subjectRef, new Set());
+      eventListeners.get(subjectRef).add(callback);
+      return () => {
+        eventListeners.get(subjectRef)?.delete(callback);
+      };
+    },
+    emit(eventData) {
+      const parsed = eventProjectionSchema.parse(eventData);
+      const listeners = eventListeners.get(parsed.subjectRef);
+      if (listeners) {
+        for (const cb of listeners) cb(parsed);
+      }
+    },
+  });
 
   return Object.freeze({
     runtimeVersion: SURFACE_RUNTIME_VERSION,
-    contract: admittedContract,
-    actions: Object.freeze(actions),
-    resources: Object.freeze(resources),
+    contract,
+    actions,
+    resources,
+    events,
+    async reconcile(commandId, transportName = prefer) {
+      const adapter = transports[transportName];
+      if (!adapter || typeof adapter.reconcile !== "function") {
+        return {
+          commandId,
+          status: "STILL_UNKNOWN",
+          reason: "transport_reconciliation_unsupported",
+        };
+      }
+      return await adapter.reconcile(commandId);
+    },
     get(id) {
       return actions[id] ?? null;
     },
@@ -185,7 +281,7 @@ function parseContract(contract) {
   }
 
   const [major] = parsed.data.surfaceSchemaVersion.split(".").map(Number);
-  if (major !== SUPPORTED_SURFACE_MAJOR) {
+  if (!SUPPORTED_SURFACE_MAJORS.includes(major)) {
     throw new SurfaceRuntimeError(
       "UNSUPPORTED_SURFACE_VERSION",
       `AshSurface contract major ${parsed.data.surfaceSchemaVersion} is unsupported`,
@@ -202,6 +298,9 @@ function inspectAction(action, contract, transports, prefer) {
 
   return Object.freeze({
     id: action.id,
+    semanticId: action.semanticId,
+    authorityBoundary: action.authorityBoundary,
+    doAuthority: action.doAuthority,
     declared: Object.freeze([...declared]),
     available: Object.freeze([...available]),
     decision: Object.freeze({ ...decision }),
@@ -236,28 +335,32 @@ async function invokeWithReceipt(
   const decision = selectTransport(action.id, declared, available, prefer);
   const adapter = transports[decision.selected];
 
+  const commandId = options.commandId || `cmd_${Math.random().toString(36).substring(2, 11)}`;
+
   try {
-    const result = await adapter.invoke({
+    const response = await adapter.invoke({
       action,
       input: admittedInput,
+      commandId,
       contract,
       signal: options.signal,
     });
 
-    let admittedOutput = result;
+    let admittedOutput = response;
     if (actionSchemas?.output) {
       try {
-        admittedOutput = actionSchemas.output.parse(result);
+        admittedOutput = actionSchemas.output.parse(response);
       } catch (cause) {
         throw new SurfaceRuntimeError(
           "OUTPUT_VALIDATION_FAILED",
           `output failed Zod validation for ${action.id}`,
-          { cause, receipt: complete(decision) },
+          { cause, receipt: buildMXReceipt(decision, action, commandId, "completed", response) },
         );
       }
     }
 
-    return { result: admittedOutput, receipt: complete(decision) };
+    const receipt = buildMXReceipt(decision, action, commandId, "completed", admittedOutput);
+    return { result: admittedOutput, receipt };
   } catch (cause) {
     if (cause instanceof SurfaceRuntimeError && cause.code === "OUTPUT_VALIDATION_FAILED") {
       throw cause;
@@ -266,9 +369,26 @@ async function invokeWithReceipt(
     throw new SurfaceRuntimeError(
       "TRANSPORT_OUTCOME_UNKNOWN",
       `${decision.selected} transport failed after dispatch for ${action.id}; no automatic cross-transport retry was attempted`,
-      { cause, receipt: unknownAfterDispatch(decision) },
+      { cause, receipt: buildMXReceipt(decision, action, commandId, "unknown_after_dispatch", null) },
     );
   }
+}
+
+function buildMXReceipt(decision, action, commandId, dispatchState, result) {
+  const domainReceiptRef = result?.receiptRef || result?.receipt?.hash || null;
+  const outcome = dispatchState === "completed" ? "SUCCESS" : "UNKNOWN_AFTER_DISPATCH";
+
+  return Object.freeze({
+    ...decision,
+    commandId,
+    semanticId: action.semanticId,
+    authorityBoundary: action.authorityBoundary,
+    doAuthority: action.doAuthority,
+    dispatchState,
+    outcome,
+    domainReceiptRef,
+    timestamp: new Date().toISOString(),
+  });
 }
 
 function declaredTransports(action) {
@@ -330,14 +450,6 @@ function selectTransport(actionId, declared, available, preferred) {
     fallback: "pre_dispatch_only",
     dispatchState: "not_dispatched",
   };
-}
-
-function complete(decision) {
-  return Object.freeze({ ...decision, dispatchState: "completed" });
-}
-
-function unknownAfterDispatch(decision) {
-  return Object.freeze({ ...decision, dispatchState: "unknown_after_dispatch" });
 }
 
 function assertPreferred(prefer) {
