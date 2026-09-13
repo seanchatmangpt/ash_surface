@@ -1,0 +1,19 @@
+name: Manufacture
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    permissions:
+      contents: read
+    uses: seanchatmangpt/ggen/.github/workflows/ggen-sync-run.yml@83a02070d021fbbd66426793d47bc1d68d0603c6
+    with:
+      ggen_release: v26.9.9
+      ggen_asset_sha256: ad4ab79923d17e32960383aaf5fab8e174bc8d0972872cdf1b3ecc5d11ed9e36
+      working_directory: .
+      dry_run: false

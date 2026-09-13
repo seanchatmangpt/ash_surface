@@ -1,0 +1,12 @@
+{
+  "name": "ash_surface-js-projection",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check priv/static/ash_surface_runtime.mjs",
+    "test": "node --test test/js/*.test.mjs"
+  },
+  "dependencies": {
+    "zod": "4.6.1"
+  }
+}
