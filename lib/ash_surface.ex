@@ -87,6 +87,8 @@ defmodule AshSurface do
   @doc "Projects a verified surface through a declared projector module."
   @spec project(Surface.t(), module(), keyword()) :: {:ok, term(), map()} | {:error, term()}
   def project(%Surface{} = surface, projector, opts \\ []) when is_atom(projector) do
+    Code.ensure_loaded(projector)
+
     if function_exported?(projector, :project, 2) do
       projector.project(surface, opts)
     else
