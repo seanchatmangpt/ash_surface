@@ -1,5 +1,7 @@
 defmodule AshSurfaceTest.RealPost do
-  use Ash.Resource, data_layer: Ash.DataLayer.Ets
+  use Ash.Resource,
+    domain: nil,
+    data_layer: Ash.DataLayer.Ets
 
   attributes do
     uuid_primary_key(:id)
