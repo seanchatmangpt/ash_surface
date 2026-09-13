@@ -20,7 +20,10 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
   alias AshSurface.Fixtures.{Server, VolunteerMilestone}
 
   @tmp_dir Path.expand("../../_build/test/mx_closed_loop", __DIR__)
-  @verifier_script Path.expand("../../ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py", __DIR__)
+  @verifier_script Path.expand(
+                     "../../ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py",
+                     __DIR__
+                   )
 
   setup do
     File.rm_rf!(@tmp_dir)
@@ -36,7 +39,9 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
     {:ok, server_pid: server_pid, port: port}
   end
 
-  test "complete machine-only closed loop execution and independent episode verification", %{port: port} do
+  test "complete machine-only closed loop execution and independent episode verification", %{
+    port: port
+  } do
     # 1. Step 1: Authoritative XaaS/Ash state observation projection
     facts = %{
       "kingdom_need_id" => "need_zoela_77",
@@ -152,7 +157,13 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
       "hddl_version" => "v26.9.13",
       "fond_version" => "v26.9.13",
       "verifier_version" => "v26.9.13",
-      "selected_decomposition" => ["observe_state", "project_candidates", "authorize_candidate", "actuate_brce", "emit_event"],
+      "selected_decomposition" => [
+        "observe_state",
+        "project_candidates",
+        "authorize_candidate",
+        "actuate_brce",
+        "emit_event"
+      ],
       "observed_transitions" => [
         %{"step" => "observe", "state_digest" => obs.state_digest},
         %{"step" => "actuate", "outcome" => "pass", "consequence_id" => record.id}
