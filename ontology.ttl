@@ -1,5 +1,9 @@
 @prefix aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#> .
 @prefix surf: <https://github.com/seanchatmangpt/ash_surface#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix earl: <http://www.w3.org/ns/earl#> .
 
 surf:AshSurfaceSpec a aex:AshExtensionSpec ;
     aex:packageName "ash_surface" ;
@@ -71,3 +75,73 @@ surf:TransportChannel a aex:FieldOneOfValue ;
     aex:oneOfValueOf surf:ProjectionTransportField ;
     aex:oneOfValueOrder 3 ;
     aex:oneOfValueName "phoenix_channel" .
+
+# Accessibility surface semantics intentionally align to public W3C vocabularies
+# instead of cloning the WAI-ARIA role taxonomy into AshSurface.
+surf:AccessibilityVocabulary a rdfs:Class .
+surf:SurfaceObserver a rdfs:Class .
+surf:SurfaceObservation a rdfs:Class .
+surf:AccessibilityProbe a rdfs:Class .
+surf:ProbeResult a rdfs:Class ;
+    rdfs:subClassOf earl:TestResult .
+
+surf:WaiAriaVocabulary a surf:AccessibilityVocabulary ;
+    surf:specification <https://www.w3.org/TR/wai-aria/> .
+
+surf:ActRulesFormat a rdfs:Resource ;
+    surf:specification <https://www.w3.org/TR/act-rules-format/> .
+
+surf:EarlVocabulary a rdfs:Resource ;
+    surf:specification <https://www.w3.org/TR/EARL10-Schema/> .
+
+surf:PlaywrightAccessibilityObserver a surf:SurfaceObserver ;
+    surf:usesVocabulary surf:WaiAriaVocabulary ;
+    surf:runtime "playwright" ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:emits surf:AccessibilityObservationProjection .
+
+surf:AccessibilityObservationProjection a surf:SurfaceObservation ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:conformanceRuleFormat surf:ActRulesFormat ;
+    surf:resultVocabulary surf:EarlVocabulary .
+
+surf:specification a rdf:Property ;
+    rdfs:range rdfs:Resource .
+
+surf:usesVocabulary a rdf:Property ;
+    rdfs:domain surf:SurfaceObserver ;
+    rdfs:range surf:AccessibilityVocabulary .
+
+surf:runtime a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:authorityBoundary a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:emits a rdf:Property ;
+    rdfs:domain surf:SurfaceObserver ;
+    rdfs:range surf:SurfaceObservation .
+
+surf:expectedRoleName a rdf:Property ;
+    rdfs:domain surf:AccessibilityProbe ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Concrete WAI-ARIA role name consumed by Playwright getByRole; the WAI-ARIA specification remains authoritative." .
+
+surf:expectedRoleSpec a rdf:Property ;
+    rdfs:domain surf:AccessibilityProbe ;
+    rdfs:range rdfs:Resource .
+
+surf:expectedAccessibleName a rdf:Property ;
+    rdfs:domain surf:AccessibilityProbe ;
+    rdfs:range xsd:string .
+
+surf:denotes a rdf:Property ;
+    rdfs:domain surf:AccessibilityProbe ;
+    rdfs:comment "Links an accessible surface target to the domain object it denotes." .
+
+surf:affordsCapability a rdf:Property ;
+    rdfs:domain surf:AccessibilityProbe ;
+    rdfs:comment "Links an accessible surface target to a canonical capability identity; it does not grant execution authority." .
+
+surf:conformanceRuleFormat a rdf:Property .
+surf:resultVocabulary a rdf:Property .
