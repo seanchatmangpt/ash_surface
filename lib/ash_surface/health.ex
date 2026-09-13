@@ -24,7 +24,6 @@ defmodule AshSurface.Health do
   """
 
   @required_apps [:ash_surface, :ash, :spark, :jason]
-  @known_transports [:http, :phoenix_channel]
 
   @type check_result :: %{
           name: atom(),
