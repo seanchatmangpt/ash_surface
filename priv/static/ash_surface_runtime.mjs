@@ -76,6 +76,10 @@ export const ashSurfaceContractSchema = z
     surfaceSchemaVersion: z.string().min(1),
     ashManifestSchemaVersion: z.string().min(1),
     generatorIdentity: z.string().optional(),
+    manifestDigest: z.string().optional(),
+    ontologyDigest: z.string().optional(),
+    marketplaceIdentity: z.string().optional(),
+    applicationReleaseIdentity: z.string().optional(),
     manifest: jsonRecordSchema,
     surface: z
       .object({
@@ -375,8 +379,19 @@ async function invokeWithReceipt(
 }
 
 function buildMXReceipt(decision, action, commandId, dispatchState, result) {
-  const domainReceiptRef = result?.receiptRef || result?.receipt?.hash || null;
+  const domainReceiptRef = result?.receiptRef || result?.receipt?.hash || result?.data?.id || null;
   const outcome = dispatchState === "completed" ? "SUCCESS" : "UNKNOWN_AFTER_DISPATCH";
+
+  const transportReceipt = Object.freeze({
+    actionId: decision.actionId,
+    selected: decision.selected,
+    preferred: decision.preferred,
+    reason: decision.reason,
+    fallback: decision.fallback,
+    dispatchState,
+    declared: [...decision.declared],
+    available: [...decision.available],
+  });
 
   return Object.freeze({
     ...decision,
@@ -387,6 +402,8 @@ function buildMXReceipt(decision, action, commandId, dispatchState, result) {
     dispatchState,
     outcome,
     domainReceiptRef,
+    transportReceipt,
+    consequenceReceipt: result?.consequenceReceipt || (result?.data ? { id: result.data.id, data: result.data } : null),
     timestamp: new Date().toISOString(),
   });
 }

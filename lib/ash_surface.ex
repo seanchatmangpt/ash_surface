@@ -113,11 +113,16 @@ defmodule AshSurface do
   def runtime_source, do: File.read(runtime_path())
 
   defp contract(%Manifest{} = manifest, profile) do
+    serialized_manifest = Ash.Info.Manifest.JsonSerializer.to_map(manifest)
+    manifest_digest = digest(serialized_manifest)
+
     %{
       "surfaceSchemaVersion" => @surface_schema_version,
       "ashManifestSchemaVersion" => Manifest.schema_version(),
       "generatorIdentity" => @generator_identity,
-      "manifest" => Ash.Info.Manifest.JsonSerializer.to_map(manifest),
+      "manifestDigest" => manifest_digest,
+      "marketplaceIdentity" => "ggen-marketplace:v26.9.13",
+      "manifest" => serialized_manifest,
       "surface" => surface_envelope(manifest, profile)
     }
   end

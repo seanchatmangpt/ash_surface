@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   createClient,
   SurfaceRuntimeError,
+  observationProjectionSchema,
+  planningEpisodeSchema,
+  eventProjectionSchema,
 } from "../../priv/static/ash_surface_runtime.mjs";
 
 function contract(actions, overrides = {}) {
@@ -171,4 +174,119 @@ test("refuses a duplicate action id within one contract", () => {
     () => createClient({ contract: contract(actions), transports: {} }),
     (error) => error instanceof SurfaceRuntimeError && error.code === "DUPLICATE_ACTION_ID",
   );
+});
+
+test("observationProjectionSchema validates read-only world state snapshot", () => {
+  const obs = {
+    observationId: "obs_abc123",
+    exactSubject: "zoe:KingdomNeed#need_42",
+    observedAt: new Date().toISOString(),
+    stateDigest: "9f83a0bc8192a0129f83a0bc8192a0129f83a0bc8192a0129f83a0bc8192a012",
+    facts: { open_opportunities: 3, standing: "ALIVE" },
+    evidenceRefs: ["ev_123"],
+    standing: "ALIVE",
+    projectionPurpose: "consumer_state_observation",
+    authorityBoundary: "OBSERVE",
+  };
+
+  const parsed = observationProjectionSchema.parse(obs);
+  assert.equal(parsed.authorityBoundary, "OBSERVE");
+  assert.equal(parsed.exactSubject, "zoe:KingdomNeed#need_42");
+  assert.equal(parsed.facts.open_opportunities, 3);
+});
+
+test("planningEpisodeSchema validates FOND/HDDL candidates with non-DO authority ceiling", () => {
+  const episode = {
+    episodeId: "ep_789xyz",
+    worldStateRef: "obs_abc123",
+    plannerIdentity: "ash_pplan:solver",
+    policyIdentity: "zoe:policy:strong_cyclic",
+    policyStanding: "VALID_STRONG_CYCLIC",
+    candidateActions: [{ action: "select_option", candidate: "care_driver" }],
+    authorityCeiling: "SELECT",
+  };
+
+  const parsed = planningEpisodeSchema.parse(episode);
+  assert.equal(parsed.authorityCeiling, "SELECT");
+  assert.equal(parsed.policyStanding, "VALID_STRONG_CYCLIC");
+
+  assert.throws(() => {
+    planningEpisodeSchema.parse({
+      ...episode,
+      authorityCeiling: "DO", // Refused: Planner != DO
+    });
+  });
+});
+
+test("eventProjectionSchema validates realtime server-to-client observation events", () => {
+  const event = {
+    eventId: "ev_001",
+    sequence: 42,
+    subjectRef: "zoe:KingdomNeed#need_42",
+    eventType: "state_changed",
+    stateDigest: "digest123",
+    occurredAt: new Date().toISOString(),
+    authorityBoundary: "OBSERVE",
+  };
+
+  const parsed = eventProjectionSchema.parse(event);
+  assert.equal(parsed.sequence, 42);
+  assert.equal(parsed.authorityBoundary, "OBSERVE");
+});
+
+test("reconciliation resolves unknown command without re-actuation", async () => {
+  const reconciledCommands = [];
+  const transports = {
+    http: {
+      async invoke() {
+        return { success: true };
+      },
+      async reconcile(commandId) {
+        reconciledCommands.push(commandId);
+        return {
+          commandId,
+          status: "COMPLETED",
+          receipt: { hash: "receipt_hash_123" },
+        };
+      },
+    },
+  };
+
+  const client = createClient({
+    contract: contract([action()]),
+    transports,
+    prefer: "http",
+  });
+
+  const res = await client.reconcile("cmd_offline_001");
+  assert.equal(res.status, "COMPLETED");
+  assert.deepEqual(reconciledCommands, ["cmd_offline_001"]);
+});
+
+test("composed MX receipt separates transport disposition from domain consequences", async () => {
+  const transports = {
+    http: {
+      async invoke() {
+        return {
+          success: true,
+          data: { id: "record_uuid_123", status: "completed" },
+          consequenceReceipt: { hash: "consequence_sha256_witness" },
+        };
+      },
+    },
+  };
+
+  const client = createClient({
+    contract: contract([action({ semanticId: "zoe:SelectOption", authorityBoundary: "SELECT", doAuthority: false })]),
+    transports,
+    prefer: "http",
+  });
+
+  const { result, receipt } = await client.get("todos:Todo:create").invokeWithReceipt({ title: "test" });
+  assert.equal(result.success, true);
+  assert.equal(receipt.authorityBoundary, "SELECT");
+  assert.equal(receipt.doAuthority, false);
+  assert.equal(receipt.transportReceipt.selected, "http");
+  assert.equal(receipt.transportReceipt.dispatchState, "completed");
+  assert.equal(receipt.consequenceReceipt.hash, "consequence_sha256_witness");
 });
