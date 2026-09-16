@@ -136,6 +136,31 @@ AshSurface may manufacture adapters/descriptors for those consumers without abso
 
 The Ash extension surface is modeled as admitted RDF and manufactured through `ggen-marketplace/packs/ash-extension-core-pack` rather than hand-maintained Spark boilerplate. The generated extension artifacts are pack-owned; edits belong in the ontology/pack path and must be regenerated.
 
+## Testing
+
+Two commands, zero configuration: no environment variables, no database, no external services. The Elixir suite builds a real Ash application inside the test process.
+
+```bash
+mix test   # Elixir suite
+npm test   # JavaScript suite (node --test)
+```
+
+`mix test` shells out to Node for the consumer-execution paths, so Node plus a one-time `npm install` (see Development) are the only prerequisites.
+
+What is covered:
+
+- **Core contract** — `AshSurface.from_manifest/2`: surface envelope, SHA-256 digest, refusal of unknown action metadata.
+- **Consumer fixture (Elixir)** — end-to-end execution: manifest -> surface -> JS runtime -> HTTP dispatch -> Ash consequence -> cryptographic receipt.
+- **Closed-loop episodes** — machine-only execution with independent episode verification.
+- **Planning episodes** — FOND/HDDL projection under a strict non-DO authority ceiling.
+- **Observations and events** — verified observation projections with content-addressed `stateDigest`, plus realtime event projection.
+- **Health** — `AshSurface.Health.check/0` against real checks in the test runtime.
+- **Expo projector** — complete Expo client artifacts verified with `node --check`.
+- **JavaScript runtime** — `createClient`, stable resource/action namespaces, adaptive transport selection, Zod boundary validation, dispatch receipts.
+- **JavaScript consumer fixtures** — the AshSurface contract consumed by real Node test runners, including the Zoela MX consumer.
+
+See `TESTING.md` for the full testing doctrine and `scripts/zero_config_check.sh` for the zero-configuration guard.
+
 ## Development
 
 ```bash
