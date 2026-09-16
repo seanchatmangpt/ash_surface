@@ -1,4 +1,3 @@
-
 defmodule AshSurface.Intent.IR do
   @moduledoc """
   Canonical IR action shape consumed by the candidate envelope.

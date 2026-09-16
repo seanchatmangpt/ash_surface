@@ -138,7 +138,10 @@ defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR do
       "presentation" => ir.presentation
     }
 
-    artifacts = %{"#{prefix}.ir.json" => AshSurface.ProjectorIRDeterminism.IR.to_canonical_json(document) <> "\n"}
+    artifacts = %{
+      "#{prefix}.ir.json" =>
+        AshSurface.ProjectorIRDeterminism.IR.to_canonical_json(document) <> "\n"
+    }
 
     write!(artifacts, Keyword.get(opts, :target_dir))
 

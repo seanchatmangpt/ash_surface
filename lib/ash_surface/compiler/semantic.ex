@@ -9,8 +9,6 @@
 #
 # When those files land, these local declarations move there unchanged.
 
-
-
 defmodule AshSurface.Compiler.Semantic do
   @moduledoc """
   Semantic section builder: pure delegation to AshR2RML's mapping surface.
@@ -32,7 +30,6 @@ defmodule AshSurface.Compiler.Semantic do
        semantic variation waits on an AshR2RML surface that admits it. This
        module does not consult Ash action introspection to fake one.
   """
-
 
   alias AshR2RML.Mapping
   alias AshR2RML.Resource.Info, as: R2RMLInfo

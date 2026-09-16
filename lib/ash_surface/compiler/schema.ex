@@ -34,7 +34,6 @@ defmodule AshSurface.Compiler.Schema do
   `AshSurface.Compiler.IR.Schema` and `meta` carries the section counts.
   """
 
-
   # The established zod mapping table. This mirrors
   # AshSurface.Projector.Expo.map_zod_type/1 exactly; drift between the two
   # is a contract break, not a local choice.

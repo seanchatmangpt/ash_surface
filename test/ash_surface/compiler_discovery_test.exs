@@ -146,7 +146,6 @@ defmodule AshSurface.CompilerDiscoveryTest do
   # `:sections` override — the compiler's own test seam.
   # ---------------------------------------------------------------------------
 
-
   defp echo_sections, do: Enum.map(@section_keys, &{&1, EchoSection})
 
   defp compile_with_echo(source),
@@ -168,4 +167,3 @@ defmodule AshSurface.CompilerDiscoveryTest do
     end)
   end
 end
-

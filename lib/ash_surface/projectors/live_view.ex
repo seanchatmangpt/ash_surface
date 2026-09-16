@@ -5,7 +5,6 @@
 #   - `AshSurface.IR`           (canonical shape of lib/ash_surface/ir.ex)
 #   - `AshSurface.Projector.IR` (behaviour of lib/ash_surface/projector/ir.ex)
 
-
 defmodule AshSurface.Projectors.LiveView do
   @moduledoc """
   Ash admin-pattern human projection as DATA (no Phoenix dependency).
@@ -207,7 +206,9 @@ defmodule AshSurface.Projectors.LiveView do
 
   defp action_control(%AshSurface.IR{} = ir) do
     id = surface_action_id(ir)
-    gated = AshSurface.IR.Capability.authority_required(ir.capability || %AshSurface.IR.Capability{})
+
+    gated =
+      AshSurface.IR.Capability.authority_required(ir.capability || %AshSurface.IR.Capability{})
 
     %{
       "surface_action_id" => id,

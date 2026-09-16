@@ -165,10 +165,15 @@ defmodule AshSurface.IRStructTest.IR do
       version: nil_or_string!(Keyword.get(attrs, :version), :version),
       digest: nil_or_string!(Keyword.get(attrs, :digest), :digest),
       ash: section_struct!(AshSurface.IRStructTest.IR.Ash, Keyword.get(attrs, :ash)),
-      semantic: section_struct!(AshSurface.IRStructTest.IR.Semantic, Keyword.get(attrs, :semantic)),
-      capability: section_struct!(AshSurface.IRStructTest.IR.Capability, Keyword.get(attrs, :capability)),
+      semantic:
+        section_struct!(AshSurface.IRStructTest.IR.Semantic, Keyword.get(attrs, :semantic)),
+      capability:
+        section_struct!(AshSurface.IRStructTest.IR.Capability, Keyword.get(attrs, :capability)),
       presentation:
-        section_struct!(AshSurface.IRStructTest.IR.Presentation, Keyword.get(attrs, :presentation)),
+        section_struct!(
+          AshSurface.IRStructTest.IR.Presentation,
+          Keyword.get(attrs, :presentation)
+        ),
       schema: section_struct!(AshSurface.IRStructTest.IR.Schema, Keyword.get(attrs, :schema))
     }
   end
@@ -220,8 +225,21 @@ defmodule AshSurface.IRStructTest do
   # The canonical field sets, pinned independently of the defstructs above so
   # a shape drift in either direction breaks this build.
   @canonical_fields %{
-    AshSurface.IRStructTest.IR.Ash => [:resource, :action, :action_type, :inputs, :outputs, :policies],
-    AshSurface.IRStructTest.IR.Semantic => [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology],
+    AshSurface.IRStructTest.IR.Ash => [
+      :resource,
+      :action,
+      :action_type,
+      :inputs,
+      :outputs,
+      :policies
+    ],
+    AshSurface.IRStructTest.IR.Semantic => [
+      :subject_iri,
+      :capability_iri,
+      :predicates,
+      :shape_id,
+      :ontology
+    ],
     AshSurface.IRStructTest.IR.Capability => [
       :capability_id,
       :consequence_class,

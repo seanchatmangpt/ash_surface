@@ -6,7 +6,6 @@
 # rather than rewrites. Sibling sections (semantics, capability, presentation)
 # own the other facets; this section populates `IR.Ash` only.
 
-
 defmodule AshSurface.Compiler.Ash do
   @moduledoc false
 

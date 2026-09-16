@@ -93,7 +93,10 @@ defmodule AshSurface.LiveViewProjectorTest.Projector.IR do
   reference `surface_action_id` intent targets only.
   """
 
-  @callback project_ir(AshSurface.LiveViewProjectorTest.IR.t() | [AshSurface.LiveViewProjectorTest.IR.t()], keyword()) ::
+  @callback project_ir(
+              AshSurface.LiveViewProjectorTest.IR.t() | [AshSurface.LiveViewProjectorTest.IR.t()],
+              keyword()
+            ) ::
               {:ok, map(), map()} | {:error, term()}
 end
 
@@ -395,7 +398,8 @@ defmodule AshSurface.LiveViewProjectorTest.Projectors.LiveView do
 
   defp action_name(%AshSurface.LiveViewProjectorTest.IR{} = ir), do: to_string(ir.ash.action)
 
-  defp resource_name(%AshSurface.LiveViewProjectorTest.IR{} = ir), do: module_name(ir.ash.resource)
+  defp resource_name(%AshSurface.LiveViewProjectorTest.IR{} = ir),
+    do: module_name(ir.ash.resource)
 
   defp surface_action_id(%AshSurface.LiveViewProjectorTest.IR{} = ir),
     do: "#{resource_name(ir)}##{action_name(ir)}"
@@ -572,7 +576,11 @@ defmodule AshSurface.LiveViewProjectorTest do
         predicates: %{
           "relationships" => [
             %{"name" => "users", "destination" => "Accounts.User"},
-            %{"name" => "billing_profile", "destination" => "Accounts.BillingProfile", "cardinality" => "one"}
+            %{
+              "name" => "billing_profile",
+              "destination" => "Accounts.BillingProfile",
+              "cardinality" => "one"
+            }
           ]
         }
       ),

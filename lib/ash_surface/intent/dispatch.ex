@@ -18,7 +18,6 @@ defmodule AshSurface.Intent.CommandBus do
   @callback submit(AshSurface.Intent.Envelope.t(), map()) :: {:ok, term()} | {:error, term()}
 end
 
-
 defmodule AshSurface.Intent.Envelope do
   @moduledoc """
   The minimal manufactured intent handed to an injected `CommandBus`.

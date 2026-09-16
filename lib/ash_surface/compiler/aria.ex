@@ -4,7 +4,6 @@
 # When the canonical modules land, these two local declarations must be dropped
 # without changing one byte of `AshSurface.Compiler.Aria`.
 
-
 defmodule AshSurface.Compiler.Aria do
   @moduledoc """
   Accessibility semantics as data: a conservative ARIA contract per action input.

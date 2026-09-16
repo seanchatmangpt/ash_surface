@@ -165,8 +165,6 @@ defmodule AshSurface.IR do
           }
   end
 
-
-
   # -- Ash-facet sub-shapes (v29, verbatim; carried inside IR.Ash inputs/outputs/policies) --
 
   defmodule Input do

@@ -3,26 +3,26 @@
 # `authority_required`. Extracted verbatim from ir.ex at v50 integration.
 
 defmodule AshSurface.IR.Capability do
-    @moduledoc """
-    Facts admitted from capability law. `authority_required` and
-    `receipt_required` are recorded requirements, not grants: the IR confers
-    no DO-authority.
-    """
+  @moduledoc """
+  Facts admitted from capability law. `authority_required` and
+  `receipt_required` are recorded requirements, not grants: the IR confers
+  no DO-authority.
+  """
 
-    defstruct [
-      :capability_id,
-      :consequence_class,
-      authority_required: false,
-      receipt_required: false
-    ]
+  defstruct [
+    :capability_id,
+    :consequence_class,
+    authority_required: false,
+    receipt_required: false
+  ]
 
-    @type t :: %__MODULE__{
-            capability_id: String.t() | nil,
-            consequence_class: String.t() | atom() | nil,
-            authority_required: boolean(),
-            receipt_required: boolean()
-          }
-  
+  @type t :: %__MODULE__{
+          capability_id: String.t() | nil,
+          consequence_class: String.t() | atom() | nil,
+          authority_required: boolean(),
+          receipt_required: boolean()
+        }
+
   @doc """
   Reads the recorded authority requirement — a carried fact, never a grant.
   """
