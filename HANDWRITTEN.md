@@ -4,3 +4,4 @@ Format: path | semantic element | missing capability | intended owner pack | dat
 
 mix.exs | "test.all"/"test.zero"/"test.js" aliases + cli preferred_envs (cross-suite runner, env -i zero-config proof) | mix.exs alias/cli template emission | ash-extension-core (ggen-marketplace) | 2026-09-15
 docs/TESTING_QUICKSTART.md | testing quickstart entry doc | test-entry doc template | ash-extension-core (ggen-marketplace) | 2026-09-15
+ARCHITECTURE.md | v26.9.16 architecture text-art: full-loop diagram, SurfaceIR five-section table, edge-ownership table, delegation corrections, ~60-line projector recipe | architecture-doc projection from ontology facts (sections/edges/delegated facts already pack truth) | ash-extension-core (ggen-marketplace) | 2026-09-15
