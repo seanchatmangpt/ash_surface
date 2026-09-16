@@ -1,4 +1,4 @@
-defmodule AshSurface.IR do
+defmodule AshSurface.ProjectorIRDeterminism.IR do
   @moduledoc false
 
   # Test-local double for the absent lib/ash_surface/ir.ex sibling: a
@@ -106,7 +106,7 @@ defmodule AshSurface.IR do
   defp canonical(term), do: term
 end
 
-defmodule AshSurface.Projector.IR do
+defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR do
   @moduledoc false
 
   # Test-local double for the absent lib/ash_surface/projector/ir.ex sibling:
@@ -120,14 +120,14 @@ defmodule AshSurface.Projector.IR do
   @impl true
   def project(%AshSurface.Surface{} = surface, opts) do
     surface
-    |> AshSurface.IR.from_surface()
+    |> AshSurface.ProjectorIRDeterminism.IR.from_surface()
     |> project(opts)
   end
 
-  def project(%AshSurface.IR{} = ir, opts) do
+  def project(%AshSurface.ProjectorIRDeterminism.IR{} = ir, opts) do
     prefix = Keyword.get(opts, :prefix, "surface_ir")
 
-    order = AshSurface.IR.resolved_order(ir)
+    order = AshSurface.ProjectorIRDeterminism.IR.resolved_order(ir)
     nodes_by_id = Map.new(ir.nodes, &{&1["id"], &1})
 
     document = %{
@@ -138,7 +138,7 @@ defmodule AshSurface.Projector.IR do
       "presentation" => ir.presentation
     }
 
-    artifacts = %{"#{prefix}.ir.json" => AshSurface.IR.to_canonical_json(document) <> "\n"}
+    artifacts = %{"#{prefix}.ir.json" => AshSurface.ProjectorIRDeterminism.IR.to_canonical_json(document) <> "\n"}
 
     write!(artifacts, Keyword.get(opts, :target_dir))
 
@@ -154,7 +154,7 @@ defmodule AshSurface.Projector.IR do
   end
 end
 
-defmodule AshSurface.Projector.IR.Descriptor do
+defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR.Descriptor do
   @moduledoc false
 
   # Test-local double: the text descriptor projector kind. Same ordering and
@@ -167,14 +167,14 @@ defmodule AshSurface.Projector.IR.Descriptor do
   @impl true
   def project(%AshSurface.Surface{} = surface, opts) do
     surface
-    |> AshSurface.IR.from_surface()
+    |> AshSurface.ProjectorIRDeterminism.IR.from_surface()
     |> project(opts)
   end
 
-  def project(%AshSurface.IR{} = ir, opts) do
+  def project(%AshSurface.ProjectorIRDeterminism.IR{} = ir, opts) do
     prefix = Keyword.get(opts, :prefix, "surface_ir")
 
-    order = AshSurface.IR.resolved_order(ir)
+    order = AshSurface.ProjectorIRDeterminism.IR.resolved_order(ir)
     nodes_by_id = Map.new(ir.nodes, &{&1["id"], &1})
 
     numbered =
@@ -253,9 +253,9 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
 
   use ExUnit.Case, async: false
 
-  alias AshSurface.IR
-  alias AshSurface.Projector.IR, as: IRJson
-  alias AshSurface.Projector.IR.Descriptor, as: IRDescriptor
+  alias AshSurface.ProjectorIRDeterminism.IR
+  alias AshSurface.ProjectorIRDeterminism.ProjectorIR, as: IRJson
+  alias AshSurface.ProjectorIRDeterminism.ProjectorIR.Descriptor, as: IRDescriptor
 
   @prefix "surface_ir"
   @ledger "AshSurface.ProjectorIRDeterminism.Ledger"
@@ -279,7 +279,20 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
     "actions" => %{
       "#{@ledger}#record" => %{
         "semanticId" => "zoe:ConstructLedger",
-        "authorityBoundary" => "CONSTRUCT"
+        "authorityBoundary" => "CONSTRUCT",
+        "doAuthority" => false
+      },
+      # v26.9.16 delegation law (v10): these facts are DELEGATED by the
+      # fixture profile, never derived from action type by the projector.
+      "#{@ledger}#list_all" => %{
+        "semanticId" => "ash:#{@ledger}#list_all",
+        "authorityBoundary" => "OBSERVE",
+        "doAuthority" => false
+      },
+      "#{@ledger}#read" => %{
+        "semanticId" => "ash:#{@ledger}#read",
+        "authorityBoundary" => "OBSERVE",
+        "doAuthority" => false
       }
     }
   }
