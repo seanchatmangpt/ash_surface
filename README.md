@@ -32,6 +32,31 @@ The core rule is:
 
 > **One Ash application model, many lawful consumer projections.**
 
+## Human boundary (v26.9.16)
+
+`ash_surface` is to humans what the A2A wire protocol is to machines: a **projection/interaction boundary** into the same admitted semantic system. Machines reach Ash semantics over the agent-to-agent wire; humans reach the same semantics through a rendered, interactive surface. Neither boundary mints existence, meaning, or consequence — both project what Ash has already admitted.
+
+The composition is four prior arts converging on Ash:
+
+```text
+ash_admin ....... human projection of an Ash application
+ash_r2rml ....... meaning: rows mapped into admitted semantics
+AshTypescript ... shared-discovery pattern (one contract, many consumers)
+ash_a2a ......... capability/consequence law (what may be done, what it costs)
+                     │
+                     ▼
+                    Ash
+```
+
+Each contributes a pattern, never authority. `ash_admin` shows that a human surface is a projection of resources/actions, not a second application model. `ash_r2rml` shows that meaning is mapped into the system, never invented at the boundary. AshTypescript shows one contract discovered by many consumers — pattern-level prior art only, per the TypeScript disclaimer above. `ash_a2a` shows the capability/consequence law: expose only what has been admitted, and carry the consequence semantics of doing it.
+
+Two invariants hold at this boundary:
+
+1. **AshSurface determines nothing about existence, meaning, or DO.** It mints no resources, actions, or types; it decides no authority; it never actuates. Existence and meaning come from Ash; consequence requires the authority and receipts the capability laws already demand.
+2. **AshSurface projects admitted semantics for human interaction.** Everything a human sees, invokes, or edits on a surface is a projection of semantics Ash has already admitted — never a parallel model, never a widening.
+
+Canonical elaboration lives in the sibling documents: [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layer/boundary structure, and [`PROJECTORS.md`](PROJECTORS.md) for the projector contract (`AshSurface.Projector`) and its lawful targets.
+
 ## Elixir contract
 
 `AshSurface.from_manifest/2`:
