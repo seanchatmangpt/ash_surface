@@ -207,7 +207,7 @@ defmodule AshSurface.Projectors.LiveView do
 
   defp action_control(%AshSurface.IR{} = ir) do
     id = surface_action_id(ir)
-    gated = !!ir.capability.authority_required
+    gated = AshSurface.IR.Capability.authority_required(ir.capability || %AshSurface.IR.Capability{})
 
     %{
       "surface_action_id" => id,

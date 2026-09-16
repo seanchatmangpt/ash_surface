@@ -60,12 +60,11 @@ defmodule AshSurface.Compiler.Ash do
   # in). Prefer the Resource.Info form if a future ash exports it, and carry
   # whatever the authorizer declares, read-only, for EVERY public action.
   defp policies(resource) do
+    # The pinned ash exports no Ash.Resource.Info.policies/1 (only
+    # Ash.Policy.Info.policies/2 with a defaulted domain); the branch that
+    # laundered that call through apply/3 was removed — dynamic dispatch on
+    # the surface is a no_local_do tripwire.
     cond do
-      function_exported?(Ash.Resource.Info, :policies, 1) ->
-        # apply/3: the remote call must stay dynamic or the compiler warns
-        # about the not-yet-existing Ash.Resource.Info.policies/1.
-        apply(Ash.Resource.Info, :policies, [resource])
-
       function_exported?(Ash.Policy.Info, :policies, 1) ->
         Ash.Policy.Info.policies(resource)
 

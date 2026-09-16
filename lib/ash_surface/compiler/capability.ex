@@ -69,12 +69,9 @@ defmodule AshSurface.Compiler.Capability do
   alias AshSurface.Compiler.IR.Capability
   @spec build(module()) :: [Capability.t()] | nil
   def build(resource) when is_atom(resource) do
-    # Dynamic dispatch, deliberately: ash_a2a is a test-env-only dependency
-    # on this branch (v23 owns the canonical dependency at integration), so
-    # a literal remote call would emit an undefined-function warning in every
-    # env that lacks it. `apply/3` keeps this module warning-free where the
-    # extension is absent and is an ordinary call where it is present.
-    index = apply(AshA2A.Info, :capability_index, [resource])
+    # Direct call: v23's canonical dependency set carries ash_a2a in every
+    # env, so no apply/3 laundering is needed (or lawful — no_local_do).
+    index = AshA2A.Info.capability_index(resource)
 
     case index do
       nil -> nil

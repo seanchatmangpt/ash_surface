@@ -12,15 +12,15 @@
 #
 # Canonical shape frozen here (field sets pinned verbatim in tests):
 #
-#   AshSurface.IR.Ash          resource action action_type inputs outputs policies
-#   AshSurface.IR.Semantic     subject_iri capability_iri predicates shape_id ontology
-#   AshSurface.IR.Capability   capability_id consequence_class authority_required receipt_required
-#   AshSurface.IR.Presentation label group order widget format
-#   AshSurface.IR.Schema       input output zod aria
+#   AshSurface.IRCodecGoldenTest.IR.Ash          resource action action_type inputs outputs policies
+#   AshSurface.IRCodecGoldenTest.IR.Semantic     subject_iri capability_iri predicates shape_id ontology
+#   AshSurface.IRCodecGoldenTest.IR.Capability   capability_id consequence_class authority_required receipt_required
+#   AshSurface.IRCodecGoldenTest.IR.Presentation label group order widget format
+#   AshSurface.IRCodecGoldenTest.IR.Schema       input output zod aria
 #   AshSurface.IR              version digest + the five sections above
 # ---------------------------------------------------------------------------
 
-defmodule AshSurface.IR.Ash do
+defmodule AshSurface.IRCodecGoldenTest.IR.Ash do
   @moduledoc """
   Ash-semantics section: manifest-level facts about one Ash interaction.
 
@@ -39,7 +39,7 @@ defmodule AshSurface.IR.Ash do
         }
 end
 
-defmodule AshSurface.IR.Semantic do
+defmodule AshSurface.IRCodecGoldenTest.IR.Semantic do
   @moduledoc """
   Semantic section: IRI-anchored meaning (subjects, predicates, ontology).
 
@@ -57,7 +57,7 @@ defmodule AshSurface.IR.Semantic do
         }
 end
 
-defmodule AshSurface.IR.Capability do
+defmodule AshSurface.IRCodecGoldenTest.IR.Capability do
   @moduledoc """
   Capability section: consequence class and authority posture of a capability.
 
@@ -80,7 +80,7 @@ defmodule AshSurface.IR.Capability do
         }
 end
 
-defmodule AshSurface.IR.Presentation do
+defmodule AshSurface.IRCodecGoldenTest.IR.Presentation do
   @moduledoc """
   Presentation section: pure-presentation placement (label, group, widget).
 
@@ -98,7 +98,7 @@ defmodule AshSurface.IR.Presentation do
         }
 end
 
-defmodule AshSurface.IR.Schema do
+defmodule AshSurface.IRCodecGoldenTest.IR.Schema do
   @moduledoc """
   Schema section: shape facts for the consumer boundary (input, output, zod, aria).
 
@@ -115,7 +115,7 @@ defmodule AshSurface.IR.Schema do
         }
 end
 
-defmodule AshSurface.IR do
+defmodule AshSurface.IRCodecGoldenTest.IR do
   @moduledoc """
   Intermediate representation between the Ash manifest and consumer projections.
 
@@ -132,11 +132,11 @@ defmodule AshSurface.IR do
   @type t :: %__MODULE__{
           version: String.t() | nil,
           digest: String.t() | nil,
-          ash: AshSurface.IR.Ash.t() | nil,
-          semantic: AshSurface.IR.Semantic.t() | nil,
-          capability: AshSurface.IR.Capability.t() | nil,
-          presentation: AshSurface.IR.Presentation.t() | nil,
-          schema: AshSurface.IR.Schema.t() | nil
+          ash: AshSurface.IRCodecGoldenTest.IR.Ash.t() | nil,
+          semantic: AshSurface.IRCodecGoldenTest.IR.Semantic.t() | nil,
+          capability: AshSurface.IRCodecGoldenTest.IR.Capability.t() | nil,
+          presentation: AshSurface.IRCodecGoldenTest.IR.Presentation.t() | nil,
+          schema: AshSurface.IRCodecGoldenTest.IR.Schema.t() | nil
         }
 
   @doc "The canonical section keys in source order. Deterministic."
@@ -144,7 +144,7 @@ defmodule AshSurface.IR do
   def sections, do: @sections
 end
 
-defmodule AshSurface.IR.Codec do
+defmodule AshSurface.IRCodecGoldenTest.Codec do
   @moduledoc """
   Serialization and content addressing for the five-section `AshSurface.IR`.
 
@@ -178,7 +178,7 @@ defmodule AshSurface.IR.Codec do
   `digest/1`, whose canon sorts keys before hashing.
   """
 
-  alias AshSurface.IR
+  alias AshSurface.IRCodecGoldenTest.IR
 
   @ash_fields ~w(action action_type inputs outputs policies resource)
   @semantic_fields ~w(capability_iri ontology predicates shape_id subject_iri)
@@ -368,8 +368,8 @@ defmodule AshSurface.IrCodecGoldenTest do
 
   alias Ash.Info.Manifest
   alias Ash.Info.Manifest.{Action, Entrypoint}
-  alias AshSurface.IR
-  alias AshSurface.IR.Codec
+  alias AshSurface.IRCodecGoldenTest.IR
+  alias AshSurface.IRCodecGoldenTest.Codec
 
   # Frozen golden digests (64 lowercase hex chars), computed from real
   # `Codec.digest(Codec.to_map(ir))` execution over the two fixtures below.

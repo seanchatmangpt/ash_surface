@@ -385,9 +385,25 @@ defmodule AshSurface.NoLocalDoTest do
   defp arity_of({_, _, [{_, _, args}, _]}) when is_list(args), do: length(args)
   defp arity_of({_, _, [{_, _, _}, _]}), do: 0
 
+  # Filesystem acronym convention: `Macro.camelize/1` maps "ir" to "Ir",
+  # which can never equal the real module atom `AshSurface.IR.Capability`;
+  # without this map the owner exemption is unsatisfiable by construction.
+  # Detection logic is untouched — this only repairs the exemption the
+  # tripwire's own comment promises ("lib/ash_surface/ir/capability.ex =>
+  # AshSurface.IR.Capability"). The path base is lib/ash_surface (the module
+  # tree below the AshSurface prefix), not lib.
+  @path_acronyms %{"ir" => "IR"}
+
   defp surface_module(path) do
-    rel = Path.relative_to(path, Path.join(@repo_root, "lib"))
-    parts = rel |> Path.rootname() |> String.split("/") |> Enum.map(&Macro.camelize/1)
+    rel = Path.relative_to(path, Path.join([@repo_root, "lib", "ash_surface"]))
+
+    parts =
+      rel
+      |> Path.rootname()
+      |> String.split("/")
+      |> Enum.map(&Map.get(@path_acronyms, &1, &1))
+      |> Enum.map(&Macro.camelize/1)
+
     Module.concat([AshSurface | parts])
   end
 end
