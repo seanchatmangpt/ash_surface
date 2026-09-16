@@ -12,7 +12,7 @@
 # this test file only. Each mirrors exactly one upstream ash_a2a clause,
 # cited inline; when they graduate to lib/ these tests travel with them.
 
-defmodule AshSurface.IR do
+defmodule AshSurface.CapabilityDelegationTest.IR do
   @moduledoc """
   Locally declared intermediate representation for delegated capability
   truth (pending lib-side graduation; see file header).
@@ -55,7 +55,7 @@ defmodule AshSurface.IR do
   end
 end
 
-defmodule AshSurface.Section do
+defmodule AshSurface.CapabilityDelegationTest.Section do
   @moduledoc """
   Locally declared consumer-surface section for one Ash subject (pending
   lib-side graduation; see file header).
@@ -70,19 +70,19 @@ defmodule AshSurface.Section do
   @type t :: %__MODULE__{
           resource: module(),
           registered: boolean(),
-          capabilities: [AshSurface.IR.Capability.t()] | nil
+          capabilities: [AshSurface.CapabilityDelegationTest.IR.Capability.t()] | nil
         }
 end
 
-defmodule AshSurface.Compiler.Capability do
+defmodule AshSurface.CapabilityDelegationTest.Compiler.Capability do
   @moduledoc """
-  Locally declared derivation of an `AshSurface.Section` from the REAL
+  Locally declared derivation of an `AshSurface.CapabilityDelegationTest.Section` from the REAL
   `AshA2A.Info` capability index (pending lib-side graduation; see file
   header). Ash remains the canonical capability source: this compiler
   projects, it never manufactures.
   """
 
-  alias AshSurface.{IR, Section}
+  alias AshSurface.CapabilityDelegationTest.{IR, Section}
 
   @spec derive(module()) :: Section.t()
   def derive(resource) do
@@ -189,8 +189,15 @@ defmodule AshSurface.CapabilityDelegationTest do
 
   use ExUnit.Case, async: true
 
-  alias AshSurface.Compiler.Capability, as: CapabilityCompiler
-  alias AshSurface.IR.Capability
+  alias AshSurface.CapabilityDelegationTest.Compiler.Capability, as: CapabilityCompiler
+  alias AshSurface.CapabilityDelegationTest.IR.Capability
+
+  # The v23-pinned ash_a2a CommandBus claims receipts through a real
+  # ReceiptStore.Memory GenServer; it must be supervised before run/4.
+  setup do
+    start_supervised!(AshA2A.ReceiptStore.Memory)
+    :ok
+  end
 
   @registered AshSurface.CapabilityDelegationTest.Registered
   @bare AshSurface.CapabilityDelegationTest.Bare

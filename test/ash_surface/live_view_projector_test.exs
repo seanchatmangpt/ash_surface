@@ -12,7 +12,7 @@
 #     emitted structure greps clean of module/function targets (in-test);
 #   - empty state: zero admitted actions project an ok, navigable empty view.
 
-defmodule AshSurface.IR do
+defmodule AshSurface.LiveViewProjectorTest.IR do
   @moduledoc """
   Canonical intermediate representation of one projected Ash action.
 
@@ -83,7 +83,7 @@ defmodule AshSurface.IR do
         }
 end
 
-defmodule AshSurface.Projector.IR do
+defmodule AshSurface.LiveViewProjectorTest.Projector.IR do
   @moduledoc """
   Behaviour for folding IR facts into consumer structure maps.
 
@@ -93,11 +93,11 @@ defmodule AshSurface.Projector.IR do
   reference `surface_action_id` intent targets only.
   """
 
-  @callback project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
+  @callback project_ir(AshSurface.LiveViewProjectorTest.IR.t() | [AshSurface.LiveViewProjectorTest.IR.t()], keyword()) ::
               {:ok, map(), map()} | {:error, term()}
 end
 
-defmodule AshSurface.Projectors.LiveView do
+defmodule AshSurface.LiveViewProjectorTest.Projectors.LiveView do
   @moduledoc """
   Ash admin-pattern human projection as DATA (no Phoenix dependency).
 
@@ -125,7 +125,7 @@ defmodule AshSurface.Projectors.LiveView do
   projection is byte-stable under input permutation.
   """
 
-  @behaviour AshSurface.Projector.IR
+  @behaviour AshSurface.LiveViewProjectorTest.Projector.IR
 
   @default_group "Resources"
   @default_order 0
@@ -145,7 +145,7 @@ defmodule AshSurface.Projectors.LiveView do
   }
 
   @impl true
-  def project_ir(%AshSurface.IR{} = ir, opts), do: project_ir([ir], opts)
+  def project_ir(%AshSurface.LiveViewProjectorTest.IR{} = ir, opts), do: project_ir([ir], opts)
 
   @impl true
   def project_ir(irs, _opts) when is_list(irs) do
@@ -234,7 +234,7 @@ defmodule AshSurface.Projectors.LiveView do
     end
   end
 
-  defp columns(%AshSurface.IR{} = ir) do
+  defp columns(%AshSurface.LiveViewProjectorTest.IR{} = ir) do
     ir.schema.input
     |> input_fields()
     |> Enum.map(fn {name, type, required, default, placeholder} ->
@@ -265,7 +265,7 @@ defmodule AshSurface.Projectors.LiveView do
     end)
   end
 
-  defp form_fields(%AshSurface.IR{} = ir) do
+  defp form_fields(%AshSurface.LiveViewProjectorTest.IR{} = ir) do
     widget = ir.presentation.widget
 
     ir.schema.input
@@ -311,7 +311,7 @@ defmodule AshSurface.Projectors.LiveView do
     Enum.sort_by(rels, & &1["name"])
   end
 
-  defp relationship(rel, %AshSurface.IR{} = ir) do
+  defp relationship(rel, %AshSurface.LiveViewProjectorTest.IR{} = ir) do
     %{
       "name" => rel["name"],
       "label" => humanize(rel["name"]),
@@ -322,7 +322,7 @@ defmodule AshSurface.Projectors.LiveView do
     }
   end
 
-  defp action_control(%AshSurface.IR{} = ir) do
+  defp action_control(%AshSurface.LiveViewProjectorTest.IR{} = ir) do
     id = surface_action_id(ir)
     gated = !!ir.capability.authority_required
 
@@ -385,19 +385,19 @@ defmodule AshSurface.Projectors.LiveView do
   defp ordered_irs(resource_irs),
     do: Enum.sort_by(resource_irs, &{effective_order(&1), surface_action_id(&1)})
 
-  defp effective_order(%AshSurface.IR{} = ir),
+  defp effective_order(%AshSurface.LiveViewProjectorTest.IR{} = ir),
     do: ir.presentation.order || @default_order
 
-  defp presentation_group(%AshSurface.IR{} = ir),
+  defp presentation_group(%AshSurface.LiveViewProjectorTest.IR{} = ir),
     do: ir.presentation.group || @default_group
 
-  defp presentation_label(%AshSurface.IR{} = ir), do: ir.presentation.label
+  defp presentation_label(%AshSurface.LiveViewProjectorTest.IR{} = ir), do: ir.presentation.label
 
-  defp action_name(%AshSurface.IR{} = ir), do: to_string(ir.ash.action)
+  defp action_name(%AshSurface.LiveViewProjectorTest.IR{} = ir), do: to_string(ir.ash.action)
 
-  defp resource_name(%AshSurface.IR{} = ir), do: module_name(ir.ash.resource)
+  defp resource_name(%AshSurface.LiveViewProjectorTest.IR{} = ir), do: module_name(ir.ash.resource)
 
-  defp surface_action_id(%AshSurface.IR{} = ir),
+  defp surface_action_id(%AshSurface.LiveViewProjectorTest.IR{} = ir),
     do: "#{resource_name(ir)}##{action_name(ir)}"
 
   defp module_name(module) when is_atom(module), do: module |> Module.split() |> Enum.join(".")
@@ -433,7 +433,7 @@ defmodule AshSurface.Projectors.LiveView do
   defp field_atom("default"), do: :default
   defp field_atom("placeholder"), do: :placeholder
 
-  defp declared_relationships(%AshSurface.IR{} = ir) do
+  defp declared_relationships(%AshSurface.LiveViewProjectorTest.IR{} = ir) do
     ir.semantic.predicates |> normalize_predicates() |> Map.get("relationships", [])
   end
 
@@ -467,7 +467,7 @@ defmodule AshSurface.Projectors.LiveView do
 
   defp validate_irs(irs) do
     Enum.reduce_while(irs, :ok, fn
-      %AshSurface.IR{} = ir, :ok ->
+      %AshSurface.LiveViewProjectorTest.IR{} = ir, :ok ->
         case malformed_relationship(ir) do
           nil -> {:cont, :ok}
           entry -> {:halt, {:error, {:malformed_relationship, entry}}}
@@ -478,7 +478,7 @@ defmodule AshSurface.Projectors.LiveView do
     end)
   end
 
-  defp malformed_relationship(%AshSurface.IR{} = ir) do
+  defp malformed_relationship(%AshSurface.LiveViewProjectorTest.IR{} = ir) do
     ir.semantic.predicates
     |> normalize_predicates()
     |> Map.get("relationships", [])
@@ -511,8 +511,8 @@ defmodule AshSurface.LiveViewProjectorTest do
 
   use ExUnit.Case, async: true
 
-  alias AshSurface.IR
-  alias AshSurface.Projectors.LiveView
+  alias AshSurface.LiveViewProjectorTest.IR
+  alias AshSurface.LiveViewProjectorTest.Projectors.LiveView
 
   defp ir(resource, action, action_type, opts) do
     %IR{
@@ -839,7 +839,7 @@ defmodule AshSurface.LiveViewProjectorTest do
       assert view["resources"] == %{}
 
       assert meta == %{
-               "projector" => "AshSurface.Projectors.LiveView",
+               "projector" => "AshSurface.LiveViewProjectorTest.Projectors.LiveView",
                "resource_count" => 0,
                "group_count" => 0,
                "action_count" => 0

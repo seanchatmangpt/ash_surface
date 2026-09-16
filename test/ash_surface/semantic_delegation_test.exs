@@ -1,4 +1,4 @@
-defmodule AshSurface.IR do
+defmodule AshSurface.SemanticDelegationTest.IR do
   @moduledoc """
   Local declaration of the semantic-delegation IR.
 
@@ -34,11 +34,11 @@ defmodule AshSurface.IR do
 
     defstruct [:semantic]
 
-    @type t :: %__MODULE__{semantic: AshSurface.IR.Semantic.t()}
+    @type t :: %__MODULE__{semantic: AshSurface.SemanticDelegationTest.IR.Semantic.t()}
   end
 end
 
-defmodule AshSurface.Compiler.Semantic do
+defmodule AshSurface.SemanticDelegationTest.Compiler.Semantic do
   @moduledoc """
   Semantic delegation to AshR2RML.
 
@@ -57,7 +57,7 @@ defmodule AshSurface.Compiler.Semantic do
   """
 
   alias AshR2RML.Resource.Info
-  alias AshSurface.IR.{Section, Semantic}
+  alias AshSurface.SemanticDelegationTest.IR.{Section, Semantic}
 
   @spec section(module()) :: Section.t()
   def section(resource) do
@@ -228,14 +228,14 @@ defmodule AshSurface.SemanticDelegationTest do
   use ExUnit.Case, async: true
 
   alias AshR2RML.Resource.Info
-  alias AshSurface.Compiler.Semantic, as: SemanticCompiler
-  alias AshSurface.IR.Semantic
+  alias AshSurface.SemanticDelegationTest.Compiler.Semantic, as: SemanticCompiler
+  alias AshSurface.SemanticDelegationTest.IR.Semantic
 
   use ExUnit.Case, async: true
 
   alias AshR2RML.Resource.Info
-  alias AshSurface.Compiler.Semantic, as: SemanticCompiler
-  alias AshSurface.IR.Semantic
+  alias AshSurface.SemanticDelegationTest.Compiler.Semantic, as: SemanticCompiler
+  alias AshSurface.SemanticDelegationTest.IR.Semantic
 
   describe "mapped resource" do
     test "section carries exactly the compiled subject template, predicates, and ontology" do
