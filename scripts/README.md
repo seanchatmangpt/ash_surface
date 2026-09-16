@@ -48,3 +48,28 @@ caches.
 |------|------------------------------------------------------|
 | 0    | Proof holds; `ZERO_CONFIG_OK` printed                |
 | other| A gate step failed (or the clone-HEAD assertion failed); `ZERO_CONFIG_FAIL: command failed (exit N): <cmd>` printed |
+
+## zero_config_v2.sh — the v2 full battery (ticket zero-config-battery-002)
+
+`bash scripts/zero_config_v2.sh` is the v1 proof plus two additions, same
+hermetic re-exec (`env -i PATH HOME`), same local-clone subject, same
+no-false-OK failure semantics:
+
+1. **env-read guard** (runs first, inside the clone) — fails if any file
+   under `test/` reads an environment variable outside the documented
+   allowlist. The allowlist is parsed from the clone's `mix.exs`
+   (`@zero_env_allowlist`, currently `HOME PATH`) so the guard and the
+   `mix test.zero` scrubber share one source of truth. Reads are
+   `System.get_env` / `System.fetch_env!` with a **literal** variable
+   name; a read whose variable name is not a literal (opaque read) fails
+   closed. An unparsable allowlist also fails closed.
+2. **`mix test.zero` if present** — detected by the `"test.zero":` alias
+   definition in the clone's `mix.exs`; re-runs `mix test.all` (`mix test`
+   then `npm test`) under literal `env -i` with only the allowlist
+   surviving. If the alias is absent the step is skipped with exit 0.
+
+Battery order: env-read guard, `mix deps.get`, `npm install --no-audit`
+(before `mix test`, per v1's bootstrap-order discovery), `mix test`,
+`npm test`, `mix test.zero`. Every step prints `EXIT[<label>]=<code>`
+before the next one starts, so a run log records **every exit code**;
+the final line is `ZERO_CONFIG_OK` only when all of them were 0.
