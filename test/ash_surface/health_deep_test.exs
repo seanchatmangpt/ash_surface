@@ -26,10 +26,11 @@ defmodule AshSurface.HealthDeepTest do
   and typed refusal on invalid input. All offline: zero env/db/network.
   """
 
-  # async: false — the OBSERVE-purity snapshot closes over persistent_term,
-  # and concurrent tests (socket ioctls from ssl/req under the intent wave's
-  # dep set) mutate it inside the window; serializing removes the interference
-  # without narrowing what the tripwire observes.
+  # async: false on purpose: the OBSERVE-only snapshot below asserts on global
+  # node state (persistent_term, :ets.all/0, app env). Concurrent async cases
+  # legally mutate that state mid-window (lazy ETS table creation, logger
+  # reconfiguration), which flipped the assertion under test.zero's scheduling.
+  # Exclusivity scopes the assertion to Health's own effects.
   use ExUnit.Case, async: false
 
   alias Ash.Info.Manifest

@@ -9,6 +9,16 @@ defmodule AshSurface.ConsumerFixtureTest do
   setup do
     File.mkdir_p!(@tmp_dir)
 
+    # The Ash ETS data layer is a shared (non-private) ordered set, so records
+    # created by earlier tests in the same run leak into the read below. The
+    # episode suite dispatches the same runner and the same member_zoela_01
+    # input, making Enum.find/1 (ordered by random UUID pkey) return a stale
+    # record and fail the receipt-id binding. Reset the fixture table so this
+    # test observes only its own consequences, independent of test order.
+    if :ets.whereis(VolunteerMilestone) != :undefined do
+      :ets.delete_all_objects(VolunteerMilestone)
+    end
+
     {:ok, server_pid} = Server.start_link()
     port = Server.get_port(server_pid)
 
