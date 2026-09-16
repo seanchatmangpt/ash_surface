@@ -69,30 +69,33 @@ defmodule AshSurfaceTest do
     assert surface.contract["ashManifestSchemaVersion"] == Manifest.schema_version()
     assert surface.contract["surface"]["profile"] == %{"audience" => "public"}
 
+    # v26.9.16 delegation: semanticId/authorityBoundary/doAuthority/receiptRequired
+    # are delegated facts surfaced from the IR section (custom.ash_surface
+    # profile). Neither action delegates them, so each surfaces as nil.
     assert surface.contract["surface"]["actions"] == [
              %{
                "action" => "create",
-               "authorityBoundary" => "DO",
-               "doAuthority" => true,
+               "authorityBoundary" => nil,
+               "doAuthority" => nil,
                "evidenceRequired" => false,
                "id" => "AshSurfaceTest.Post#create",
                "possibleRefusals" => [],
                "profile" => %{},
-               "receiptRequired" => true,
+               "receiptRequired" => nil,
                "resource" => "AshSurfaceTest.Post",
-               "semanticId" => "ash:AshSurfaceTest.Post#create"
+               "semanticId" => nil
              },
              %{
                "action" => "read",
-               "authorityBoundary" => "OBSERVE",
-               "doAuthority" => false,
+               "authorityBoundary" => nil,
+               "doAuthority" => nil,
                "evidenceRequired" => false,
                "id" => "AshSurfaceTest.Post#read",
                "possibleRefusals" => [],
                "profile" => %{"consumer" => "web"},
-               "receiptRequired" => true,
+               "receiptRequired" => nil,
                "resource" => "AshSurfaceTest.Post",
-               "semanticId" => "ash:AshSurfaceTest.Post#read"
+               "semanticId" => nil
              }
            ]
   end

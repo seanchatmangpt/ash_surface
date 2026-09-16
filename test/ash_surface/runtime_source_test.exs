@@ -9,7 +9,10 @@ defmodule AshSurface.RuntimeSourceTest do
 
   use ExUnit.Case, async: true
 
-  @golden_runtime_sha256 "b80f7d380f24772c43095d9c3c514ba6acade1c10680b83b3f734828f0f2a3ee"
+  # v26.9.16 delegation: re-frozen after the runtime's surfaceActionSchema moved
+  # delegated facts (semanticId/authorityBoundary/doAuthority/receiptRequired)
+  # from client-side defaults to nullable delegated-or-null.
+  @golden_runtime_sha256 "1606484b50b80925f8b6c455f148c5d2b6e7c98122c802bcda930cbc9aba291a"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

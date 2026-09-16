@@ -7,9 +7,10 @@ defmodule AshSurface.Projector.ExpoActionsTest do
 
   - stable ids matching `AshSurface.action_id/1`; every admitted action
     present exactly once, nothing extra
-  - authority boundaries (`OBSERVE | SELECT | CONSTRUCT | DO`) emitted
-    exactly as admitted, per action
-  - DO-boundary actions never emit as client-executable reads
+  - delegated facts (`semanticId`, `authorityBoundary`, `doAuthority`,
+    `receiptRequired`) are emitted exactly as delegated via
+    `custom.ash_surface`, and as nil when not delegated (v26.9.16
+    delegation); they are never re-derived from action type
   """
 
   use ExUnit.Case, async: false
@@ -70,12 +71,14 @@ defmodule AshSurface.Projector.ExpoActionsTest do
         assert Map.has_key?(descriptor, key), "descriptor #{id} missing MX key #{key}"
       end
 
-      assert descriptor["semanticId"] == "ash:#{id}"
+      # v26.9.16 delegation: with an empty profile no facts are delegated, so
+      # each delegated fact surfaces as nil rather than a derived default.
+      assert descriptor["semanticId"] == nil
       assert descriptor["resource"] == "AshSurface.Fixtures.VolunteerMilestone"
       assert descriptor["action"] == Atom.to_string(entrypoint.action.name)
-      assert descriptor["authorityBoundary"] in @boundaries
-      assert is_boolean(descriptor["doAuthority"])
-      assert descriptor["receiptRequired"] == true
+      assert descriptor["authorityBoundary"] == nil
+      assert descriptor["doAuthority"] == nil
+      assert descriptor["receiptRequired"] == nil
       assert is_boolean(descriptor["evidenceRequired"])
       assert is_list(descriptor["possibleRefusals"])
     end
@@ -95,16 +98,18 @@ defmodule AshSurface.Projector.ExpoActionsTest do
              Enum.map(parse_actions!(second["#{@prefix}.actions.mjs"]), & &1["id"])
   end
 
-  test "unprofiled actions default to OBSERVE reads and DO mutations", ctx do
+  # v26.9.16 delegation: unprofiled actions delegate no facts, so the boundary
+  # and DO authority surface as nil — no OBSERVE/DO inference from action type.
+  test "unprofiled actions surface nil delegated facts", ctx do
     %{actions: actions} = projected(ctx, %{})
 
     assert [%{"id" => @read_id} = read, %{"id" => @record_id} = record] = actions
 
-    assert read["authorityBoundary"] == "OBSERVE"
-    assert read["doAuthority"] == false
+    assert read["authorityBoundary"] == nil
+    assert read["doAuthority"] == nil
 
-    assert record["authorityBoundary"] == "DO"
-    assert record["doAuthority"] == true
+    assert record["authorityBoundary"] == nil
+    assert record["doAuthority"] == nil
   end
 
   test "profile-admitted boundaries (SELECT, CONSTRUCT) are emitted verbatim", ctx do
@@ -122,10 +127,12 @@ defmodule AshSurface.Projector.ExpoActionsTest do
 
     assert record["authorityBoundary"] == "SELECT"
     assert record["semanticId"] == "zoe:SelectOption"
-    assert record["doAuthority"] == false
+    # v26.9.16 delegation: doAuthority was not delegated, so it surfaces as
+    # nil instead of being derived from the boundary.
+    assert record["doAuthority"] == nil
 
     assert read["authorityBoundary"] == "CONSTRUCT"
-    assert read["doAuthority"] == false
+    assert read["doAuthority"] == nil
   end
 
   test "a read-typed action admitted at the DO boundary emits as server-authoritative", ctx do
@@ -136,10 +143,15 @@ defmodule AshSurface.Projector.ExpoActionsTest do
     read = find_action(actions, @read_id)
 
     assert read["authorityBoundary"] == "DO"
-    assert read["doAuthority"] == true
+    # v26.9.16 delegation: doAuthority is a separate delegated fact; it is no
+    # longer derived from the boundary, so it surfaces as nil here.
+    assert read["doAuthority"] == nil
   end
 
-  test "DO-boundary descriptors never emit as client-executable reads", ctx do
+  # v26.9.16 delegation: the boundary->doAuthority coupling is gone. Delegated
+  # boundaries are emitted verbatim (or nil when not delegated), and doAuthority
+  # is never synthesized from the boundary.
+  test "delegated boundaries emit verbatim and doAuthority is never synthesized", ctx do
     profiles = [
       %{},
       %{"actions" => %{@record_id => %{"authorityBoundary" => "SELECT"}}},
@@ -151,10 +163,11 @@ defmodule AshSurface.Projector.ExpoActionsTest do
       %{actions: actions} = projected(ctx, profile)
 
       for descriptor <- actions do
-        assert descriptor["authorityBoundary"] in @boundaries
+        assert descriptor["authorityBoundary"] in @boundaries or
+                 is_nil(descriptor["authorityBoundary"])
 
-        assert descriptor["doAuthority"] == (descriptor["authorityBoundary"] == "DO"),
-               "DO-boundary action #{descriptor["id"]} emitted as client-executable read"
+        assert is_nil(descriptor["doAuthority"]) or is_boolean(descriptor["doAuthority"]),
+               "doAuthority for #{descriptor["id"]} is neither delegated nor nil"
       end
     end
   end

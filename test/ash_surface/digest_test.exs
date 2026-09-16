@@ -52,12 +52,15 @@ defmodule AshSurface.DigestTest do
   # contract bytes of the 5 fixtures below; any drift in @surface_schema_version,
   # @generator_identity, the Ash manifest serialization, profile normalization,
   # or canonical_term breaks this test by design.
+  # v26.9.16 delegation: re-frozen after semanticId/authorityBoundary/
+  # doAuthority/receiptRequired stopped being derived in the surface envelope
+  # (delegated facts now surface from custom.ash_surface or as nil).
   @golden %{
-    minimal_read: "da3328bcdabe697f64dc63cb31a2668cc55d2ac2da29526ef7be0e8d4d880428",
-    two_actions: "ba576ede892d8794f82979ad6e28f6f0f24a52e84ea0ae491d4a9902bc6597af",
-    profiled_action: "755aafa3f9f7f286d335a579f3c901d8afba249e5ce21eadb836e20515783ba9",
-    transport_metadata: "dbc8bbf45c0bcb50064840ffd57a2140625ebf665e0da32e941df13ecbeb73f8",
-    large_map_profile: "405b3fb54ed35f572ba11d0f4bb673d7d08b395c995320ca454ceeb6a0d52a44"
+    minimal_read: "58263492e237886f87060c9d99aa7ac97cd8c966e3a5db680a9bbc55ae87aaf5",
+    two_actions: "96a4206874402fca6ebc8db1a3f661abe351512ed7e0951d915e1ce477564112",
+    profiled_action: "29adbcbce5397060402b81f685b88ce43c2ceccdba22ab40a1b653c87abd6df7",
+    transport_metadata: "20ed84b7f51287f3c1591d3d442adaa6fcfecf798875d781bf504d3c8319a1f4",
+    large_map_profile: "ce898695ad6c0220227daf8b909bdb28ba59b631735afb92c38e57fdd0db6aac"
   }
 
   defp entrypoint(resource, name, type, action_opts \\ []) do
@@ -214,7 +217,10 @@ defmodule AshSurface.DigestTest do
          ]),
          %{}
        }},
-      {"action type :read -> :create (also flips derived authorityBoundary)",
+      # v26.9.16 delegation: authorityBoundary is no longer derived from action
+      # type, but the serialized manifest action type itself still changes the
+      # contract bytes.
+      {"action type :read -> :create (serialized manifest semantics change)",
        {
          manifest([entrypoint(AshSurface.DigestPost, :fetch, :read)]),
          %{}

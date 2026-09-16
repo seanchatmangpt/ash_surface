@@ -9,7 +9,7 @@ defmodule AshSurface do
 
   Ash's JSON manifest serializer intentionally omits extension `custom` data and
   entrypoint config. The cross-language wrapper therefore carries only the missing
-  *derived identity and projection metadata* in its own `surface` envelope while
+  *delegated identity and projection metadata* in its own `surface` envelope while
   all resource/type/action semantics remain owned by the serialized Ash manifest.
   """
 
@@ -102,6 +102,21 @@ defmodule AshSurface do
     "#{module_name(resource)}##{action.name}"
   end
 
+  @doc """
+  Reads a delegated fact for a manifest entrypoint from its `custom.ash_surface`
+  IR section.
+
+  Delegated facts are `"semanticId"`, `"authorityBoundary"`, `"doAuthority"`,
+  and `"receiptRequired"` (see `AshSurface.IR.delegated_facts/0`). The value
+  comes from the manifest's `custom.ash_surface` metadata when a delegating
+  authority stored it there and is `nil` otherwise. AshSurface never
+  re-derives delegated facts.
+  """
+  @spec delegated(Ash.Info.Manifest.Entrypoint.t(), String.t()) :: term() | nil
+  def delegated(%Ash.Info.Manifest.Entrypoint{} = entrypoint, fact) do
+    AshSurface.IR.delegated(entrypoint, fact)
+  end
+
   @doc "Returns the path to the framework-neutral JavaScript runtime adapter."
   @spec runtime_path() :: String.t()
   def runtime_path do
@@ -136,24 +151,18 @@ defmodule AshSurface do
         id = action_id(entrypoint)
         act_prof = Map.get(actions_profile, id, %{})
 
-        # Infer authority boundary default from action type
-        default_boundary =
-          case entrypoint.action.type do
-            :read -> "OBSERVE"
-            _ -> "DO"
-          end
-
-        authority_boundary = Map.get(act_prof, "authorityBoundary", default_boundary)
-        do_authority = Map.get(act_prof, "doAuthority", authority_boundary == "DO")
-
+        # v26.9.16 delegation: semanticId, authorityBoundary, doAuthority, and
+        # receiptRequired are delegated facts read from the IR section
+        # (custom.ash_surface). They are nil when not delegated — never
+        # re-derived here.
         %{
           "id" => id,
-          "semanticId" => Map.get(act_prof, "semanticId", "ash:#{id}"),
+          "semanticId" => AshSurface.IR.delegated(entrypoint, "semanticId"),
           "resource" => module_name(entrypoint.resource),
           "action" => to_string(entrypoint.action.name),
-          "authorityBoundary" => authority_boundary,
-          "doAuthority" => do_authority,
-          "receiptRequired" => Map.get(act_prof, "receiptRequired", true),
+          "authorityBoundary" => AshSurface.IR.delegated(entrypoint, "authorityBoundary"),
+          "doAuthority" => AshSurface.IR.delegated(entrypoint, "doAuthority"),
+          "receiptRequired" => AshSurface.IR.delegated(entrypoint, "receiptRequired"),
           "evidenceRequired" => Map.get(act_prof, "evidenceRequired", false),
           "possibleRefusals" => Map.get(act_prof, "possibleRefusals", []),
           "profile" => act_prof
