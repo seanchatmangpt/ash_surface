@@ -187,6 +187,67 @@ defmodule AshSurface.IR do
           }
   end
 
+
+  # -- Ash-facet sub-shapes (v29, verbatim; carried inside IR.Ash inputs/outputs/policies) --
+
+  defmodule Input do
+    @moduledoc """
+    One declared action argument.
+
+    `type` is the witnessed Ash type name (Ash's own short-name registry,
+    inverted; module name for types outside it). `required` is the mechanical
+    negation of the argument's `allow_nil?`. `default` is the declared default,
+    surfaced verbatim (`nil` when none was declared).
+    """
+
+    @enforce_keys [:name, :type, :required, :default]
+    defstruct [:name, :type, :required, :default]
+
+    @type t :: %__MODULE__{
+            name: atom(),
+            type: String.t(),
+            required: boolean(),
+            default: term()
+          }
+  end
+
+  defmodule Output do
+    @moduledoc """
+    The action's declared output.
+
+    Only generic `:action` actions declare `returns` in the Ash DSL, so reads,
+    creates, updates, and destroys carry `nil` unless their action type actually
+    declares a return type. No record-shape or pagination story is invented here.
+    """
+
+    @enforce_keys [:returns]
+    defstruct [:returns]
+
+    @type t :: %__MODULE__{returns: String.t() | nil}
+  end
+
+  defmodule Policy do
+    @moduledoc """
+    One declared resource policy, read-only.
+
+    `conditions` and `checks` are the authored policy scope and check set
+    (module name plus authored opts; the authorizer compiler's injected
+    `:access_type` execution hint is not an authored fact and is dropped).
+    Policies are never evaluated, filtered, or interpreted here.
+    """
+
+    @enforce_keys [:bypass, :conditions, :checks]
+    defstruct [:bypass, :conditions, :checks]
+
+    @type check :: %{check: String.t(), kind: atom()}
+    @type condition :: %{check: String.t(), opts: map()}
+    @type t :: %__MODULE__{
+            bypass: boolean(),
+            conditions: [condition()],
+            checks: [check()]
+          }
+  end
+
   defmodule Presentation do
     @moduledoc """
     Facts admitted from presentation descriptors: how a surface element is
