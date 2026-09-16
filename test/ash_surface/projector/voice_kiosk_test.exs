@@ -189,7 +189,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
                  ]
                )
 
-      assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: %{})
+      assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: delegated_authority())
 
       assert {:ok, artifacts, meta} = AshSurface.project(surface, VoiceKiosk, prefix: "kiosk")
 
@@ -216,6 +216,26 @@ defmodule AshSurface.Projector.VoiceKioskTest do
                  "status"
                ])
     end
+  end
+
+  # v26.9.16 delegation law (v10): authorityBoundary/doAuthority are delegated
+  # facts, never derived from action type. The intents this test pins (read =
+  # auto-executable ANSWER, record = gated CONFIRM) are delegated explicitly
+  # through the action profile instead of relying on the pre-v10 local
+  # derivation this projector was originally authored against.
+  defp delegated_authority do
+    %{
+      "actions" => %{
+        "AshSurface.Fixtures.VolunteerMilestone#read" => %{
+          "authorityBoundary" => "OBSERVE",
+          "doAuthority" => false
+        },
+        "AshSurface.Fixtures.VolunteerMilestone#record" => %{
+          "authorityBoundary" => "DO",
+          "doAuthority" => true
+        }
+      }
+    }
   end
 
   defp fetch_intent(ir), do: Enum.at(ir["intents"], 0)

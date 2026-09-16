@@ -145,7 +145,7 @@ defmodule AshSurface.IrCodecTest do
 
   defp build(name) do
     fixture = canonical_maps()[name]
-    assert {:ok, %IR{} = ir} = Codec.from_map(fixture)
+    assert {:ok, %Surface{} = ir} = Codec.from_map(fixture)
     ir
   end
 

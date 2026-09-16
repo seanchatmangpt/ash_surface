@@ -183,12 +183,17 @@ defmodule AshSurface.Compiler.CapabilitySectionTest do
   end
 
   describe "the Section behaviour" do
-    test "Capability declares and satisfies AshSurface.Compiler.Section" do
-      assert Compiler.Capability.module_info()[:attributes][:behaviour] == [
-               AshSurface.Compiler.Section
-             ]
+    test "the canonical behaviour is build/2; Capability is a build/1 subject projection that does not yet claim it" do
+      # v26.9.16 integration law: the canonical AshSurface.Compiler.Section
+      # behaviour (build/2, per-action, owned by compiler.ex) landed with the
+      # compiler orchestrator. Capability's build/1 subject projection predates
+      # it and does not fake conformance; conforming it is owned by the
+      # capability-section successor branch.
+      assert AshSurface.Compiler.Section.behaviour_info(:callbacks) == [build: 2]
 
+      assert is_nil(Compiler.Capability.module_info()[:attributes][:behaviour])
       assert function_exported?(Compiler.Capability, :build, 1)
+      refute function_exported?(Compiler.Capability, :build, 2)
     end
   end
 
