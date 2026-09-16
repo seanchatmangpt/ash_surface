@@ -21,6 +21,12 @@ function contract(actions, overrides = {}) {
 function action(overrides = {}) {
   return {
     id: "todos:Todo:create",
+    // v26.9.16 delegation: semanticId/authorityBoundary/doAuthority/receiptRequired
+    // are delegated facts — explicit null when not delegated.
+    semanticId: null,
+    authorityBoundary: null,
+    doAuthority: null,
+    receiptRequired: null,
     resource: "Todo",
     action: "create",
     profile: {},
@@ -163,12 +169,16 @@ test("authorityBoundary, transport, and offline classification surface exactly a
   assert.deepEqual(descriptor.inspect().declared, ["phoenix_channel"]);
 });
 
-test("omitted descriptor fields fall back to the contract schema defaults", () => {
+// v26.9.16 delegation: delegated facts (authorityBoundary, doAuthority, and
+// the other IR-sourced fields) are never defaulted client-side. An omitted or
+// null delegated fact surfaces as null; only non-delegated projection metadata
+// (possibleRefusals, profile) keeps its schema defaults.
+test("omitted delegated facts surface as null; non-delegated fields keep defaults", () => {
   const client = createClient({ contract: contract([action()]), transports: stubTransports });
 
   const descriptor = client.actions["todos:Todo:create"];
-  assert.equal(descriptor.authorityBoundary, "DO");
-  assert.equal(descriptor.doAuthority, true);
+  assert.equal(descriptor.authorityBoundary, null);
+  assert.equal(descriptor.doAuthority, null);
   assert.deepEqual(descriptor.possibleRefusals, []);
   assert.deepEqual(descriptor.profile, {});
 });

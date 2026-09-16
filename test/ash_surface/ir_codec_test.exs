@@ -3,7 +3,8 @@ defmodule AshSurface.IrCodecTest do
   Serialization and content-addressing law of the ash_surface IR codec.
 
   `AshSurface.IR.Codec` (lib/ash_surface/ir/codec.ex) content-addresses the
-  canonical five-section IR map with the *existing* `AshSurface` digest canon:
+  canonical five-section `AshSurface.IR.Surface` map (the surface-contract
+  staging IR; the per-action `AshSurface.IR` canon lives in ir.ex) with the *existing* `AshSurface` digest canon:
 
       canonical map
       |> canonical_term()      # keys stringified + sorted recursively;
@@ -38,8 +39,8 @@ defmodule AshSurface.IrCodecTest do
 
   alias Ash.Info.Manifest
   alias Ash.Info.Manifest.{Action, Entrypoint}
-  alias AshSurface.IR
   alias AshSurface.IR.Codec
+  alias AshSurface.IR.Surface
 
   @section_keys ~w(actions identity profile resources transports)
 
@@ -150,16 +151,16 @@ defmodule AshSurface.IrCodecTest do
 
   describe "IR canonical shape" do
     test "declares exactly the five sections plus digest" do
-      assert IR.sections() == [:actions, :identity, :profile, :resources, :transports]
+      assert Surface.sections() == [:actions, :identity, :profile, :resources, :transports]
 
-      assert Enum.sort(IR.__struct__() |> Map.keys() |> List.delete(:__struct__)) ==
-               Enum.sort(IR.sections() ++ [:digest])
+      assert Enum.sort(Surface.__struct__() |> Map.keys() |> List.delete(:__struct__)) ==
+               Enum.sort(Surface.sections() ++ [:digest])
     end
 
     test "a section may be nil honestly" do
       ir = build(:identity_only)
 
-      for section <- IR.sections() do
+      for section <- Surface.sections() do
         assert match?(nil, Map.get(ir, section)) or is_map(Map.get(ir, section))
       end
 
@@ -365,7 +366,7 @@ defmodule AshSurface.IrCodecTest do
     end
 
     test "structs are not IR maps" do
-      ir = %IR{actions: nil, identity: nil, profile: nil, resources: nil, transports: nil}
+      ir = %Surface{actions: nil, identity: nil, profile: nil, resources: nil, transports: nil}
       assert {:error, {:ir_map_required, ^ir}} = Codec.from_map(ir)
     end
   end

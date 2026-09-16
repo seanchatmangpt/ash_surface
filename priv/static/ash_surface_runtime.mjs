@@ -17,12 +17,20 @@ const jsonRecordSchema = z.record(z.string(), z.unknown());
 export const surfaceActionSchema = z
   .object({
     id: z.string().min(1),
-    semanticId: z.string().min(1).default("ash:Action"),
+    // v26.9.16 delegation: semanticId, authorityBoundary, doAuthority, and
+    // receiptRequired are delegated facts. They arrive from the manifest's
+    // custom.ash_surface metadata or are null — an absent key means "not
+    // delegated" and surfaces as null; values are never defaulted or
+    // re-derived client-side.
+    semanticId: z.string().min(1).nullable().default(null),
     resource: z.string().min(1),
     action: z.string().min(1),
-    authorityBoundary: z.enum(["OBSERVE", "SELECT", "CONSTRUCT", "DO"]).default("DO"),
-    doAuthority: z.boolean().default(true),
-    receiptRequired: z.boolean().default(true),
+    authorityBoundary: z
+      .enum(["OBSERVE", "SELECT", "CONSTRUCT", "DO"])
+      .nullable()
+      .default(null),
+    doAuthority: z.boolean().nullable().default(null),
+    receiptRequired: z.boolean().nullable().default(null),
     evidenceRequired: z.boolean().default(false),
     possibleRefusals: z.array(z.string()).default([]),
     profile: jsonRecordSchema.default({}),
@@ -93,12 +101,12 @@ export const ashSurfaceContractSchema = z
 /**
  * @typedef {Object} SurfaceAction
  * @property {string} id Stable Ash action identity.
- * @property {string} semanticId Formal semantic URI.
+ * @property {string|null} semanticId Delegated semantic URI; null when not delegated (v26.9.16 delegation).
  * @property {string} resource Fully-qualified Ash resource module name.
  * @property {string} action Ash action name.
- * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"} authorityBoundary
- * @property {boolean} doAuthority
- * @property {boolean} receiptRequired
+ * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"|null} authorityBoundary Delegated; null when not delegated.
+ * @property {boolean|null} doAuthority Delegated; null when not delegated.
+ * @property {boolean|null} receiptRequired Delegated; null when not delegated.
  * @property {boolean} evidenceRequired
  * @property {string[]} possibleRefusals
  * @property {Record<string, unknown>} profile Projection-only metadata.

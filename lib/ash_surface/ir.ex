@@ -25,6 +25,13 @@ defmodule AshSurface.IR do
   session, and no field of this struct authorizes a DO. Consumers must
   re-derive standing from the sources; the IR only transports what those
   sources admitted.
+
+  ## Delegated facts (v26.9.16 slimming, v10)
+
+  `semanticId`, `authorityBoundary`, `doAuthority`, and `receiptRequired`
+  are delegated facts, never local derivations: each is read from the
+  manifest's `custom.ash_surface` profile metadata when a delegating
+  authority stored it there, and is `nil` otherwise. See `delegated/2`.
   """
 
   @enforce_keys []
@@ -84,6 +91,43 @@ defmodule AshSurface.IR do
   def section(%__MODULE__{} = ir, name) when is_map_key(@section_modules, name) do
     Map.get(ir, name)
   end
+
+  # -- Delegated facts (v10 slimming, merged after sections per wave order) --
+
+  @delegated_facts ~w(semanticId authorityBoundary doAuthority receiptRequired)
+
+  @doc "The canonical delegated-fact section keys."
+  @spec delegated_facts() :: [String.t(), ...]
+  def delegated_facts, do: @delegated_facts
+
+  @doc """
+  Reads a delegated fact for a manifest entrypoint from its `custom.ash_surface`
+  IR section.
+
+  Returns the delegated value when the manifest metadata carries it, `nil`
+  otherwise. No default is inferred and no value is re-derived.
+  """
+  @spec delegated(Ash.Info.Manifest.Entrypoint.t(), String.t()) :: term() | nil
+  def delegated(%Ash.Info.Manifest.Entrypoint{action: action}, fact)
+      when fact in @delegated_facts do
+    action
+    |> surface_section()
+    |> profile_section()
+    |> Kernel.||(%{})
+    |> Map.get(fact)
+  end
+
+  defp surface_section(%{custom: custom}) do
+    case custom do
+      %{ash_surface: section} -> section
+      %{"ash_surface" => section} -> section
+      _ -> %{}
+    end
+  end
+
+  defp profile_section(%{profile: profile}) when is_map(profile), do: profile
+  defp profile_section(%{"profile" => profile}) when is_map(profile), do: profile
+  defp profile_section(_), do: nil
 
   defmodule Ash do
     @moduledoc """

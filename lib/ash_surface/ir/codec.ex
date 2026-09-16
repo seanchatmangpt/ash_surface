@@ -1,4 +1,4 @@
-defmodule AshSurface.IR do
+defmodule AshSurface.IR.Surface do
   @moduledoc """
   Canonical shape of the ash_surface intermediate representation (IR): the
   JSON-isomorphic staging form between a verified `AshSurface.Surface`
@@ -53,7 +53,7 @@ end
 
 defmodule AshSurface.IR.Codec do
   @moduledoc """
-  Serialization and content addressing for `AshSurface.IR`.
+  Serialization and content addressing for `AshSurface.IR.Surface`.
 
   Laws implemented here:
 
@@ -83,7 +83,7 @@ defmodule AshSurface.IR.Codec do
   lives in `digest/1`, whose canon sorts keys before hashing.
   """
 
-  alias AshSurface.IR
+  alias AshSurface.IR.Surface
 
   @section_keys ~w(actions identity profile resources transports)
 
@@ -94,8 +94,8 @@ defmodule AshSurface.IR.Codec do
   and passes section values through unchanged — `nil` sections serialize as
   `nil` (JSON `null`), never as fabricated empty maps.
   """
-  @spec to_map(IR.t()) :: map()
-  def to_map(%IR{} = ir) do
+  @spec to_map(Surface.t()) :: map()
+  def to_map(%Surface{} = ir) do
     %{
       "actions" => ir.actions,
       "identity" => ir.identity,
@@ -113,11 +113,11 @@ defmodule AshSurface.IR.Codec do
   map — so `from_map(to_map(ir))` is `{:ok, ir}` exactly when the struct's
   stored digest still content-addresses its sections.
   """
-  @spec from_map(term()) :: {:ok, IR.t()} | {:error, term()}
+  @spec from_map(term()) :: {:ok, Surface.t()} | {:error, term()}
   def from_map(map) when is_map(map) and not is_struct(map) do
     with :ok <- require_exact_sections(map),
          :ok <- require_section_shapes(map) do
-      ir = %IR{
+      ir = %Surface{
         actions: Map.fetch!(map, "actions"),
         identity: Map.fetch!(map, "identity"),
         profile: Map.fetch!(map, "profile"),

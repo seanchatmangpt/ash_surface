@@ -21,6 +21,12 @@ function contract(actions, overrides = {}) {
 function action(overrides = {}) {
   return {
     id: "todos:Todo:create",
+    // v26.9.16 delegation: semanticId/authorityBoundary/doAuthority/receiptRequired
+    // are delegated facts — explicit null when not delegated.
+    semanticId: null,
+    authorityBoundary: null,
+    doAuthority: null,
+    receiptRequired: null,
     resource: "Todo",
     action: "create",
     profile: {},

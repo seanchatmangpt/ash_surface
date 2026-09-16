@@ -35,20 +35,6 @@ defmodule AshSurface.Compiler.IR.Capability do
   defstruct [:capability_id, :consequence_class, :authority_required, :receipt_required]
 end
 
-defmodule AshSurface.Compiler.Section do
-  @moduledoc """
-  Behaviour for IR section builders.
-
-  A section builder projects one canonically-shaped slice of a subject's
-  delegated semantics (here: an Ash resource's `AshA2A` capability truth).
-  Builders return the projected entries, or `nil` when the subject never
-  registered the owning extension -- absence is returned as absence, never
-  fabricated into entries.
-  """
-
-  @callback build(subject :: module()) :: [AshSurface.Compiler.IR.Capability.t()] | nil
-end
-
 defmodule AshSurface.Compiler.Capability do
   @moduledoc """
   Capability-section builder: a pure projection of `AshA2A`'s derived
@@ -80,11 +66,7 @@ defmodule AshSurface.Compiler.Capability do
   `build/1` returns `nil` for it -- no id, no class, no capability invented.
   """
 
-  @behaviour AshSurface.Compiler.Section
-
   alias AshSurface.Compiler.IR.Capability
-
-  @impl AshSurface.Compiler.Section
   @spec build(module()) :: [Capability.t()] | nil
   def build(resource) when is_atom(resource) do
     # Dynamic dispatch, deliberately: ash_a2a is a test-env-only dependency

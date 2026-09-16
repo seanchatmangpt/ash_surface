@@ -4,15 +4,15 @@
 export const ACTIONS = Object.freeze([
   {
     "action": "read",
-    "authorityBoundary": "OBSERVE",
-    "doAuthority": false,
+    "authorityBoundary": null,
+    "doAuthority": null,
     "evidenceRequired": false,
     "id": "AshSurface.Fixtures.VolunteerMilestone#read",
     "possibleRefusals": [],
     "profile": {},
-    "receiptRequired": true,
+    "receiptRequired": null,
     "resource": "AshSurface.Fixtures.VolunteerMilestone",
-    "semanticId": "ash:AshSurface.Fixtures.VolunteerMilestone#read"
+    "semanticId": null
   },
   {
     "action": "record",
@@ -43,15 +43,15 @@ export const ACTIONS = Object.freeze([
   },
   {
     "action": "read",
-    "authorityBoundary": "OBSERVE",
-    "doAuthority": false,
+    "authorityBoundary": null,
+    "doAuthority": null,
     "evidenceRequired": false,
     "id": "AshSurface.Projector.ExpoDeterminism.WideResource#read",
     "possibleRefusals": [],
     "profile": {},
-    "receiptRequired": true,
+    "receiptRequired": null,
     "resource": "AshSurface.Projector.ExpoDeterminism.WideResource",
-    "semanticId": "ash:AshSurface.Projector.ExpoDeterminism.WideResource#read"
+    "semanticId": null
   },
   {
     "action": "record",

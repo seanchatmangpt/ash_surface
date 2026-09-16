@@ -25,6 +25,10 @@ function contract() {
       actions: [
         {
           id: "Zoela.KingdomNeed#select_option",
+          // v26.9.16 delegation: semanticId/receiptRequired surface as
+          // explicit null when not delegated.
+          semanticId: null,
+          receiptRequired: null,
           resource: "Zoela.KingdomNeed",
           action: "select_option",
           authorityBoundary: "SELECT",

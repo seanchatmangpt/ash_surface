@@ -19,19 +19,6 @@ defmodule AshSurface.Compiler.IR.Presentation do
         }
 end
 
-defmodule AshSurface.Compiler.Section do
-  @moduledoc """
-  Behaviour for an ash_surface compiler section.
-
-  A section is a PURE metadata reader: it derives its IR from action identity
-  plus `custom.ash_surface` metadata alone. It never consults attributes,
-  policies, or any other business semantics.
-  """
-
-  @callback build(action :: term(), custom :: map()) ::
-              {:ok, struct()} | {:error, [%{code: String.t(), detail: String.t()}]}
-end
-
 defmodule AshSurface.Compiler.Presentation do
   @moduledoc """
   Presentation section reader — the ONLY metadata ash_surface owns.
@@ -46,8 +33,6 @@ defmodule AshSurface.Compiler.Presentation do
   The envelope key is read as `:ash_surface` (as written on the in-memory
   manifest) or `"ash_surface"` (as it returns from a JSON round-trip).
   """
-
-  @behaviour AshSurface.Compiler.Section
 
   alias AshSurface.Compiler.IR.Presentation
 

@@ -41,24 +41,6 @@ defmodule AshSurface.Compiler.IR do
   end
 end
 
-defmodule AshSurface.Compiler.Section do
-  @moduledoc """
-  Behaviour for compiler sections.
-
-  A section is a named, pure data derivation over the canonical IR. It consumes
-  an `AshSurface.Compiler.IR.Schema` plus, optionally, the output of an upstream
-  section (for example, the presentation section's output), and returns
-  JSON-serializable data that the compiler mounts under `name/0` on the schema
-  (for example, `schema.aria`). Sections never render UI; projectors own
-  rendering.
-  """
-
-  @callback name() :: atom()
-
-  @callback build(AshSurface.Compiler.IR.Schema.t(), term() | nil) ::
-              {:ok, term()} | {:error, term()}
-end
-
 defmodule AshSurface.Compiler.Aria do
   @moduledoc """
   Accessibility semantics as data: a conservative ARIA contract per action input.
@@ -83,8 +65,6 @@ defmodule AshSurface.Compiler.Aria do
   deterministic, so the same action always yields byte-identical contracts.
   """
 
-  @behaviour AshSurface.Compiler.Section
-
   alias Ash.Info.Manifest.Type
   alias AshSurface.Compiler.IR
 
@@ -97,7 +77,6 @@ defmodule AshSurface.Compiler.Aria do
   }
 
   @doc "The section name; its output mounts at `schema.aria`."
-  @impl AshSurface.Compiler.Section
   @spec name() :: :aria
   def name, do: :aria
 
@@ -109,7 +88,6 @@ defmodule AshSurface.Compiler.Aria do
   an `"inputs"`/`:inputs` key holding that keyed map is also accepted. Any other
   shape is refused rather than guessed from.
   """
-  @impl AshSurface.Compiler.Section
   @spec build(IR.Schema.t(), map() | nil) :: {:ok, map()} | {:error, term()}
   def build(%IR.Schema{} = schema, presentation \\ nil) do
     with {:ok, action_id} <- action_id(schema.action_id),

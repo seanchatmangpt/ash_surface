@@ -134,18 +134,21 @@ test("surfaceActionSchema accepts the full lawful shape with all fields", () => 
   assertAccepted(surfaceActionSchema, fullSurfaceAction, "surfaceActionSchema");
 });
 
-test("surfaceActionSchema applies defaults to the minimal required shape", () => {
+// v26.9.16 delegation: semanticId/authorityBoundary/doAuthority/receiptRequired
+// are delegated facts — null when not delegated, never defaulted client-side.
+// Non-delegated projection metadata keeps its schema defaults.
+test("surfaceActionSchema surfaces not-delegated facts as null on the minimal required shape", () => {
   assertDefaults(
     surfaceActionSchema,
     { id: "a", resource: "R", action: "act" },
     {
       id: "a",
-      semanticId: "ash:Action",
+      semanticId: null,
       resource: "R",
       action: "act",
-      authorityBoundary: "DO",
-      doAuthority: true,
-      receiptRequired: true,
+      authorityBoundary: null,
+      doAuthority: null,
+      receiptRequired: null,
       evidenceRequired: false,
       possibleRefusals: [],
       profile: {},
