@@ -26,7 +26,12 @@ defmodule AshSurface.HealthDeepTest do
   and typed refusal on invalid input. All offline: zero env/db/network.
   """
 
-  use ExUnit.Case, async: true
+  # async: false on purpose: the OBSERVE-only snapshot below asserts on global
+  # node state (persistent_term, :ets.all/0, app env). Concurrent async cases
+  # legally mutate that state mid-window (lazy ETS table creation, logger
+  # reconfiguration), which flipped the assertion under test.zero's scheduling.
+  # Exclusivity scopes the assertion to Health's own effects.
+  use ExUnit.Case, async: false
 
   alias Ash.Info.Manifest
   alias Ash.Info.Manifest.{Action, Entrypoint}
