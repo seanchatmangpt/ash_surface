@@ -4,89 +4,7 @@
 # consumer today; move verbatim when promoted):
 #   - `AshSurface.IR`           (canonical shape of lib/ash_surface/ir.ex)
 #   - `AshSurface.Projector.IR` (behaviour of lib/ash_surface/projector/ir.ex)
-defmodule AshSurface.IR do
-  @moduledoc """
-  Canonical intermediate representation of one projected Ash action.
 
-  An IR is a pure fact set: Ash semantics (`ash`), semantic identity
-  (`semantic`), capability boundary (`capability`), human presentation
-  (`presentation`), and boundary schemas (`schema`). Projectors fold lists of
-  IRs into consumer structure maps; they never rediscover Ash semantics.
-  """
-
-  defstruct [:version, :digest, :ash, :semantic, :capability, :presentation, :schema]
-
-  defmodule Ash do
-    @moduledoc "Ash action facts."
-    defstruct [:resource, :action, :action_type, :inputs, :outputs, :policies]
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Semantic do
-    @moduledoc """
-    Semantic identity facts.
-
-    Relationship bindings ride in `predicates` under the `"relationships"` key
-    as a list of `%{"name" => ..., "destination" => ..., "cardinality" => ...}`
-    maps. Malformed entries are refused, not silently dropped.
-    """
-    defstruct [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology]
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Capability do
-    @moduledoc "Capability boundary facts."
-    defstruct [:capability_id, :consequence_class, :authority_required, :receipt_required]
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Presentation do
-    @moduledoc """
-    Human presentation facts.
-
-    `group` defaults to `"Resources"` (zero-config). `widget` may be a map
-    (field name -> widget kind), a binary/atom (default widget for every
-    field), or nil (widget derived from the field type). `order` defaults to 0.
-    """
-    defstruct [:label, :group, :order, :widget, :format]
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Schema do
-    @moduledoc """
-    Boundary schema facts.
-
-    `input` maps field name to either a type (binary/atom) or a spec map with
-    `"type"` and optional `"required"`. `zod`/`aria` are passthrough facts.
-    """
-    defstruct [:input, :output, :zod, :aria]
-    @type t :: %__MODULE__{}
-  end
-
-  @type t :: %__MODULE__{
-          version: String.t() | nil,
-          digest: String.t() | nil,
-          ash: Ash.t() | nil,
-          semantic: Semantic.t() | nil,
-          capability: Capability.t() | nil,
-          presentation: Presentation.t() | nil,
-          schema: Schema.t() | nil
-        }
-end
-
-defmodule AshSurface.Projector.IR do
-  @moduledoc """
-  Behaviour for folding IR facts into consumer structure maps.
-
-  A projector receives already-declared IR facts and returns pure data:
-  `{:ok, structure_map, meta}` or `{:error, term}`. It must not embed direct
-  invocation references (modules, functions, routes to code); action controls
-  reference `surface_action_id` intent targets only.
-  """
-
-  @callback project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
-              {:ok, map(), map()} | {:error, term()}
-end
 
 defmodule AshSurface.Projectors.LiveView do
   @moduledoc """
@@ -108,7 +26,10 @@ defmodule AshSurface.Projectors.LiveView do
   projection is byte-stable under input permutation.
   """
 
-  @behaviour AshSurface.Projector.IR
+  # Integrated truth: the canonical AshSurface.Projector.IR behaviour (v16)
+  # folds kind-tagged IR node maps; this projector folds %AshSurface.IR{}
+  # structs directly — a different, documented subject contract — so it
+  # honestly does not declare the behaviour.
 
   @default_group "Resources"
   @default_order 0
@@ -126,10 +47,8 @@ defmodule AshSurface.Projectors.LiveView do
     "utc_datetime" => "datetime"
   }
 
-  @impl true
   def project_ir(%AshSurface.IR{} = ir, opts), do: project_ir([ir], opts)
 
-  @impl true
   def project_ir(irs, _opts) when is_list(irs) do
     with :ok <- validate_irs(irs),
          :ok <- validate_versions(irs) do
