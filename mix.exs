@@ -44,7 +44,8 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
-      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false}
+      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false},
+      {:ash_a2a, git: "https://github.com/seanchatmangpt/ash_a2a.git", only: :test}
     ]
   end
 
