@@ -126,7 +126,10 @@ defmodule AshSurface.Projector.IR do
   Accepts a single IR node or a list. Exactly one `#{@surface_ir_kind}` node
   with complete `ash` facts is admissible — the legacy projection unit is one
   surface. Zero nodes, duplicate nodes, foreign kinds, or incomplete facts are
-  refused with typed errors instead of silently pruned.
+  refused with typed errors instead of silently pruned. A mixed collection —
+  one surface node beside foreign nodes — is refused as a whole with
+  `{:foreign_ir, foreign_nodes}`; the foreign remainder is never silently
+  discarded on success.
   """
   @spec to_surface(ir() | [ir()]) :: {:ok, AshSurface.Surface.t()} | {:error, term()}
   def to_surface(irs) when is_list(irs) do
@@ -174,7 +177,7 @@ defmodule AshSurface.Projector.IR do
   defp surface_ir?(%{kind: @surface_ir_kind}), do: true
   defp surface_ir?(_), do: false
 
-  defp surface_from_split({[%{ash: ash} = _ir], _rest}) when is_map(ash) do
+  defp surface_from_split({[%{ash: ash} = _ir], []}) when is_map(ash) do
     case ash do
       %{
         manifest: %Ash.Info.Manifest{} = manifest,
@@ -196,8 +199,11 @@ defmodule AshSurface.Projector.IR do
     end
   end
 
-  defp surface_from_split({[%{} = _ir], _rest}),
+  defp surface_from_split({[%{} = _ir], []}),
     do: {:error, {:invalid_surface_facts, []}}
+
+  defp surface_from_split({[_ir], foreign_irs}),
+    do: {:error, {:foreign_ir, foreign_irs}}
 
   defp surface_from_split({[], rest}),
     do: {:error, {:missing_surface_ir, length(rest)}}
