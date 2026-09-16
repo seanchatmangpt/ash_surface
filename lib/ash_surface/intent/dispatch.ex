@@ -15,18 +15,20 @@ defmodule AshSurface.Intent.CommandBus do
   Returns the bus's own receipt-bearing outcome `{:ok, receipt_ref}` or a typed
   refusal `{:error, reason}` (for example `{:error, :REFUSED_NO_AUTHORITY}`).
   """
-  @callback submit(AshSurface.Intent.t(), map()) :: {:ok, term()} | {:error, term()}
+  @callback submit(AshSurface.Intent.Envelope.t(), map()) :: {:ok, term()} | {:error, term()}
 end
 
-defmodule AshSurface.Intent do
+
+defmodule AshSurface.Intent.Envelope do
   @moduledoc """
   The minimal manufactured intent handed to an injected `CommandBus`.
 
-  This is the whole shape declared for the delegated-DO surface: an action
-  identity already admitted by the surface contract, plus the candidate payload
-  carried verbatim. There is no execution semantics here to misinterpret; a
-  candidate/IR compilation pipeline, if ever admitted, would live upstream of
-  `Intent`, not inside it.
+  (Superseded-name note: declared as `AshSurface.Intent` on its landing
+  branch; renamed at v50 integration — the full `SurfaceIntent` shape in
+  `lib/ash_surface/intent.ex` owns the canonical name.) An action identity
+  already admitted by the surface contract, plus the candidate payload
+  carried verbatim. No execution semantics; a candidate/IR compilation
+  pipeline, if ever admitted, lives upstream of this envelope, not inside it.
   """
 
   @enforce_keys [:action_id]
@@ -56,7 +58,7 @@ defmodule AshSurface.Intent.Dispatch do
   conform to `AshSurface.Intent.CommandBus` is refused typed.
   """
 
-  alias AshSurface.Intent
+  alias AshSurface.Intent.Envelope
 
   @doc """
   Manufactures an intent from `candidate_map` and submits it to `command_bus`.
@@ -69,7 +71,7 @@ defmodule AshSurface.Intent.Dispatch do
   def submit(candidate_map, command_bus, context) do
     with :ok <- validate_candidate(candidate_map),
          :ok <- validate_bus(command_bus) do
-      intent = %Intent{
+      intent = %Envelope{
         action_id: candidate_map.action_id,
         payload: Map.delete(candidate_map, :action_id)
       }

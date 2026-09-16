@@ -17,7 +17,11 @@ defmodule AshSurface.Intent.CandidateTest do
                intent_id: id
              } = intent
 
-      assert String.starts_with?(id, "intent_")
+      # Canonical law (v11 owner, golden-pinned in intent_test): `intent_id`
+      # is the bare sha256 hex of the canonical JSON encoding — 64 lowercase
+      # hex chars, no prefix. (The superseded branch-local digest carried an
+      # `intent_` prefix; the canonical owner wins at integration.)
+      assert String.match?(id, ~r/^[0-9a-f]{64}$/)
 
       twin = Intent.create("volunteer.record", %{hours: 4}, "zoe:Member#member_7")
       assert twin.intent_id == id
@@ -88,7 +92,18 @@ defmodule AshSurface.Intent.CandidateTest do
   describe "to_candidate/2 input passthrough" do
     test "input passes through untransformed, including terms no encoder would survive" do
       raw = {:tuple, %{"nested" => [1, 2, %{deep: true}]}}
-      intent = Intent.create("odd.action", raw, "zoe:Member#m-1")
+
+      # Canonical `Intent.create` is JSON-gated (v11 law), so a tuple input
+      # is manufactured as a struct directly — the falsifier under test is
+      # `to_candidate/2`'s passthrough, never `create`'s term tolerance.
+      intent = %Intent{
+        surface_action_id: "odd.action",
+        input: raw,
+        subject_ref: "zoe:Member#m-1",
+        created_at: DateTime.utc_now(),
+        intent_id: "odd"
+      }
+
       ir = IR.create("odd.action", %{capability_id: "c"}, %{semantic_id: "s", subject_iri: "i"})
 
       envelope = Candidate.to_candidate(intent, ir)

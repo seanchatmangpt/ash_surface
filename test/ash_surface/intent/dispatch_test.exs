@@ -18,7 +18,7 @@ defmodule AshSurface.Intent.DispatchTest do
 
   use ExUnit.Case, async: true
 
-  alias AshSurface.Intent
+  alias AshSurface.Intent.Envelope
   alias AshSurface.Intent.CommandBus
   alias AshSurface.Intent.Dispatch
 
@@ -77,7 +77,7 @@ defmodule AshSurface.Intent.DispatchTest do
     assert Dispatch.submit(candidate, RecordingBus, context) == {:ok, receipt}
 
     assert [
-             {%Intent{
+             {%Envelope{
                 action_id: "user.create",
                 payload: %{params: %{name: "ada"}}
               }, ^context}
@@ -97,7 +97,7 @@ defmodule AshSurface.Intent.DispatchTest do
              {:error, :REFUSED_NO_AUTHORITY}
 
     # The refusal crossed the bus (and only the bus), it was not minted here.
-    assert [{%Intent{action_id: "ledger.close"}, %{cut: :stale}}] = calls()
+    assert [{%Envelope{action_id: "ledger.close"}, %{cut: :stale}}] = calls()
   end
 
   test "propagates a structured bus error shape verbatim" do
@@ -121,7 +121,7 @@ defmodule AshSurface.Intent.DispatchTest do
 
     assert {:ok, _} = Dispatch.submit(candidate, RecordingBus, context)
 
-    assert [{%Intent{action_id: "order.cancel"} = intent, ^context}] = calls()
+    assert [{%Envelope{action_id: "order.cancel"} = intent, ^context}] = calls()
     assert intent.payload == Map.delete(candidate, :action_id)
   end
 
