@@ -44,73 +44,6 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest.RenamedDocument do
   end
 end
 
-defmodule AshSurface.Resource.ValidatorIRAlignmentTest.IRAshSection do
-  @moduledoc """
-  MINIMAL LOCAL CONTRACT for the absent IR ash-section sibling
-  (`AshSurface.Compiler.Ash.build/2` + `AshSurface.IR.Ash`): not present on
-  this tree, so the alignment law declares the contract here instead.
-
-  One truth, two consumers: the ash section's action set for a resource is
-  EXACTLY the resource's public action set — the same truth the validator
-  admits surface projections against (`Ash.Resource.Info.public_actions/1`).
-  This stand-in binds to that single truth and invents nothing: no private
-  actions, no renamed-in residue, no second application model.
-
-  Contract shape (mirrors the sibling's admitted law):
-
-    * `build/1` -> `{:ok, [facet]}` with one facet (a map carrying at least
-      `:resource` and `:action`) per public action, or a typed
-      `{:error, [%{code: _, detail: _}]}` refusal for non-Ash sources.
-      The real sibling's `%IR.Ash{}` facets satisfy this contract because
-      structs are maps carrying those keys.
-    * `action_set/1` -> the sorted action-name list the ash section emits
-      for the resource.
-
-  INTEGRATION: when the sibling lands, this stand-in is DELETED, not
-  reconciled — the tagged tests re-point at `AshSurface.Compiler.Ash.build/1`
-  and drop their `:integration_pending` tags.
-  """
-
-  @spec build(module()) :: {:ok, [map()]} | {:error, [map()]}
-  def build(resource) when is_atom(resource) do
-    if Ash.Resource.Info.resource?(resource) do
-      {:ok,
-       Enum.map(Ash.Resource.Info.public_actions(resource), fn action ->
-         %{resource: resource, action: action.name}
-       end)}
-    else
-      {:error,
-       [
-         %{
-           code: "not_an_ash_resource",
-           detail:
-             "ash section builds only from a compiled Ash resource, got #{inspect(resource)}"
-         }
-       ]}
-    end
-  end
-
-  def build(source) do
-    {:error,
-     [
-       %{
-         code: "not_an_ash_resource",
-         detail: "ash section builds only from a compiled Ash resource, got #{inspect(source)}"
-       }
-     ]}
-  end
-
-  @doc """
-  Sorted action-name set the ash section emits for the resource. Fails
-  closed: a refused build is a test failure, never an empty set.
-  """
-  @spec action_set(module()) :: [atom()]
-  def action_set(resource) do
-    {:ok, facets} = build(resource)
-    facets |> Enum.map(& &1.action) |> Enum.sort()
-  end
-end
-
 defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
   @moduledoc """
   Admission alignment law (validator-ir-alignment-005): ONE truth, TWO
@@ -126,12 +59,10 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
     * rename residue refused by the validator -> never emitted by the
       ash section
 
-  The IR ash-section sibling is ABSENT on this tree. Tests whose truth
-  spans both consumers are `@tag :integration_pending`: they run green
-  against the locally declared minimal contract above, and the tag records
-  honestly that real-sibling convergence (re-pointing at
-  `AshSurface.Compiler.Ash.build/1`) is still pending. Validator-side-only
-  pins run untagged: that half of the law is present and alive now.
+  v50 integration: the locally declared stand-in contract was DELETED and
+  these tests re-point at the REAL `AshSurface.Compiler.Ash.build/1`
+  (landed via the sections wave); the `:integration_pending` tags are
+  dropped — both consumers of the one truth are present and alive.
   """
 
   use ExUnit.Case, async: true
@@ -140,7 +71,16 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
 
   @document AshSurface.Resource.ValidatorIRAlignmentTest.Document
   @renamed AshSurface.Resource.ValidatorIRAlignmentTest.RenamedDocument
-  @ir_ash_section AshSurface.Resource.ValidatorIRAlignmentTest.IRAshSection
+  @ir_ash_section AshSurface.Compiler.Ash
+
+  # v50 integration: the stand-in contract was DELETED per its own
+  # INTEGRATION clause; this helper derives the sorted action set from the
+  # REAL `AshSurface.Compiler.Ash.build/1` output (one facet per public
+  # action). Fails closed: a refused build is a test failure, never [].
+  defp ir_ash_action_set(resource) do
+    assert {:ok, facets} = @ir_ash_section.build(resource)
+    facets |> Enum.map(& &1.action) |> Enum.sort()
+  end
 
   # The validator's admitted set, probed black-box through validate/1: a
   # single-action surface is :ok exactly when the action is in the exact
@@ -193,9 +133,8 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
   end
 
   describe "alignment with the IR ash section (declared minimal contract)" do
-    @tag :integration_pending
     test "the same inline resource through both paths yields the identical sorted action list" do
-      ir_set = @ir_ash_section.action_set(@document)
+      ir_set = ir_ash_action_set(@document)
       validator_set = validator_admitted(@document)
 
       assert ir_set == [:create, :publish, :read]
@@ -203,14 +142,12 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
       assert ir_set == validator_set
     end
 
-    @tag :integration_pending
     test "private actions are excluded from both paths" do
       assert :archive in action_universe(@document)
-      refute :archive in @ir_ash_section.action_set(@document)
+      refute :archive in ir_ash_action_set(@document)
       refute :archive in validator_admitted(@document)
     end
 
-    @tag :integration_pending
     test "rename residue refused by the validator is never emitted by the ash section" do
       # The validator refuses the stale name (pinned untagged above)...
       assert :legacy_fetch in action_universe(@renamed) == false
@@ -218,7 +155,7 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
       # ...so the ash section for the SAME resource cannot emit it, and the
       # disjoint law holds wholesale: every validator-refused name is absent
       # from the ash-section set.
-      ir_set = @ir_ash_section.action_set(@renamed)
+      ir_set = ir_ash_action_set(@renamed)
       refute :legacy_fetch in ir_set
       assert ir_set == [:fetch, :read]
 
@@ -228,19 +165,17 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
              )
     end
 
-    @tag :integration_pending
     test "alignment binds the SAME resource, never a global set" do
       # Cross-resource falsifier: the two resources have different public
       # action sets, so each path's per-resource sets must not cross-equal.
-      assert @ir_ash_section.action_set(@renamed) != validator_admitted(@document)
-      assert @ir_ash_section.action_set(@document) != validator_admitted(@renamed)
+      assert ir_ash_action_set(@renamed) != validator_admitted(@document)
+      assert ir_ash_action_set(@document) != validator_admitted(@renamed)
 
       # Both resources still self-align.
-      assert @ir_ash_section.action_set(@document) == validator_admitted(@document)
-      assert @ir_ash_section.action_set(@renamed) == validator_admitted(@renamed)
+      assert ir_ash_action_set(@document) == validator_admitted(@document)
+      assert ir_ash_action_set(@renamed) == validator_admitted(@renamed)
     end
 
-    @tag :integration_pending
     test "the ash-section contract refuses non-Ash sources fail-closed with typed errors" do
       assert {:error, [%{code: "not_an_ash_resource", detail: detail}]} =
                @ir_ash_section.build("AshSurface.Resource.ValidatorIRAlignmentTest.Document")
