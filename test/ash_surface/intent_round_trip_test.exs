@@ -163,6 +163,13 @@ defmodule AshSurface.IntentRoundTripTest.SurfaceIntent do
   @moduledoc """
   Minimal canonical SurfaceIntent: admits a five-section IR requesting the DO
   boundary, and projects it to exactly one Candidate.
+
+  Identity is the ONE lib law (gapfix-intent-canon-004): `intent_id` is
+  derived through `AshSurface.Intent` -- lowercase sha256 hex over
+  `Jason.encode!([surface_action_id, input, subject_ref])`, no prefix. The
+  superseded local scheme (prefixed 16-hex over `term_to_binary` of the whole
+  IR) is retired: authority and evidence gate admission, they are not
+  identity.
   """
 
   alias AshSurface.IntentRoundTripTest.{Candidate, IntentIR}
@@ -202,10 +209,12 @@ defmodule AshSurface.IntentRoundTripTest.SurfaceIntent do
   end
 
   defp intent_id(ir) do
-    digest =
-      :crypto.hash(:sha256, :erlang.term_to_binary(ir)) |> Base.encode16(case: :lower)
+    # One identity law repo-wide (gapfix-intent-canon-004): computed through
+    # the lib owner `AshSurface.Intent`, never re-implemented here.
+    intent =
+      AshSurface.Intent.create(ir.action[:action_id], ir.input, ir.subject[:exact_subject])
 
-    "intent_" <> binary_part(digest, 0, 16)
+    intent.intent_id
   end
 end
 
