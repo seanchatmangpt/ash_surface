@@ -59,7 +59,9 @@ defmodule AshSurface.Projector.IRProjectorTest do
       at both adaptation and dispatch;
     * opts given to `project_ir` reach the wrapped projector unchanged;
     * the canonical IR shape round-trips surface facts, and IR collections
-      without exactly one complete surface IR are refused with typed errors.
+      without exactly one complete surface IR are refused with typed errors;
+      a mixed collection (one surface node beside foreign nodes) is refused
+      as a whole — the foreign remainder is never silently pruned.
   """
 
   use ExUnit.Case, async: false
@@ -194,6 +196,25 @@ defmodule AshSurface.Projector.IRProjectorTest do
 
       assert {:error, {:invalid_irs, :not_even_a_collection}} =
                IR.to_surface(:not_even_a_collection)
+    end
+
+    test "refuses a mixed collection instead of silently pruning the foreign remainder", %{
+      ir: ir
+    } do
+      foreign = %{kind: "foreign", ash: %{}}
+      other = %{kind: "other.kind", ash: %{}}
+
+      assert {:error, {:foreign_ir, [^foreign]}} = IR.to_surface([ir, foreign])
+
+      # Order is preserved: every foreign node is named, surface node or not.
+      assert {:error, {:foreign_ir, [^foreign, ^other]}} = IR.to_surface([foreign, ir, other])
+    end
+
+    test "the manifest adapter refuses a mixed collection through project/3 too", %{ir: ir} do
+      adapter = adapter_for(@echo_legacy)
+      foreign = %{kind: "foreign", ash: %{}}
+
+      assert {:error, {:foreign_ir, [^foreign]}} = IR.project(adapter, [ir, foreign], [])
     end
 
     test "refuses a surface IR with incomplete ash facts, with a typed error" do

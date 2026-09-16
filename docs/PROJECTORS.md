@@ -44,7 +44,10 @@ export `project/2` is refused with `{:error, {:unsupported_projector, projector}
 - `to_surface/1` admits **exactly one** complete `kind: "ash_surface.surface"`
   node; zero, duplicate, foreign, or incomplete nodes are refused with typed
   errors (`{:missing_surface_ir, n}`, `{:duplicate_surface_irs, n}`,
-  `{:invalid_surface_facts, keys}`, `{:invalid_ir, node}}`).
+  `{:invalid_surface_facts, keys}`, `{:invalid_ir, node}}`,
+  `{:foreign_ir, nodes}`). A mixed collection — one surface node beside
+  foreign nodes — is refused as a whole; the foreign remainder is never
+  silently pruned on success.
 - Canonical node shape: `%{kind: "ash_surface.surface", ash: %{manifest,
   contract, digest, action_ids}}` — the four facts of a verified surface,
   re-extracted (never re-derived; Ash ships no manifest deserializer and none
