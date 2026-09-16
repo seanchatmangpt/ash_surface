@@ -162,9 +162,10 @@ defmodule AshSurface.Compiler.AshSectionTest do
   end
 
   # Until the shared lib/ash_surface/ir.ex lands, the IR is declared locally
-  # in the compiler file; this pins that declaration to the canonical shape so
-  # integration extracts it verbatim instead of discovering drift.
-  test "locally declared IR matches the canonical top-level shape" do
+  # The shared lib/ash_surface/ir.ex is canonical (v01 law); the local
+  # declaration this pinned was superseded at integration. This pins the
+  # canonical top-level shape against the same extraction contract.
+  test "canonical top-level IR shape owns the ash facet" do
     assert {:ok, [facet | _]} = Compiler.Ash.build(@document)
 
     assert struct!(IR, ash: facet) |> Map.from_struct() |> Map.keys() |> Enum.sort() == [
@@ -177,12 +178,22 @@ defmodule AshSurface.Compiler.AshSectionTest do
              :version
            ]
 
-    # The ash facet is the root: an IR cannot be constructed without one.
-    assert_raise ArgumentError, ~r/the following keys must also be given when building/, fn ->
-      struct!(IR, version: 1)
-    end
+    # Canonical law (v01): the empty IR is constructible — every section nil
+    # is an honest UNKNOWN; `ash: nil` no longer raises. Unknown fields still
+    # raise: the shape is law, not a suggestion.
+    assert %IR{
+             version: nil,
+             digest: nil,
+             ash: nil,
+             semantic: nil,
+             capability: nil,
+             presentation: nil,
+             schema: nil
+           } = IR.new()
 
-    assert %IR{version: 1, digest: nil, ash: ^facet} = struct!(IR, ash: facet)
+    assert_raise KeyError, ~r/not_a_section/, fn -> struct!(IR, not_a_section: true) end
+
+    assert %IR{version: 1, digest: nil, ash: ^facet} = struct!(IR, ash: facet, version: 1)
   end
 
   test "declared-but-private actions are excluded" do

@@ -5,120 +5,7 @@
 # declared here with its CANONICAL SHAPE, verbatim, so integration extracts
 # rather than rewrites. Sibling sections (semantics, capability, presentation)
 # own the other facets; this section populates `IR.Ash` only.
-defmodule AshSurface.IR do
-  @moduledoc false
 
-  defmodule Ash do
-    @moduledoc false
-
-    @enforce_keys [:resource, :action, :action_type, :inputs, :outputs, :policies]
-    defstruct @enforce_keys
-
-    @type t :: %__MODULE__{
-            resource: module(),
-            action: atom(),
-            action_type: atom(),
-            inputs: [atom()],
-            outputs: term(),
-            policies: [struct()]
-          }
-  end
-
-  defmodule Semantic do
-    @moduledoc false
-
-    @enforce_keys [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology]
-    defstruct @enforce_keys
-
-    # Types stay permissive until the semantics section owns them.
-    @type t :: %__MODULE__{
-            subject_iri: term(),
-            capability_iri: term(),
-            predicates: term(),
-            shape_id: term(),
-            ontology: term()
-          }
-  end
-
-  defmodule Capability do
-    @moduledoc false
-
-    @enforce_keys [:capability_id, :consequence_class, :authority_required, :receipt_required]
-    defstruct @enforce_keys
-
-    # Types stay permissive until the capability section owns them.
-    @type t :: %__MODULE__{
-            capability_id: term(),
-            consequence_class: term(),
-            authority_required: term(),
-            receipt_required: term()
-          }
-  end
-
-  defmodule Presentation do
-    @moduledoc false
-
-    @enforce_keys [:label, :group, :order, :widget, :format]
-    defstruct @enforce_keys
-
-    # Types stay permissive until the presentation section owns them.
-    @type t :: %__MODULE__{
-            label: term(),
-            group: term(),
-            order: term(),
-            widget: term(),
-            format: term()
-          }
-  end
-
-  defmodule Schema do
-    @moduledoc false
-
-    @enforce_keys [:input, :output, :zod, :aria]
-    defstruct @enforce_keys
-
-    # Types stay permissive until the schema section owns them.
-    @type t :: %__MODULE__{
-            input: term(),
-            output: term(),
-            zod: term(),
-            aria: term()
-          }
-  end
-
-  # The ash facet is the root: no IR exists without one (Ash is authoritative;
-  # every other facet is a projection OF the ash facet, filled by its own
-  # section). `digest` is computed by whatever assembles the whole IR, not by
-  # any single section.
-  @enforce_keys [:ash]
-  defstruct version: 1,
-            digest: nil,
-            ash: nil,
-            semantic: nil,
-            capability: nil,
-            presentation: nil,
-            schema: nil
-
-  @type t :: %__MODULE__{
-          version: non_neg_integer(),
-          digest: term(),
-          ash: Ash.t(),
-          semantic: Semantic.t() | nil,
-          capability: Capability.t() | nil,
-          presentation: Presentation.t() | nil,
-          schema: Schema.t() | nil
-        }
-end
-
-defmodule AshSurface.Compiler.Section do
-  @moduledoc false
-
-  # Declared locally (per compiler-section file discipline) until the shared
-  # `lib/ash_surface/compiler.ex` lands. One section = one projection facet of
-  # one source; sections never borrow each other's facets.
-  @callback build(source :: module(), opts :: keyword()) ::
-              {:ok, [struct()]} | {:error, [map()]}
-end
 
 defmodule AshSurface.Compiler.Ash do
   @moduledoc false
@@ -128,11 +15,9 @@ defmodule AshSurface.Compiler.Ash do
   # resource policies. No semantics, no capability, no presentation; those are
   # sibling sections. Policies are carried read-only (the authorizer's own
   # structs, never reinterpreted or evaluated here).
-  @behaviour AshSurface.Compiler.Section
 
   alias AshSurface.IR
 
-  @impl AshSurface.Compiler.Section
   def build(source, _opts \\ []) do
     if ash_resource?(source) do
       {:ok, Enum.map(Ash.Resource.Info.public_actions(source), &section(source, &1))}

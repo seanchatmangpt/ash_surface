@@ -9,56 +9,7 @@
 #
 # When those files land, these local declarations move there unchanged.
 
-defmodule AshSurface.Compiler.Section do
-  @moduledoc """
-  Behaviour for one section of the ash_surface compiler projection.
 
-  A section is a pure projection of upstream law onto the canonical IR. It
-  never invents meaning: when the owning upstream surface yields no fact for
-  its subject, the section preserves `nil` — an honest UNKNOWN, never a
-  fabricated default.
-  """
-
-  @callback build(resource :: module(), action :: atom()) ::
-              AshSurface.Compiler.IR.Semantic.t() | nil
-end
-
-defmodule AshSurface.Compiler.IR do
-  @moduledoc """
-  Canonical compiler IR shapes.
-
-  `Semantic` is the semantic section for one `{resource, action}` pair. Every
-  field is a delegated fact; a `nil` field is an honest UNKNOWN that some
-  upstream surface has not admitted, never a default value.
-  """
-
-  defmodule Semantic do
-    @moduledoc """
-    Semantic identity of one `{resource, action}` pair.
-
-      * `subject_iri` — the R2RML subject IRI contract (template or constant)
-        exactly as mapped. `nil` when the subject maps to a blank node.
-      * `capability_iri` — the mapped RDF class IRI the action operates on.
-      * `predicates` — the mapped predicate IRIs, verbatim and in mapping
-        order. Empty when the mapping admits no property mappings.
-      * `shape_id` — the SHACL `sh:NodeShape` identity exactly as emitted by
-        AshR2RML's SHACL renderer for this mapping.
-      * `ontology` — ontology provenance: the named-graph IRIs the mapping
-        admits. Empty when the mapping admits no graph.
-    """
-
-    @enforce_keys [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology]
-    defstruct [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology]
-
-    @type t :: %__MODULE__{
-            subject_iri: String.t() | nil,
-            capability_iri: String.t() | nil,
-            predicates: [String.t()],
-            shape_id: String.t() | nil,
-            ontology: [String.t()]
-          }
-  end
-end
 
 defmodule AshSurface.Compiler.Semantic do
   @moduledoc """
@@ -82,7 +33,6 @@ defmodule AshSurface.Compiler.Semantic do
        module does not consult Ash action introspection to fake one.
   """
 
-  @behaviour AshSurface.Compiler.Section
 
   alias AshR2RML.Mapping
   alias AshR2RML.Resource.Info, as: R2RMLInfo
@@ -93,7 +43,6 @@ defmodule AshSurface.Compiler.Semantic do
   # identity is delegated fact, never re-derived locally.
   @node_shape ~r/<(?<shape>[^>]+)> a sh:NodeShape ;\n\s+sh:targetClass <(?<target>[^>]+)>/
 
-  @impl true
   def build(resource, action) when is_atom(resource) and is_atom(action) do
     case R2RMLInfo.mapping(resource) do
       %Mapping.Resource{} = mapping -> project(mapping)

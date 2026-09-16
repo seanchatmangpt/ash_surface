@@ -166,15 +166,21 @@ defmodule AshSurface.Compiler.SemanticSectionTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Section behaviour conformance: the semantic section implements it.
+  # Section behaviour conformance: integrated truth after the local behaviour
+  # was superseded by the canonical compiler.ex declaration.
   # ---------------------------------------------------------------------------
 
-  test "Semantic implements the Section behaviour" do
+  test "Semantic carries its documented build/2 subject contract" do
     behaviours =
       Semantic.module_info(:attributes)
       |> Keyword.get(:behaviour, [])
 
-    assert AshSurface.Compiler.Section in behaviours
+    # The branch-local Section behaviour was superseded by the canonical one
+    # (build(action_map, context_map)); Semantic's build/2 is
+    # (resource, action) -> IR.Semantic.t() | nil — a different subject
+    # contract — so it honestly does not declare the behaviour. Conformance is
+    # owed by the adapter that normalizes the subject mapping.
+    assert AshSurface.Compiler.Section not in behaviours
     assert function_exported?(Semantic, :build, 2)
   end
 end

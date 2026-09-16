@@ -1,53 +1,9 @@
 # Canonical compiler-section behaviour. Declared locally by the schema
 # section until lib/ash_surface/compiler/section.ex lands; when the shared
 # file arrives it replaces this definition byte-for-byte in shape.
-defmodule AshSurface.Compiler.Section do
-  @moduledoc """
-  Behaviour for compiler sections.
-
-  A section receives already-discovered Ash semantics as `discovery` and
-  returns a slice of the compiler IR. Sections never re-discover resource or
-  action semantics: the single discovery pass is owned upstream (the ash
-  section); every downstream section consumes its output as given.
-  """
-
-  @callback build(discovery :: term(), opts :: keyword()) ::
-              {:ok, term(), meta :: map()} | {:error, term()}
-end
 
 # Canonical compiler IR. Declared locally by the schema section until
 # lib/ash_surface/compiler/ir.ex lands; the shape below is canonical.
-defmodule AshSurface.Compiler.IR do
-  @moduledoc """
-  Intermediate representation slices produced by compiler sections.
-
-  This module declares only the canonical schema slice; further slices
-  (action, policy, transport) belong to their owning sections.
-  """
-
-  defmodule Schema do
-    @moduledoc """
-    Per-action schema IR.
-
-    * `input` — the input description: argument name -> type description map
-    * `output` — the output description: the return type description, or
-      `nil` when the action returns nothing declared
-    * `zod` — the zod projection as source text (paired input/output schemas
-      mirroring `AshSurface.Projector.Expo`'s emission idioms)
-    * `aria` — derived accessibility metadata (zero-config, from names only)
-    """
-
-    @enforce_keys [:input, :output, :zod, :aria]
-    defstruct [:input, :output, :zod, :aria]
-
-    @type t :: %__MODULE__{
-            input: %{optional(String.t()) => map()},
-            output: map() | nil,
-            zod: String.t(),
-            aria: map()
-          }
-  end
-end
 
 defmodule AshSurface.Compiler.Schema do
   @moduledoc """
@@ -78,7 +34,6 @@ defmodule AshSurface.Compiler.Schema do
   `AshSurface.Compiler.IR.Schema` and `meta` carries the section counts.
   """
 
-  @behaviour AshSurface.Compiler.Section
 
   # The established zod mapping table. This mirrors
   # AshSurface.Projector.Expo.map_zod_type/1 exactly; drift between the two
@@ -96,7 +51,6 @@ defmodule AshSurface.Compiler.Schema do
     "array" => "z.array(z.unknown())"
   }
 
-  @impl true
   def build(discovery, _opts \\ [])
 
   def build(discovery, _opts) when is_map(discovery) do
@@ -159,7 +113,7 @@ defmodule AshSurface.Compiler.Schema do
          :ok <- validate_returns(id, returns) do
       input = Map.new(args, fn arg -> {arg["name"], Map.delete(arg, "name")} end)
 
-      slice = %AshSurface.Compiler.IR.Schema{
+      slice = %AshSurface.Compiler.IR.Boundary{
         input: input,
         output: returns,
         zod: render_zod(id, args, returns),

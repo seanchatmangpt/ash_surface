@@ -4,42 +4,6 @@
 # When the canonical modules land, these two local declarations must be dropped
 # without changing one byte of `AshSurface.Compiler.Aria`.
 
-defmodule AshSurface.Compiler.IR do
-  @moduledoc """
-  Canonical compiler IR for one action surface.
-
-  A `%Schema{}` carries the action's stable identity (`action_id`, the same
-  `Resource#action` identity used by `AshSurface.action_id/1`), its normalized
-  action inputs, and the output of each compiler section mounted under that
-  section's name (`presentation`, `aria`, ...). Inputs normalize
-  `Ash.Info.Manifest.Argument` entries (arguments plus accepted attributes)
-  into plain descriptors; `type` is the resolved `Ash.Info.Manifest.Type`.
-  """
-
-  defmodule Input do
-    @enforce_keys [:name, :type, :allow_nil?]
-    defstruct [:name, :type, :allow_nil?, :description]
-
-    @type t :: %__MODULE__{
-            name: atom() | String.t(),
-            type: Ash.Info.Manifest.Type.t() | atom() | nil,
-            allow_nil?: boolean(),
-            description: String.t() | nil
-          }
-  end
-
-  defmodule Schema do
-    @enforce_keys [:action_id, :inputs]
-    defstruct [:action_id, :inputs, :presentation, :aria]
-
-    @type t :: %__MODULE__{
-            action_id: String.t(),
-            inputs: [Input.t()],
-            presentation: map() | nil,
-            aria: map() | nil
-          }
-  end
-end
 
 defmodule AshSurface.Compiler.Aria do
   @moduledoc """
