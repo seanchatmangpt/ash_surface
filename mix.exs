@@ -44,7 +44,12 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
-      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false}
+      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false},
+      # LOCAL dep line for exp/v04; v23 owns the canonical dep at integration.
+      {:ash_r2rml,
+       git: "https://github.com/seanchatmangpt/ash_r2rml.git",
+       ref: "067954ad406fd637fd47646bdb10c4580809c79d",
+       only: :test}
     ]
   end
 
