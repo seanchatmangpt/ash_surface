@@ -12,9 +12,10 @@ defmodule AshSurface.NoLocalDoTest do
   create/update/destroy/calculate on resources, no Process/Task execution of
   actions.
 
-  METHOD: every file under lib/ash_surface/**/*.ex is walked in-test via
-  File.read!/1 + Code.string_to_quoted!/1 (raw source AND AST), so the
-  invariant is checked against the tree as it is, not a cached list. Each
+  METHOD: every file under lib/ash_surface/**/*.ex plus the root
+  lib/ash_surface.ex envelope is walked in-test via File.read!/1 +
+  Code.string_to_quoted!/1 (raw source AND AST), so the invariant is checked
+  against the tree as it is, not a cached list. Each
   test below is a falsifier that survived adversarial construction; each
   surviving falsifier is kept as a permanent tripwire, and its comment names
   the invariant clause it guards.
@@ -24,16 +25,28 @@ defmodule AshSurface.NoLocalDoTest do
   surface's own in-memory projection constructors (AshSurface.Event /
   Observation / PlanningEpisode — structs, never resource mutations).
 
-  SCOPE NOTE: the walk is lib/ash_surface/**/*.ex exactly. The root
-  lib/ash_surface.ex envelope still carries pre-v26.9.16 default derivations;
-  its delegation fix travels on the v26.9.16 branch (c6744cb) and is tracked
-  there, not by this walk.
+  SCOPE: the walk is lib/ash_surface/**/*.ex PLUS the root lib/ash_surface.ex
+  envelope, pinned explicitly (the recursive glob cannot reach lib/). The
+  envelope is delegation-clean at HEAD: c6744cb (v26.9.16 delegated facts) is
+  an ancestor of it, and `surface_envelope/2` reads semanticId,
+  authorityBoundary, doAuthority, and receiptRequired through
+  `AshSurface.IR.delegated/2` — nil when not delegated, never re-derived. An
+  earlier revision of this note excused the envelope as "travelling on the
+  v26.9.16 branch (c6744cb)"; that exclusion was stale and is removed. The
+  envelope is law under this walk like any other surface file.
   """
 
   use ExUnit.Case, async: true
 
   @repo_root Path.expand("../..", __DIR__)
-  @files Enum.sort(Path.wildcard(Path.join(@repo_root, "lib/ash_surface/**/*.ex")))
+
+  # The root envelope lives in lib/, not lib/ash_surface/, so the recursive
+  # glob cannot reach it; it is pinned explicitly and sorted into the walk.
+  @root_envelope Path.join(@repo_root, "lib/ash_surface.ex")
+
+  @files Enum.sort([
+           @root_envelope | Path.wildcard(Path.join(@repo_root, "lib/ash_surface/**/*.ex"))
+         ])
 
   # INVARIANT 1 — direct Ash mutation/authority calls. These function names on
   # a non-allowlisted module mean "executed (or asked Ash to bless) a
@@ -221,6 +234,13 @@ defmodule AshSurface.NoLocalDoTest do
     assert length(@files) >= 8,
            "surface walk shrank to #{length(@files)} files — invariant unenforced"
 
+    # The root envelope must be under the walk: a stale exclusion note once
+    # kept it outside; that exclusion was falsified (c6744cb is an ancestor of
+    # HEAD) and must never silently reappear.
+    assert @root_envelope in @files and File.regular?(@root_envelope),
+           "root envelope lib/ash_surface.ex is missing from the walk — " <>
+             "the invariant is unenforced over the envelope"
+
     for {path, _source, ast} <- read_sources!() do
       assert is_tuple(ast), "#{rel(path)} did not produce an AST"
     end
@@ -395,15 +415,21 @@ defmodule AshSurface.NoLocalDoTest do
   @path_acronyms %{"ir" => "IR"}
 
   defp surface_module(path) do
-    rel = Path.relative_to(path, Path.join([@repo_root, "lib", "ash_surface"]))
+    if path == @root_envelope do
+      # The envelope IS the AshSurface module itself; it cannot be expressed
+      # relative to the lib/ash_surface base below.
+      AshSurface
+    else
+      rel = Path.relative_to(path, Path.join([@repo_root, "lib", "ash_surface"]))
 
-    parts =
-      rel
-      |> Path.rootname()
-      |> String.split("/")
-      |> Enum.map(&Map.get(@path_acronyms, &1, &1))
-      |> Enum.map(&Macro.camelize/1)
+      parts =
+        rel
+        |> Path.rootname()
+        |> String.split("/")
+        |> Enum.map(&Map.get(@path_acronyms, &1, &1))
+        |> Enum.map(&Macro.camelize/1)
 
-    Module.concat([AshSurface | parts])
+      Module.concat([AshSurface | parts])
+    end
   end
 end
