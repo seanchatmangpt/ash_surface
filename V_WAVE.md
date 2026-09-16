@@ -48,7 +48,7 @@ Merge order (law): v01 → v02 → v16 → v03–v08 → v09 + v11–v15 → v10
 | exp/v22 | docs | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
 | exp/v23 | deps (canonical mix.exs; its lines kept over v04/v05 local lines) | (not landed; at integration v05's local ash_a2a test-env dep stands, ledgered here) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta; precedence rule armed for its landing) |
 | exp/v24 | machinery | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
-| exp/v25 | docs | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
+| exp/v25 | docs (DEP_GRAPH.md, real 132-line delta) | (not landed at first pass; NOT-MERGED at efceb65 — proven by sweep; merged post-close 6f0338a) | — | mix test → 0 | UNKNOWN-until-integration → **NOT-MERGED at efceb65** (the "(no delta)" note below was wrong) |
 | exp/v26 | machinery | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
 | exp/v27 | tests | (no delta at pass time) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (moving head) |
 | exp/v28 | tests — DiscoverOnce discovery law | `lib/ash_surface/{ir,compiler}.ex` (branch-local scaffolding), `test/ash_surface/compiler_discovery_test.exs` | carries a THIRD local `AshSurface.IR` canon (`%IR{actions, digest}` + normalize/1) — conflicts with canonical ir.ex/compiler.ex; requires adaptation to canonical interfaces | mix test → 0 | UNKNOWN-until-integration → **REFUSED this session** (merge conflicted; head still moving under concurrent manufacture; scaffolding canon must yield to ir.ex + compiler.ex owners — integrate after it lands) |
@@ -77,7 +77,8 @@ Merge order (law): v01 → v02 → v16 → v03–v08 → v09 + v11–v15 → v10
   non-conformance; `voice_kiosk_test` e2e delegates authority facts via the
   action profile (v10 law) instead of the removed pre-v10 local derivation.
 - Checklist items **BLOCKED** (owners not landed; no fabrication):
-  `scripts/zero_config_v2.sh` exists on no branch (owner: deps/machinery rows);
+  [corrected post-close: `scripts/zero_config_v2.sh` DID exist, on exp/v40 —
+  this "exists on no branch" claim was false; the branch landed late via 3b2fdf4];
   `no_local_do` is named by the wave plan but defined nowhere in-repo.
   Substituted in-session proof: `mix test` 387/387, `mix test.all` ×3,
   `mix test.zero` (env -i), `scripts/zero_config_check.sh` (v1 fresh-clone gate).
@@ -86,9 +87,14 @@ Merge order (law): v01 → v02 → v16 → v03–v08 → v09 + v11–v15 → v10
 
 ## Final standings (v50 close-out, final-integration-010)
 
-All 39 remaining branches merged into `exp/v50` in wave order this session;
-the per-row "actual" column above reflects the first integration pass —
-this addendum is the authoritative final standing.
+39 of the 41 remaining branches were merged into `exp/v50` in wave order
+this session; the per-row "actual" column above reflects the first
+integration pass — this addendum is the authoritative final standing.
+The two exceptions, both proven by the 26-agent post-close verification
+sweep (reports under ~/.zcode/workspace/default/capacity-probe/hw25/):
+v40 (silently omitted here — merged late into the checkpoint by
+coordinator repair 3b2fdf4 before the landing) and v25 (silently omitted,
+NOT-MERGED at the landing efceb65 — merged post-close at 6f0338a).
 
 | rows | final standing |
 |---|---|
@@ -104,6 +110,8 @@ this addendum is the authoritative final standing.
 | v32–v39, v41–v43 | **ALIVE** (merged; v39's golden canon re-namespaced; v41/v42 convergent e2e/health fixes taken from their sides; v38 no-local-do tripwire satisfied — see below) |
 | v44 | **ALIVE** (merged; validator-ir-alignment stand-in DELETED per its own INTEGRATION clause — tests re-pointed at the real `Compiler.Ash.build/1`, `:integration_pending` tags dropped) |
 | v45–v49 | **ALIVE** (merged; docs/ledger/ontology rows; v49's mix.exs identical to v23's canonical block) |
+| v40 | **ALIVE** (merged late into the exp/v50 checkpoint by coordinator repair 3b2fdf4 at 13:16 — after this addendum was first authored (31e1052, 13:11), which is why the "remains absent" claims below were true when written but falsified five minutes later; `scripts/zero_config_v2.sh` present at the landing byte-intact, 179 lines) |
+| v25 | **ALIVE** (NOT-MERGED at the landing efceb65 — silently omitted from the "all 39/49 merged" claims despite a real 132-line delta (`docs/DEP_GRAPH.md` + ledger row); proven by sweep agent-13; merged post-close at 6f0338a with this ledger correction) |
 | v50 | **this row** (all gates green; landed `--no-ff` onto `feat/dfcm-surface-core`) |
 
 Reconciliation receipts (this session):
@@ -125,5 +133,7 @@ Reconciliation receipts (this session):
   exemption path-mapping repaired (camelize("ir") = "Ir" made it
   unsatisfiable by construction; detection logic untouched).
 - Earlier-session BLOCKED items resolved: `scripts/zero_config_v2.sh`
-  remains absent (no owner landed; `zero_config_check.sh` v1 stands);
+  [corrected post-close: NOT absent — owned by exp/v40, landed via 3b2fdf4,
+  byte-intact in this tree; the "remains absent" claim above was falsified
+  by the late v40 merge minutes after authoring];
   `no_local_do` now exists and is green (v38).
