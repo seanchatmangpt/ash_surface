@@ -26,7 +26,11 @@ defmodule AshSurface.HealthDeepTest do
   and typed refusal on invalid input. All offline: zero env/db/network.
   """
 
-  use ExUnit.Case, async: true
+  # async: false — the OBSERVE-purity snapshot closes over persistent_term,
+  # and concurrent tests (socket ioctls from ssl/req under the intent wave's
+  # dep set) mutate it inside the window; serializing removes the interference
+  # without narrowing what the tripwire observes.
+  use ExUnit.Case, async: false
 
   alias Ash.Info.Manifest
   alias Ash.Info.Manifest.{Action, Entrypoint}
