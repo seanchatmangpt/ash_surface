@@ -10,14 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28);
+      # drift here is a receipted defect class (ticket gapfix-ci-009).
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3"
-          elixir-version: "1.18.4"
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      # Key hashes mix.lock too: lockfile-only changes must bust the cache.
       - uses: actions/cache@v4
         with:
           path: deps
-          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: mix deps.get
@@ -28,7 +31,10 @@ jobs:
       - run: npm install
       - run: mix format --check-formatted
       - run: mix compile --warnings-as-errors
-      - run: mix test
+      # Zero-config gate battery (TESTING.md §1): test.all = test + test.js,
+      # test.zero re-runs test.all under literal `env -i` (HOME/PATH only).
+      - run: mix test.all
+      - run: mix test.zero
 
   javascript:
     runs-on: ubuntu-latest
@@ -40,3 +46,22 @@ jobs:
       - run: npm install
       - run: node --check priv/static/ash_surface_runtime.mjs
       - run: npm test
+
+  # Fresh-clone proof (zero-config gate law, v1): a pristine local clone of
+  # HEAD must build and pass the full battery with zero configuration.
+  # v2 battery (zero_config_v2.sh) is intentionally NOT wired until
+  # gapfix-v2-receipt-008 lands DONE green.
+  zero-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: bash scripts/zero_config_check.sh
