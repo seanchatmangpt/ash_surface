@@ -65,10 +65,17 @@ defmodule AshSurface.ConsumerFixtureTest do
     assert {:ok, records} =
              Ash.read(VolunteerMilestone, domain: AshSurface.Fixtures.Domain)
 
+    # The record created by THIS dispatch is the one whose id the receipt
+    # carries. ETS-backed fixtures persist across test files in the same VM
+    # run, so member_id alone can match a prior file's record; the
+    # receipt-id correspondence is the law under test, so resolve by id.
+    receipt = Jason.decode!(File.read!(receipt_path))
+
     successful_record =
-      Enum.find(records, fn r -> r.member_id == "member_zoela_01" end)
+      Enum.find(records, fn r -> r.id == receipt["consequence"]["id"] end)
 
     refute is_nil(successful_record), "Expected Ash record created by JS consumer"
+    assert successful_record.member_id == "member_zoela_01"
     assert successful_record.milestone_id == "milestone_serve_42"
     assert successful_record.cost_physical == 10
     assert successful_record.reward_spiritual == 100
