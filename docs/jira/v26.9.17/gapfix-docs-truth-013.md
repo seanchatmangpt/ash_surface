@@ -1,8 +1,9 @@
 # gapfix-docs-truth-013: stale-docs truth pass (DEP_GRAPH, MIGRATION, PROJECTORS, README, V_WAVE, owner-file comments)
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T05:30:00Z
 ## Mission
 Truth-reconcile, retract-in-place with provenance: (a) DEP_GRAPH.md:111-129 current-deps table false (claims 4 + "never ash_r2rml/ash_a2a"; actual 6 incl. both git-pinned, mix.exs:42-62) — rewrite table to actual mix.exs + re-state target law honestly (target-vs-current as explicit missing-deps list, or amend the target with rationale); wasmex citation line drift (ash_a2a mix.exs:235 vs cited 218-222). (b) MIGRATION_26_9_16.md: "from 26.9.14" never existed for ash_surface (ash_a2a conflation; title + :36 + :87, repeated in v26.9.16/migration-doc-009.md:1) — correct to 26.9.13 with provenance note; projector-v2 row "not landed" (doc:125,190) vs V_WAVE ALIVE; non-compiling illustration snippet (doc:68-77) marked or fixed. (c) PROJECTORS.md: register LiveView + ARIA modules (currently "no projector module shipped", :125-126), reflect IREntry rename (:71,:285 vs projector/ir_entry.ex:4), note behaviour adoption reality (callback adopted by test fixture only; shipped = duck-dispatch, live_view.ex:28-31). (d) README.md:58 root pointer to PROJECTORS.md → docs/PROJECTORS.md. (e) V_WAVE.md interim cells "(not landed)/(no delta)" rows v04,v07,v11-v15,v22-v24,v26,v45-v49 + stale worktree pointer :3 — annotate superseded-by-addendum per cell or one banner (addendum already claims standing authority). (f) owner-file transition comments describing completed moves: codec.ex:7-10, event_projection.ex:16, projector/ir.ex:9 ("ir.ex does not exist yet"), capability.ex:5-7, schema.ex:1-4, semantic.ex:2-8, aria.ex:1-5, Justfile:30,43.
 ## Acceptance
 - every named claim matches the tree at landing SHA; retraction-with-provenance style (no silent rewrites); mix test 0 (docs-only but battery anyway).
 ## History
+2026-09-16T23:59:52Z | IN_PROGRESS | ~/ash-surface-wt/g13 + exp/gapfix-docs-truth-013 | dispatched by rider (target_n=8)
