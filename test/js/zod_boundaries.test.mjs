@@ -287,6 +287,43 @@ test("eventProjectionSchema applies defaults to the minimal required shape", () 
   );
 });
 
+// gapfix-event-schema-003: the real wire form. Event.to_map/1 always emits the
+// evidenceRef/receiptRef/payload keys and emits null refs for unannotated
+// events; the Expo-projected artifact (expo.ex render_events) now declares the
+// same nullable rows, so a real event validates identically at both boundaries.
+test("eventProjectionSchema accepts null evidenceRef (the unannotated real event)", () => {
+  assertAccepted(eventProjectionSchema, { ...fullEvent, evidenceRef: null }, "eventProjectionSchema");
+});
+
+test("eventProjectionSchema accepts null refs and null payload together (bare Event.to_map/1 shape)", () => {
+  assertAccepted(
+    eventProjectionSchema,
+    { ...fullEvent, evidenceRef: null, receiptRef: null, payload: null },
+    "eventProjectionSchema",
+  );
+});
+
+test("eventProjectionSchema accepts the exact Event.to_map/1 wire form (every key present, refs null)", () => {
+  // Key layout of Event.to_map/1 for an unannotated event; eventId/stateDigest
+  // are the real computed values for this exact subject/sequence/type/payload
+  // (identity formula pinned cross-language by digest_cross_language.test.mjs;
+  // executed both-boundary proof lives in expo_events_test.exs).
+  const realWireEvent = {
+    eventId: "ev_f0414e112f1d1245",
+    sequence: 7,
+    subjectRef: "zoe:KingdomNeed#need_42",
+    eventType: "need_selected",
+    stateDigest: "f0414e112f1d124579b5251ce80bffe9d9e08bf04457d48d6efa074e99572884",
+    evidenceRef: null,
+    receiptRef: null,
+    payload: { selected_candidate: "person_01" },
+    occurredAt: "2026-09-15T10:00:00Z",
+    authorityBoundary: "OBSERVE",
+  };
+
+  assertAccepted(eventProjectionSchema, realWireEvent, "eventProjectionSchema");
+});
+
 rejectionTable("eventProjectionSchema", eventProjectionSchema, fullEvent, [
   missing("eventId"),
   missing("sequence"),
