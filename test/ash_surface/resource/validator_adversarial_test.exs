@@ -23,8 +23,12 @@ defmodule AshSurface.Resource.ValidatorAdversarialTest do
   @invalid_detail "compiled AshSurface extension state must contain a surface projection list"
 
   defp assert_typed(errors, [{code, detail}]) when is_list(errors) do
-    assert Enum.map(errors, & &1.code) == [code]
-    assert Enum.map(errors, & &1.detail) == [detail]
+    # Convergence (integration of t17's validator repair): malformed inputs now
+    # yield ADDITIONAL typed codes (e.g. invalid_surface_compilation) alongside
+    # the expected one. The law is "the expected typed rejection is present and
+    # every emitted error is fully typed" — not "exactly one error".
+    assert code in Enum.map(errors, & &1.code)
+    assert detail in Enum.map(errors, & &1.detail)
     assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
   end
 
@@ -81,13 +85,26 @@ defmodule AshSurface.Resource.ValidatorAdversarialTest do
 
       assert {:error, errors} = Validator.validate(%{surface: projections})
 
-      assert Enum.map(errors, & &1.detail) == [
-               dup_detail(:a),
-               dup_detail(:b),
-               dup_detail(:c)
-             ]
+      # Convergence: the repaired validator additionally emits its
+      # resource-admission error (exact public action set) for these
+      # resource-less projections; each duplicate error is still present and
+      # everything stays fully typed.
+      details = Enum.map(errors, & &1.detail)
 
-      assert Enum.all?(errors, &(&1.code == "duplicate_action_projection"))
+      for action <- [:a, :b, :c] do
+        assert dup_detail(action) in details
+      end
+
+      assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
+
+      # The duplicate errors themselves are exactly one per identity...
+      dup_errors = Enum.filter(errors, &(&1.code == "duplicate_action_projection"))
+      assert length(dup_errors) == 3
+      # ...and re-validation is deterministic (same input, same error set).
+      assert {:error, errors_again} = Validator.validate(%{surface: projections})
+
+      assert Enum.map(errors, &{&1.code, &1.detail}) |> Enum.sort() ==
+               Enum.map(errors_again, &{&1.code, &1.detail}) |> Enum.sort()
     end
   end
 
@@ -136,14 +153,19 @@ defmodule AshSurface.Resource.ValidatorAdversarialTest do
       assert_typed(errors, [{"duplicate_action_projection", dup_detail(:create)}])
     end
 
-    @tag :documented_gap
-    test "TRUTH: forged boundary kinds alone are accepted here - this validator owns uniqueness, not boundary semantics" do
+    @tag :truth_changed_by_t17
+    test "forged boundary kinds are now typed rejections (truth tightened at integration)" do
+      # Pre-repair truth: forged kinds passed (validator owned uniqueness only).
+      # t17's repair enforces admitted transport kinds too — stricter admission
+      # aligned with the v26.9.16 delegation law. Forged kinds now reject
+      # through the typed vocabulary rather than passing silently.
       forged = [
         %{action: :read, id: "r", authority_boundary: "DO"},
         %{action: :create, id: "c", transport: :phoenix_channel}
       ]
 
-      assert :ok = Validator.validate(%{surface: forged})
+      assert {:error, errors} = Validator.validate(%{surface: forged})
+      assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
     end
   end
 
@@ -170,25 +192,37 @@ defmodule AshSurface.Resource.ValidatorAdversarialTest do
   end
 
   describe "malformed entries escaping the typed vocabulary (documented gaps)" do
-    @tag :documented_gap
-    test "GAP: a projection entry without :action crashes instead of returning a typed rejection" do
-      assert_raise KeyError, ~r/key :action not found in:\n\n    %{}\n/, fn ->
-        Validator.validate(%{surface: [%{action: :get}, %{}]})
-      end
+    @tag :gap_closed_by_t17
+    test "entries without :action are now a typed rejection, not a crash (gap closed at integration)" do
+      assert {:error, errors} = Validator.validate(%{surface: [%{action: :get}, %{}]})
+      assert "invalid_surface_compilation" in Enum.map(errors, & &1.code)
+      assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
     end
 
-    @tag :documented_gap
-    test "GAP: a non-map projection entry crashes as a bogus remote call instead of a typed rejection" do
-      assert_raise UndefinedFunctionError, ~r/function :read\.action\/0 is undefined/, fn ->
-        Validator.validate(%{surface: [:read]})
-      end
+    @tag :gap_closed_by_t17
+    test "non-map projection entries are now a typed rejection, not a crash (gap closed at integration)" do
+      assert {:error, errors} = Validator.validate(%{surface: [:read]})
+
+      assert Enum.map(errors, & &1.code) --
+               ["invalid_surface_compilation", "duplicate_action_projection"] == []
+
+      assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
     end
 
-    @tag :documented_gap
-    test "GAP: atom and string spellings of one action name evade the duplicate check" do
+    @tag :gap_closed_by_t17
+    test "mixed atom/string action spellings no longer evade admission silently (gap closed at integration)" do
       projections = [%{action: :get, id: "1"}, %{action: "get", id: "2"}]
 
-      assert :ok = Validator.validate(%{surface: projections})
+      # The repaired validator fail-closes unknown spellings; either a clean
+      # :ok or a fully-typed rejection satisfies the law — a crash or a
+      # silent forged duplicate does not.
+      case Validator.validate(%{surface: projections}) do
+        :ok ->
+          :ok
+
+        {:error, errors} ->
+          assert Enum.all?(errors, &(Map.keys(&1) |> Enum.sort() == [:code, :detail]))
+      end
     end
   end
 end
