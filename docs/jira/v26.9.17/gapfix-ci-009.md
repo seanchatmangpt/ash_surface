@@ -8,3 +8,4 @@ created: 2026-09-17T05:30:00Z
 ## History
 2026-09-16T23:38:19Z | IN_PROGRESS | ~/ash-surface-wt/g09 + exp/gapfix-ci-009 | dispatched by rider (run2, target_n=10)
 2026-09-16T23:52:54Z | ALIVE | exp/gapfix-ci-009 @ f7807ea | actionlint 0; yamllint 0 (2 pre-existing style warnings); mix format --check-formatted 0; mix compile --warnings-as-errors 0; mix test 0 (725 passed); npm test 0 (217 pass); mix test.all 0; mix test.zero 0; bash scripts/zero_config_check.sh 0 + ZERO_CONFIG_OK | first GitHub-runner execution unobserved (push forbidden) — pins/battery/cache-key proven locally only; v2 wiring deferred per gapfix-v2-receipt-008 IN_PROGRESS
+2026-09-16T23:54:09Z | MERGED c9b8085  (rider): --no-ff exp/gapfix-ci-009; landed mix exit 0; first GitHub-runner run unobserved (no push) — recorded boundary
