@@ -18,6 +18,8 @@ defmodule AshSurface.Projector.ExpoEventsTest do
 
   @prefix "zoela_surface"
   @artifact_key "#{@prefix}.events.mjs"
+  @repo_root Path.expand("../../..", __DIR__)
+  @runtime_url "file://" <> Path.expand("../../../priv/static/ash_surface_runtime.mjs", __DIR__)
 
   setup do
     surface = %AshSurface.Surface{
@@ -74,9 +76,9 @@ defmodule AshSurface.Projector.ExpoEventsTest do
         |> Event.to_map()
         |> Map.keys()
 
-      # payload (and future observation keys) flow through .passthrough(),
-      # every sequencing/digest/identity field is declared explicitly.
-      for key <- serialized_keys -- ["payload"] do
+      # gapfix-event-schema-003: payload is declared explicitly (nullable, like
+      # the runtime), so every serialized Event key now has a schema row.
+      for key <- serialized_keys do
         assert events =~ "#{key}:",
                "expected emitted event descriptor to declare #{key}"
       end
@@ -167,9 +169,87 @@ defmodule AshSurface.Projector.ExpoEventsTest do
                """)
     end
 
-    test "optional observation references stay optional", %{events: events} do
-      assert events =~ "evidenceRef: z.string().optional(),"
-      assert events =~ "receiptRef: z.string().optional(),"
+    test "observation references and payload carry the runtime's nullable wire form",
+         %{events: events} do
+      # gapfix-event-schema-003: ONE canon. Event.to_map/1 always emits these
+      # keys and emits nil refs for unannotated events, so both boundaries must
+      # admit null — the Expo artifact byte-matches the runtime rows exactly.
+      assert events =~ "evidenceRef: z.string().nullable().optional(),"
+      assert events =~ "receiptRef: z.string().nullable().optional(),"
+      assert events =~ "payload: z.record(z.string(), z.unknown()).nullable().optional(),"
+
+      # The divergent non-nullable rows are gone for good.
+      refute events =~ "evidenceRef: z.string().optional(),"
+      refute events =~ "receiptRef: z.string().optional(),"
     end
+  end
+
+  describe "cross-boundary unity with the runtime (executed, not inspected)" do
+    # gapfix-event-schema-003 acceptance: a real Event.to_map/1 output must
+    # validate identically at both boundaries. The emitted artifact is imported
+    # and executed against the real runtime schema in one embedded node run —
+    # inspection alone never proves a boundary admits the wire form.
+    @tag :tmp_dir
+    test "a real Event.to_map/1 output parses identically at the Expo and runtime boundaries",
+         %{tmp_dir: tmp_dir} do
+      surface = %AshSurface.Surface{
+        manifest: %{},
+        contract: %{"surface" => %{"actions" => []}},
+        digest: "test_digest",
+        action_ids: []
+      }
+
+      assert {:ok, _artifacts, _meta} = Expo.project(surface, prefix: @prefix, target_dir: tmp_dir)
+      events_path = Path.join(tmp_dir, "#{@artifact_key}")
+      assert File.exists?(events_path)
+
+      # Real producer output: unannotated event (nil refs — the exact rows this
+      # ticket unifies), fixed occurred_at so the fixture is deterministic.
+      real_wire_event =
+        Event.create("zoe:KingdomNeed#need_42", 7, "need_selected",
+          payload: %{"selected_candidate" => "person_01"},
+          occurred_at: ~U[2026-09-15T10:00:00Z]
+        )
+        |> Event.to_map()
+
+      event_path = Path.join(tmp_dir, "event.json")
+      File.write!(event_path, Jason.encode!(real_wire_event))
+
+      output =
+        run_node!("""
+        const fs = await import("node:fs");
+        const assert = (await import("node:assert/strict")).default;
+
+        const expo = await import("file://#{events_path}");
+        const runtime = await import("#{@runtime_url}");
+        const realWireEvent = JSON.parse(fs.readFileSync("#{event_path}", "utf-8"));
+
+        // The real producer output validates identically at both boundaries.
+        const viaExpo = expo.parseEvent(realWireEvent);
+        const viaRuntime = runtime.eventProjectionSchema.parse(realWireEvent);
+        assert.deepEqual(viaExpo, viaRuntime, "boundaries diverged on the real Event.to_map/1 output");
+
+        // The exact divergence this ticket closes: unannotated refs stay null,
+        // payload survives the boundary untouched.
+        assert.equal(viaExpo.evidenceRef, null);
+        assert.equal(viaExpo.receiptRef, null);
+        assert.deepEqual(viaExpo.payload, { selected_candidate: "person_01" });
+
+        console.log("BOTH_BOUNDARIES_ALIVE");
+        """)
+
+      assert output =~ "BOTH_BOUNDARIES_ALIVE"
+    end
+  end
+
+  defp run_node!(script) do
+    {output, exit_code} =
+      System.cmd("node", ["--input-type=module", "-e", script],
+        cd: @repo_root,
+        stderr_to_stdout: true
+      )
+
+    assert exit_code == 0, "embedded node consumer failed (#{exit_code}): #{output}"
+    output
   end
 end

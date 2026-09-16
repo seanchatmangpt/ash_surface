@@ -133,8 +133,9 @@ defmodule AshSurface.Projector.Expo do
       subjectRef: z.string().min(1),
       eventType: z.string().min(1),
       stateDigest: z.string().min(1),
-      evidenceRef: z.string().optional(),
-      receiptRef: z.string().optional(),
+      evidenceRef: z.string().nullable().optional(),
+      receiptRef: z.string().nullable().optional(),
+      payload: z.record(z.string(), z.unknown()).nullable().optional(),
       occurredAt: z.string().min(1),
       authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
     }).passthrough();
