@@ -15,8 +15,8 @@ defmodule AshSurface do
 
   alias Ash.Info.Manifest
 
-  @surface_schema_version "26.9.13"
-  @generator_identity "ash_surface:v26.9.13"
+  @surface_schema_version "26.9.16"
+  @generator_identity "ash_surface:v26.9.16"
 
   defmodule Surface do
     @moduledoc "A verified Ash surface contract and its exact normalized manifest."
@@ -136,7 +136,7 @@ defmodule AshSurface do
       "ashManifestSchemaVersion" => Manifest.schema_version(),
       "generatorIdentity" => @generator_identity,
       "manifestDigest" => manifest_digest,
-      "marketplaceIdentity" => "ggen-marketplace:v26.9.13",
+      "marketplaceIdentity" => "ggen-marketplace:v26.9.16",
       "manifest" => serialized_manifest,
       "surface" => surface_envelope(manifest, profile)
     }

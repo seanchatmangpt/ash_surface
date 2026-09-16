@@ -49,11 +49,11 @@ defmodule AshSurface.IrCodecTest do
   # IR section shape, the canonical term form, or the digest pipeline breaks
   # these by design.
   @golden %{
-    identity_only: "633a62495c5974fced5a0758e77c07cfdcaec8bb548d6ff830100af11b9803ac",
-    full_surface: "c74abce9148df05283868b4187300c9264424f0fa53acf2a0757f9ec8e146492",
-    sparse: "1724ea713fcae55af51ed09c0abb109db959f181589074e81bd53ad256d64f75",
-    large_profile: "b070a62e2a71974c1b702baadcd128f7cd24390a140bf4042dea14bc4ac8090b",
-    refusal_actions: "e27979a7ced85c8cf986eb5e9628bddf8dbe8497d8bd393dc4cae62f53b731c8"
+    identity_only: "3f5e33bbecb2de653959c2a28aa40f60504a955de2581f9673a03b7ef2273dc6",
+    full_surface: "64db0a7b3d06713a5c55367c67ea1e576417ef9d335b6ef1fe3a484ac4262277",
+    sparse: "f291bb8a319a03609c003d0ccbe0c2c02d09b01e784ad072d6cde1891dec165f",
+    large_profile: "1d6f774a9a6591e45af9b2dfa587464ae3513423d185a065f268248b17e896df",
+    refusal_actions: "b4e81a6f785aa48a9d95cd0b0aa67911964ff78f5bd5dd9ddd4faf0d2e0c9eec"
   }
 
   # Frozen golden canonical JSON bytes (Jason over to_map/1). Pins the stable
@@ -61,9 +61,9 @@ defmodule AshSurface.IrCodecTest do
   # order, nil sections as JSON null.
   @golden_json %{
     identity_only:
-      ~s({"actions":null,"identity":{"generatorIdentity":"ash_surface:v26.9.13","surfaceSchemaVersion":"26.9.13"},"profile":null,"resources":null,"transports":null}),
+      ~s({"actions":null,"identity":{"generatorIdentity":"ash_surface:v26.9.16","surfaceSchemaVersion":"26.9.16"},"profile":null,"resources":null,"transports":null}),
     full_surface:
-      ~s({"actions":{"entries":[{"authorityBoundary":"OBSERVE","doAuthority":false,"id":"AshSurface.IrPost#read"},{"authorityBoundary":"DO","doAuthority":true,"id":"AshSurface.IrLedger#record"}]},"identity":{"generatorIdentity":"ash_surface:v26.9.13","manifestDigest":"deadbeef","surfaceSchemaVersion":"26.9.13"},"profile":{"audience":"internal","flags":{"verifyReceipts":true}},"resources":{"AshSurface.IrPost":{"attributes":["id","body"]}},"transports":{"declared":["http","phoenix_channel"],"preferred":"http"}})
+      ~s({"actions":{"entries":[{"authorityBoundary":"OBSERVE","doAuthority":false,"id":"AshSurface.IrPost#read"},{"authorityBoundary":"DO","doAuthority":true,"id":"AshSurface.IrLedger#record"}]},"identity":{"generatorIdentity":"ash_surface:v26.9.16","manifestDigest":"deadbeef","surfaceSchemaVersion":"26.9.16"},"profile":{"audience":"internal","flags":{"verifyReceipts":true}},"resources":{"AshSurface.IrPost":{"attributes":["id","body"]}},"transports":{"declared":["http","phoenix_channel"],"preferred":"http"}})
   }
 
   defp large_profile do
@@ -75,8 +75,8 @@ defmodule AshSurface.IrCodecTest do
       identity_only: %{
         "actions" => nil,
         "identity" => %{
-          "surfaceSchemaVersion" => "26.9.13",
-          "generatorIdentity" => "ash_surface:v26.9.13"
+          "surfaceSchemaVersion" => "26.9.16",
+          "generatorIdentity" => "ash_surface:v26.9.16"
         },
         "profile" => nil,
         "resources" => nil,
@@ -98,8 +98,8 @@ defmodule AshSurface.IrCodecTest do
           ]
         },
         "identity" => %{
-          "surfaceSchemaVersion" => "26.9.13",
-          "generatorIdentity" => "ash_surface:v26.9.13",
+          "surfaceSchemaVersion" => "26.9.16",
+          "generatorIdentity" => "ash_surface:v26.9.16",
           "manifestDigest" => "deadbeef"
         },
         "profile" => %{"audience" => "internal", "flags" => %{"verifyReceipts" => true}},
@@ -110,14 +110,14 @@ defmodule AshSurface.IrCodecTest do
         "actions" => %{
           "entries" => [%{"id" => "AshSurface.IrPost#read", "authorityBoundary" => "OBSERVE"}]
         },
-        "identity" => %{"surfaceSchemaVersion" => "26.9.13"},
+        "identity" => %{"surfaceSchemaVersion" => "26.9.16"},
         "profile" => nil,
         "resources" => nil,
         "transports" => nil
       },
       large_profile: %{
         "actions" => nil,
-        "identity" => %{"surfaceSchemaVersion" => "26.9.13"},
+        "identity" => %{"surfaceSchemaVersion" => "26.9.16"},
         "profile" => large_profile(),
         "resources" => nil,
         "transports" => nil
@@ -133,8 +133,8 @@ defmodule AshSurface.IrCodecTest do
           ]
         },
         "identity" => %{
-          "surfaceSchemaVersion" => "26.9.13",
-          "generatorIdentity" => "ash_surface:v26.9.13"
+          "surfaceSchemaVersion" => "26.9.16",
+          "generatorIdentity" => "ash_surface:v26.9.16"
         },
         "profile" => %{"audience" => "public"},
         "resources" => nil,
@@ -185,8 +185,8 @@ defmodule AshSurface.IrCodecTest do
       assert m["transports"] == nil
 
       assert m["identity"] == %{
-               "surfaceSchemaVersion" => "26.9.13",
-               "generatorIdentity" => "ash_surface:v26.9.13"
+               "surfaceSchemaVersion" => "26.9.16",
+               "generatorIdentity" => "ash_surface:v26.9.16"
              }
     end
 

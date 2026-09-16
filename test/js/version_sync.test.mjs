@@ -8,7 +8,7 @@ import { SURFACE_RUNTIME_VERSION } from "../../priv/static/ash_surface_runtime.m
  * AshSurface.schema_version/0 of this checkout. A failure means the runtime
  * drifted from the surface contract it claims to project.
  */
-const GOLDEN_VERSION = "26.9.13";
+const GOLDEN_VERSION = "26.9.16";
 
 test("SURFACE_RUNTIME_VERSION export equals the pinned golden version", () => {
   assert.equal(SURFACE_RUNTIME_VERSION, GOLDEN_VERSION);

@@ -256,7 +256,7 @@ defmodule AshSurface.IRStructTest do
   # Golden strings: verbatim carry is pinned, not just shape. The golden
   # version is the project version of this commit's mix.exs.
   @golden_digest String.duplicate("deadbeef", 16)
-  @golden_version "26.9.13"
+  @golden_version "26.9.16"
 
   defp section_fixture(:ash),
     do: %AshSurface.IRStructTest.IR.Ash{
@@ -460,7 +460,7 @@ defmodule AshSurface.IRStructTest do
       ir = IR.new(digest: @golden_digest, version: @golden_version)
 
       assert ir.digest == String.duplicate("deadbeef", 16)
-      assert ir.version == "26.9.13"
+      assert ir.version == "26.9.16"
     end
 
     test "the two envelope fields are independent: one string, one nil" do

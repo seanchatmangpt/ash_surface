@@ -118,7 +118,7 @@ defmodule AshSurface.ManifestSerializerTest do
     # The envelope adds its layer on top.
     assert contract["surfaceSchemaVersion"] == AshSurface.schema_version()
     assert contract["ashManifestSchemaVersion"] == Manifest.schema_version()
-    assert contract["generatorIdentity"] == "ash_surface:v26.9.13"
+    assert contract["generatorIdentity"] == "ash_surface:v26.9.16"
     assert contract["manifestDigest"] =~ ~r/^[0-9a-f]{64}$/
     assert is_map_key(contract, "surface")
 

@@ -1,6 +1,6 @@
 # MIGRATION_26_9_16.md — ash_surface 26.9.14 -> 26.9.16 breaking changes
 
-- **Base:** `282f3ca` (chicago zero-config convergence), repo version `26.9.13` at base; the 26.9.16 bump itself is `version-bump-011` (blocked by integration).
+- **Base:** `282f3ca` (chicago zero-config convergence), repo version at base was the pre-bump CalVer (one bump below 26.9.16; exact value in the base commit); the 26.9.16 bump itself is `version-bump-011` (blocked by integration).
 - **Wave:** docs/jira/v26.9.16/ — one ticket per worktree, standing ledger `V_WAVE.md` (owner: `exp/v50`).
 - **Canon:** consumer-side receipt index follows zoela's `MIGRATION.md` canon
   (`/Users/sac/zoela/MIGRATION.md`): per-change scope, owning files, gates as

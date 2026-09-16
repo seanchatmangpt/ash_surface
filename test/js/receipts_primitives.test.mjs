@@ -12,7 +12,7 @@ import {
 
 function surfaceContract() {
   return {
-    surfaceSchemaVersion: "26.9.13",
+    surfaceSchemaVersion: "26.9.16",
     ashManifestSchemaVersion: "1.1.0",
     manifest: {},
     surface: {

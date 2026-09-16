@@ -233,7 +233,7 @@ is `lib/ash_surface/projector/expo.ex` against the `AshSurface.Projector` behavi
 
 ## 7. Provenance — where each piece lives at this writing
 
-This document lives on `exp/v46` (base `282f3ca`, `@surface_schema_version "26.9.13"`).
+This document lives on `exp/v46` (base `282f3ca`, `@surface_schema_version` at the pre-bump CalVer of that base — the exact value stays in that branch's history).
 The v26.9.16 wave is admitted on per-section branches and converges at integration:
 
 | Element | Branch | Canonical path (post-integration) |

@@ -10,7 +10,7 @@ defmodule AshSurface.VersionSyncTest do
 
   use ExUnit.Case, async: true
 
-  @golden_version "26.9.13"
+  @golden_version "26.9.16"
   @runtime_rel "priv/static/ash_surface_runtime.mjs"
 
   describe "version law across the surface, the runtime, and the manifests" do

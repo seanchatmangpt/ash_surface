@@ -3,7 +3,7 @@
 The law is versioned **v26.9.16** because its sharpest statements were codified in the
 `ash_a2a` v26.9.16 wave (`/Users/sac/ash_a2a/mix.exs` lines 156–223: the `:rdf`,
 `:wasmex`, `:libcluster`/`:horde` edges and their scope limits). This repo —
-`ash_surface` 26.9.13 (`mix.exs:4`) — is the composition layer of that law. Every
+`ash_surface` 26.9.16 (`mix.exs:4`) — is the composition layer of that law. Every
 claim below is grounded in a cited file; the two law-layer repos were read read-only.
 
 ## Ownership (who owns what, one concern per owner)
@@ -108,7 +108,7 @@ Current, real edges (read from the three `mix.exs` files):
 
 ## Current vs target dependency list (`ash_surface`)
 
-Current — `mix.exs:43–48` (v26.9.13):
+Current — `mix.exs:43–48` (v26.9.16):
 
 | dep | constraint | role |
 |---|---|---|
