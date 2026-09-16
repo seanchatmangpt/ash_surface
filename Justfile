@@ -49,3 +49,12 @@ zero-config:
 format-check:
     mix format --check-formatted
     npm run check
+
+# Run Dialyzer static analysis (baseline: exit 0; suppressions only in dialyzer.ignore-warnings, justified per line)
+dialyzer:
+    mix dialyzer
+
+# Run coverage receipts for both languages (Elixir per-module table + Node experimental-test-coverage summary)
+coverage:
+    mix test --cover
+    npm run test:coverage

@@ -1,0 +1,53 @@
+# Dialyzer + coverage layers (gapfix-dialyzer-010).
+#
+# Deliberately a separate workflow from ci.yml: gapfix-ci-009 (IN_PROGRESS)
+# owns the ci.yml true-up (pins, battery, cache key); this file touches none
+# of it and can be folded into ci.yml later without conflict. Pins match
+# .tool-versions (erlang 28.3 / elixir 1.20.3) — the versions the dialyzer
+# baseline was receipted against.
+name: Dialyzer Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dialyzer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: dialyzer-${{ runner.os }}-otp-28.3-elixir-1.20.3-${{ hashFiles('mix.lock') }}
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      # Baseline law: exit 0. Real defects are fixed at source; a suppression
+      # is admitted only in dialyzer.ignore-warnings with per-line
+      # justification, and list_unused_filters evicts stale ones.
+      - run: mix dialyzer
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: mix local.hex --force
+      - run: mix deps.get
+      - run: mix test --cover
+      - run: npm install
+      - run: npm run test:coverage
