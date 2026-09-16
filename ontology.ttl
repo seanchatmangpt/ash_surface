@@ -71,3 +71,69 @@ surf:TransportChannel a aex:FieldOneOfValue ;
     aex:oneOfValueOf surf:ProjectionTransportField ;
     aex:oneOfValueOrder 3 ;
     aex:oneOfValueName "phoenix_channel" .
+
+## v26.9.16 law rows (ontology-law-rows-007).
+## Admitted, not proposed: ggen.toml [ontology] source names this file as the
+## authorship origin; no generated header is present. Canonical enforcing-test
+## paths are the integrated-wave paths (exp/v50); planning_episode_test.exs is
+## live at this base, the IR/delegation paths resolve at wave integration.
+
+surf:SurfaceIR a surf:LawRow ;
+    surf:lawOrder 1 ;
+    surf:lawName "SurfaceIR" ;
+    surf:lawDoc "The canonical normalized intermediate representation: a dumb carrier that re-states admitted facts, never re-decides them." ;
+    surf:sectionProperty surf:IRAshSection,
+        surf:IRSemanticSection,
+        surf:IRCapabilitySection,
+        surf:IRPresentationSection,
+        surf:IRSchemaSection ;
+    surf:enforcedBy "test/ash_surface/ir_test.exs" .
+
+surf:IRAshSection a surf:IRSectionProperty ;
+    surf:sectionOrder 1 ;
+    surf:sectionName "ash" ;
+    surf:sectionDoc "Normalized Ash manifest facts (resource/action identity, inputs, outputs, policies). Ash remains authoritative; the IR re-states, never re-decides." .
+
+surf:IRSemanticSection a surf:IRSectionProperty ;
+    surf:sectionOrder 2 ;
+    surf:sectionName "semantic" ;
+    surf:sectionDoc "Semantic layer facts (subject/capability IRIs, predicates, shape, ontology)." .
+
+surf:IRCapabilitySection a surf:IRSectionProperty ;
+    surf:sectionOrder 3 ;
+    surf:sectionName "capability" ;
+    surf:sectionDoc "Capability law facts (consequence class, authority and receipt requirements) as admitted facts, never as grants." .
+
+surf:IRPresentationSection a surf:IRSectionProperty ;
+    surf:sectionOrder 4 ;
+    surf:sectionName "presentation" ;
+    surf:sectionDoc "Presentation descriptors (label, group, order, widget, format)." .
+
+surf:IRSchemaSection a surf:IRSectionProperty ;
+    surf:sectionOrder 5 ;
+    surf:sectionName "schema" ;
+    surf:sectionDoc "Boundary schemas (input, output, the Zod projection, aria)." .
+
+surf:ProjectionBoundary a surf:LawInvariant ;
+    surf:lawOrder 2 ;
+    surf:invariantDoc "A projection boundary (SurfaceIR and every projector consuming it) determines nothing about existence, meaning, or DO-authority; it carries admitted facts from its sources, and consumers re-derive standing from the sources." ;
+    surf:enforcedBy "test/ash_surface/ir_test.exs" .
+
+surf:DelegationEdge a surf:LawEdge ;
+    surf:lawOrder 3 ;
+    surf:edgeKind "delegation" ;
+    surf:edgeDoc "Delegated facts, never local derivations: each is read from the manifest's custom.ash_surface profile when a delegating authority stored it there, and is nil otherwise. No fabricated capability truth." ;
+    surf:delegatedFact "semanticId" ,
+        "authorityBoundary" ,
+        "doAuthority" ,
+        "receiptRequired" ;
+    surf:enforcedBy "test/ash_surface_test.exs" ,
+        "test/ash_surface/compiler/capability_section_test.exs" .
+
+surf:IntentEdge a surf:LawEdge ;
+    surf:lawOrder 4 ;
+    surf:edgeKind "intent" ;
+    surf:edgeFrom "human" ;
+    surf:edgeTo "candidate" ;
+    surf:edgeDoc "Human intent terminates at candidate actions whose authority ceiling is strictly SELECT or CONSTRUCT; there is no direct human-to-DO edge. PlanningEpisode authority_ceiling can never be :DO." ;
+    surf:enforcedBy "test/ash_surface/planning_episode_test.exs" .
