@@ -251,7 +251,10 @@ defmodule AshSurface.ActionIdTest do
         assert action["action"] == to_string(action_name)
         assert action["id"] == action["resource"] <> "#" <> action["action"]
 
-        assert action["semanticId"] == "ash:" <> frozen_id
+        # v26.9.16 delegation: semanticId is a delegated fact. No profile
+        # delegates it here, so it surfaces as nil instead of a derived
+        # "ash:<id>" default.
+        assert action["semanticId"] == nil
       end
     end
 

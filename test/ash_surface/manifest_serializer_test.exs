@@ -126,10 +126,11 @@ defmodule AshSurface.ManifestSerializerTest do
     assert Enum.map(actions, & &1["id"]) == [@read_id, @record_id]
 
     read = Enum.find(actions, &(&1["id"] == @read_id))
-    # Read entrypoints default to the OBSERVE authority boundary.
-    assert read["authorityBoundary"] == "OBSERVE"
-    assert read["doAuthority"] == false
-    assert read["semanticId"] == "ash:#{@read_id}"
+    # v26.9.16 delegation: the unprofiled read action delegates no facts, so
+    # authorityBoundary/doAuthority/semanticId surface as nil.
+    assert read["authorityBoundary"] == nil
+    assert read["doAuthority"] == nil
+    assert read["semanticId"] == nil
     assert read["possibleRefusals"] == []
     assert read["profile"] == %{}
 

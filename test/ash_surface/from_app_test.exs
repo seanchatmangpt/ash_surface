@@ -100,12 +100,14 @@ defmodule AshSurface.FromAppTest do
     assert surface.contract["ashManifestSchemaVersion"] == Ash.Info.Manifest.schema_version()
     assert Regex.match?(~r/^[0-9a-f]{64}$/, surface.contract["manifestDigest"])
 
-    # Authority boundary is inferred from action type: reads observe, writes do.
+    # v26.9.16 delegation: authorityBoundary/doAuthority are delegated facts,
+    # not inferred from action type. The profile delegates neither, so both
+    # surface as nil.
     actions = Enum.sort_by(surface.contract["surface"]["actions"], & &1["action"])
 
     assert Enum.map(actions, &{&1["action"], &1["authorityBoundary"], &1["doAuthority"]}) == [
-             {"read", "OBSERVE", false},
-             {"record", "DO", true}
+             {"read", nil, nil},
+             {"record", nil, nil}
            ]
   end
 

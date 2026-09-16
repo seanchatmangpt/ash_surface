@@ -25,6 +25,12 @@ function makeFixtureContract() {
       actions: [
         {
           id: "AshSurface.Fixtures.VolunteerMilestone#record",
+          // v26.9.16 delegation: delegated facts surface as explicit null
+          // when not delegated.
+          semanticId: null,
+          authorityBoundary: null,
+          doAuthority: null,
+          receiptRequired: null,
           resource: "AshSurface.Fixtures.VolunteerMilestone",
           action: "record",
           profile: {

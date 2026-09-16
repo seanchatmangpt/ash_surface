@@ -21,6 +21,11 @@ function surfaceContract() {
         {
           id: "Zoela.KingdomNeed#select_option",
           semanticId: "zoe:SelectOption",
+          // v26.9.16 delegation: authorityBoundary/doAuthority/receiptRequired
+          // surface as explicit null when not delegated.
+          authorityBoundary: null,
+          doAuthority: null,
+          receiptRequired: null,
           resource: "Zoela.KingdomNeed",
           action: "select_option",
           profile: { transport: "http" },

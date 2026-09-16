@@ -9,6 +9,16 @@ defmodule AshSurface.ConsumerFixtureTest do
   setup do
     File.mkdir_p!(@tmp_dir)
 
+    # The Ash ETS data layer is a shared (non-private) ordered set, so records
+    # created by earlier tests in the same run leak into the read below. The
+    # episode suite dispatches the same runner and the same member_zoela_01
+    # input, making Enum.find/1 (ordered by random UUID pkey) return a stale
+    # record and fail the receipt-id binding. Reset the fixture table so this
+    # test observes only its own consequences, independent of test order.
+    if :ets.whereis(VolunteerMilestone) != :undefined do
+      :ets.delete_all_objects(VolunteerMilestone)
+    end
+
     {:ok, server_pid} = Server.start_link()
     port = Server.get_port(server_pid)
 
@@ -65,15 +75,6 @@ defmodule AshSurface.ConsumerFixtureTest do
     assert {:ok, records} =
              Ash.read(VolunteerMilestone, domain: AshSurface.Fixtures.Domain)
 
-    successful_record =
-      Enum.find(records, fn r -> r.member_id == "member_zoela_01" end)
-
-    refute is_nil(successful_record), "Expected Ash record created by JS consumer"
-    assert successful_record.milestone_id == "milestone_serve_42"
-    assert successful_record.cost_physical == 10
-    assert successful_record.reward_spiritual == 100
-    assert successful_record.status == "completed"
-
     # Confirm that the failed post-dispatch action also physically created a record,
     # proving why UNKNOWN_AFTER_DISPATCH is legally required: silent fallback would duplicate!
     failed_record =
@@ -91,7 +92,23 @@ defmodule AshSurface.ConsumerFixtureTest do
     assert receipt["dispatchState"] == "completed"
     assert receipt["selectedTransport"] == "http"
     assert receipt["input"]["member_id"] == "member_zoela_01"
-    assert receipt["consequence"]["id"] == successful_record.id
+
+    # The successful consequence is identified by the receipt's OWN consequence
+    # id, never by first-match on member_id: the ETS data layer is shared across
+    # test modules for this whole run (the MX closed-loop suites dispatch the
+    # same runner with the same member_id), so member_id lookup is
+    # order-dependent across test modules and races the seed.
+    successful_record =
+      Enum.find(records, fn r -> r.id == receipt["consequence"]["id"] end)
+
+    refute is_nil(successful_record),
+           "Receipt consequence #{inspect(receipt["consequence"]["id"])} has no physical record in the Ash data layer"
+
+    assert successful_record.member_id == "member_zoela_01"
+    assert successful_record.milestone_id == "milestone_serve_42"
+    assert successful_record.cost_physical == 10
+    assert successful_record.reward_spiritual == 100
+    assert successful_record.status == "completed"
     assert is_binary(receipt["receiptHash"])
     assert byte_size(receipt["receiptHash"]) == 64
 

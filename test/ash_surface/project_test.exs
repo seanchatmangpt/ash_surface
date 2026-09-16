@@ -126,10 +126,11 @@ defmodule AshSurface.ProjectTest do
     assert record["evidenceRequired"] == true
     assert record["possibleRefusals"] == ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED"]
 
-    # The unprofiled :read entrypoint keeps its lawful OBSERVE defaults.
-    assert read["authorityBoundary"] == "OBSERVE"
-    assert read["doAuthority"] == false
-    assert read["semanticId"] == "ash:#{@read_id}"
+    # v26.9.16 delegation: the unprofiled :read entrypoint delegates no facts,
+    # so authorityBoundary/doAuthority/semanticId surface as nil.
+    assert read["authorityBoundary"] == nil
+    assert read["doAuthority"] == nil
+    assert read["semanticId"] == nil
   end
 
   test "prefix option is reflected in the returned projection state" do

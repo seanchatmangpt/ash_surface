@@ -44,7 +44,20 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
-      {:igniter, "~> 0.7", only: [:dev, :test], runtime: false}
+      # igniter: no `only:` restriction — ash_a2a (all-env dep) requires it
+      # beyond dev/test; runtime: false keeps it out of the boot path.
+      {:igniter, "~> 0.7", runtime: false},
+      # ash_r2rml pinned to git HEAD (7d958a8) overriding ash_a2a's hex
+      # "~> 26.8" requirement — git version 26.9.12 satisfies it.
+      {:ash_r2rml,
+       git: "https://github.com/seanchatmangpt/ash_r2rml.git",
+       ref: "7d958a8c47a5a3459a515ac6f81a4d2d2d84dd16",
+       runtime: false,
+       override: true},
+      {:ash_a2a,
+       git: "https://github.com/seanchatmangpt/ash_a2a.git",
+       ref: "e25ed6e3252291fd9816747a1b904303cc35c315",
+       runtime: false}
     ]
   end
 
