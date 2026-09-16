@@ -17,266 +17,39 @@
 #   5. nil subject_ref constructs: manufacture refuses nothing -- the walls
 #      (missing action_id) stand at the DO boundary, downstream of intent.
 #
-# Canonical-local declaration (per file discipline, precedent 52a9c2c): the
-# intent family is absent from lib on this branch, so the canonical shapes are
-# declared here exactly as manufactured on their owning branches -- create/3
-# content addressing and the envelope from a037c50, the delegated-DO
-# Dispatch/CommandBus contract from 90281a0. When lib admits them, these
-# declarations retire in favor of the real modules.
-
-defmodule AshSurface.IntentPathTest.SurfaceIntent do
-  @moduledoc """
-  Canonical SurfaceIntent: the pre-dispatch record of a consumer's will to act.
-
-  An intent is DATA. It records that a surface wants to execute one
-  `surface_action_id` with `input` against `subject_ref`. It carries no
-  transport, no dispatch, and no authority; turning it into anything sendable
-  is a separate, separately-gated step.
-
-  Canonical-local declaration: owns the `SurfaceIntent` shape until a
-  dedicated `intent.ex` is admitted. Constructed only through `create/3`,
-  which content-addresses `intent_id` from the
-  `(surface_action_id, subject_ref, input)` triple so identical will-to-act
-  keeps one identity regardless of when it is re-created. `created_at` is
-  captured at construction and never participates in the id: time is not
-  identity.
-  """
-
-  @enforce_keys [:surface_action_id, :input, :subject_ref, :created_at, :intent_id]
-  defstruct [:surface_action_id, :input, :subject_ref, :created_at, :intent_id]
-
-  @type t :: %__MODULE__{
-          surface_action_id: String.t(),
-          input: term(),
-          subject_ref: term(),
-          created_at: DateTime.t(),
-          intent_id: String.t()
-        }
-
-  @doc """
-  Creates a content-addressed `SurfaceIntent`.
-
-  `input` is stored exactly as given -- no normalization, no coercion, no
-  JSON round-trip. `subject_ref` may be any subject term (an IRI string, a
-  reference map, or `nil`; walls are downstream law). Re-creating the same
-  triple yields the same identity.
-  """
-  @spec create(String.t(), term(), term()) :: t()
-  def create(surface_action_id, input, subject_ref) when is_binary(surface_action_id) do
-    digest =
-      :crypto.hash(:sha256, :erlang.term_to_binary({surface_action_id, subject_ref, input}))
-      |> Base.encode16(case: :lower)
-
-    %__MODULE__{
-      surface_action_id: surface_action_id,
-      input: input,
-      subject_ref: subject_ref,
-      created_at: DateTime.utc_now(),
-      intent_id: "intent_" <> binary_part(digest, 0, 16)
-    }
-  end
-end
-
-defmodule AshSurface.IntentPathTest.IR do
-  @moduledoc """
-  Canonical IR action shape consumed by the candidate envelope.
-
-  Canonical-local declaration until a dedicated `ir.ex` is admitted. An IR
-  action is identified by `action_id` and carries two optional sections, each
-  a plain map or `nil`: `:capability` and `:semantic`.
-
-  A `nil` section is legal and meaningful: it means the source projected no
-  such section, and every field that would have been pulled from it must
-  surface as `nil`, never as a fabricated default.
-  """
-
-  @enforce_keys [:action_id]
-  defstruct [:action_id, :capability, :semantic]
-
-  @type section :: map() | nil
-
-  @type t :: %__MODULE__{
-          action_id: String.t(),
-          capability: section(),
-          semantic: section()
-        }
-
-  @doc """
-  Creates an IR action. Sections default to `nil`; pass plain maps with atom
-  keys (`%{capability_id: id}`, `%{semantic_id: id, subject_iri: iri}`).
-  """
-  @spec create(String.t(), section(), section()) :: t()
-  def create(action_id, capability \\ nil, semantic \\ nil)
-      when is_binary(action_id) and (is_map(capability) or is_nil(capability)) and
-             (is_map(semantic) or is_nil(semantic)) do
-    %__MODULE__{action_id: action_id, capability: capability, semantic: semantic}
-  end
-end
-
-defmodule AshSurface.IntentPathTest.Candidate do
-  @moduledoc """
-  SA2A candidate envelope, shaped after `ash_a2a`'s candidate semantics.
-
-  `to_candidate/2` folds a `SurfaceIntent` together with the IR action it
-  names into the candidate envelope, which always self-describes as
-  `standing: :candidate, authority: :none`.
-
-  A candidate is DATA, never sent: no dispatch, no transport selection, no
-  mutation of the intent or the IR. Fields are pulled honestly --
-  `capability_id` from the IR capability section, `semantic_id`/`subject_iri`
-  from the IR semantic section, `input` passed through from the intent
-  untransformed. A missing section or field yields `nil`, never a placeholder.
-  """
-
-  alias AshSurface.IntentPathTest.{IR, SurfaceIntent}
-
-  @envelope_keys ~w(capability_id subject_iri input semantic_id standing authority)a
-
-  @doc """
-  Projects `intent` and `ir_action` into the SA2A candidate envelope.
-
-  Returns a plain map with `:capability_id`, `:subject_iri`, `:input`,
-  `:semantic_id`, `:standing` (always `:candidate`), and `:authority`
-  (always `:none`). Nil sections yield nil fields, present in the map.
-  """
-  @spec to_candidate(SurfaceIntent.t(), IR.t()) :: map()
-  def to_candidate(%SurfaceIntent{} = intent, %IR{} = ir_action) do
-    Map.new(@envelope_keys, fn
-      :capability_id -> {:capability_id, section_field(ir_action.capability, :capability_id)}
-      :subject_iri -> {:subject_iri, section_field(ir_action.semantic, :subject_iri)}
-      :input -> {:input, intent.input}
-      :semantic_id -> {:semantic_id, section_field(ir_action.semantic, :semantic_id)}
-      :standing -> {:standing, :candidate}
-      :authority -> {:authority, :none}
-    end)
-  end
-
-  defp section_field(nil, _field), do: nil
-  defp section_field(section, field) when is_map(section), do: Map.get(section, field)
-end
-
-defmodule AshSurface.IntentPathTest.CommandBus do
-  @moduledoc """
-  Delegated-DO boundary for intent dispatch.
-
-  The surface never executes a consequential action itself. Actuation happens
-  only on the far side of this behaviour, in a bus injected by the operator's
-  runtime (Phoenix channel, HTTP command relay, test double). The bus owns
-  the authority cut, the actuation, and the receipt; the surface owns only
-  the manufacture of the intent handed over.
-  """
-
-  @doc """
-  Submits a manufactured intent for actuation.
-
-  Returns the bus's own receipt-bearing outcome `{:ok, receipt}` or a typed
-  refusal `{:error, reason}` (for example `{:error, :REFUSED_NO_AUTHORITY}`).
-  """
-  @callback submit(AshSurface.IntentPathTest.Intent.t(), map()) ::
-              {:ok, term()} | {:error, term()}
-end
-
-defmodule AshSurface.IntentPathTest.Intent do
-  @moduledoc """
-  Minimal manufactured intent handed to an injected `CommandBus`.
-
-  The whole shape of the delegated-DO handover: an action identity plus the
-  candidate payload carried verbatim. No execution semantics live here to
-  misinterpret.
-  """
-
-  @enforce_keys [:action_id]
-  defstruct [:action_id, :payload]
-
-  @type t :: %__MODULE__{
-          action_id: String.t(),
-          payload: map()
-        }
-end
-
-defmodule AshSurface.IntentPathTest.Dispatch do
-  @moduledoc """
-  Delegated-DO adapter: manufacture an intent from an admitted candidate map
-  and hand it, with the caller's context, to the INJECTED command bus.
-
-  This module never executes anything itself:
-
-    - no Ash action calls; no transport, process, or store of its own;
-    - shape validation only, then delegation via `command_bus.submit/2`;
-    - bus outcomes pass through EXACTLY -- receipts are the bus's own, and
-      typed refusals (e.g. `{:error, :REFUSED_NO_AUTHORITY}`) propagate
-      untouched, never rewrapped or downgraded. A flaky bus's transient
-      failures surface as the bus minted them; there is no bypass path.
-
-  The only refusals minted here are fail-closed input refusals: an invalid
-  candidate is refused before the bus is ever touched, and a bus that does
-  not conform to the `CommandBus` behaviour is refused typed.
-  """
-
-  alias AshSurface.IntentPathTest.Intent
-
-  @doc """
-  Manufactures an intent from `candidate_map` and submits it to `command_bus`.
-
-  `candidate_map` must be a map carrying a non-empty string `:action_id`;
-  every other key rides the intent payload verbatim. `context` (for example
-  bus handle, actor, tenant, or authority material) is handed to the bus
-  unchanged.
-  """
-  @spec submit(map(), module(), map()) :: {:ok, term()} | {:error, term()}
-  def submit(candidate_map, command_bus, context) do
-    with :ok <- validate_candidate(candidate_map),
-         :ok <- validate_bus(command_bus) do
-      intent = %Intent{
-        action_id: candidate_map.action_id,
-        payload: Map.delete(candidate_map, :action_id)
-      }
-
-      command_bus.submit(intent, context)
-    end
-  end
-
-  defp validate_candidate(candidate_map) when is_map(candidate_map) do
-    action_id = Map.get(candidate_map, :action_id)
-
-    cond do
-      is_binary(action_id) and action_id != "" ->
-        :ok
-
-      action_id in [nil, ""] ->
-        {:error, {:invalid_candidate, :missing_action_id}}
-
-      true ->
-        {:error, {:invalid_candidate, :invalid_action_id}}
-    end
-  end
-
-  defp validate_candidate(_), do: {:error, {:invalid_candidate, :candidate_must_be_a_map}}
-
-  defp validate_bus(command_bus)
-       when is_atom(command_bus) and command_bus != nil do
-    if function_exported?(command_bus, :submit, 2) do
-      :ok
-    else
-      {:error, :REFUSED_NO_COMMAND_BUS}
-    end
-  end
-
-  defp validate_bus(_), do: {:error, :REFUSED_NO_COMMAND_BUS}
-end
+# Canon status (gapfix-intent-canon-004): the canonical-local declarations
+# RETIRED. lib admitted the family (b43e051 SurfaceIntent, a037c50 candidate
+# envelope, 90281a0 delegated-DO dispatch; v50 reconciliation 4058b87), so per
+# the retirement promise every edge below now runs against the REAL modules:
+# `AshSurface.Intent`, `AshSurface.Intent.IR`, `AshSurface.Intent.Candidate`,
+# `AshSurface.Intent.Dispatch`, and the `AshSurface.Intent.CommandBus`
+# behaviour with its `AshSurface.Intent.Envelope` handover. Only the flaky
+# bus remains local: it is an injected test double, not a canon.
+#
+# ONE IDENTITY LAW, repo-wide: `intent_id` is the lowercase sha256 hex over
+# `Jason.encode!([surface_action_id, input, subject_ref])` -- 64 hex chars,
+# no prefix -- owned solely by lib/ash_surface/intent.ex. The superseded
+# test-local scheme (prefixed 16-hex over `term_to_binary` of the triple) is
+# retired here and in intent_round_trip_test.exs. Recorded semantic delta of
+# that reconciliation, so nothing retires silently: the old law was
+# term-true, the one law is JSON-true -- `%{n: 1}` and `%{"n" => 1}` are the
+# SAME identity under canonical JSON (both encode `{"n":1}`), while a value
+# type change (`1` vs `"1"`) stays a different edge. Storage remains
+# verbatim in every case: the map handed in is the map stored, byte-equal.
 
 defmodule AshSurface.IntentPathTest.FlakyBus do
   @moduledoc """
   Injected flaky bus: stands in for a separately authorized actuator.
 
-  Implements the `CommandBus` behaviour with a caller-scripted outcome
-  sequence, so transient failures and recovery are observable facts. The bus
-  instance rides in `context` (`%{bus: pid}`): injection, not lookup. Every
-  submit is recorded; receipts are content-addressed from the exact intent,
-  so identical handovers receipt identically.
+  Implements the `AshSurface.Intent.CommandBus` behaviour with a
+  caller-scripted outcome sequence, so transient failures and recovery are
+  observable facts. The bus instance rides in `context` (`%{bus: pid}`):
+  injection, not lookup. Every submit is recorded; receipts are
+  content-addressed from the exact envelope, so identical handovers receipt
+  identically.
   """
 
-  @behaviour AshSurface.IntentPathTest.CommandBus
+  @behaviour AshSurface.Intent.CommandBus
 
   use Agent
 
@@ -319,18 +92,22 @@ defmodule AshSurface.IntentPathTest do
   @moduledoc """
   Chicago edge tests for the intent path:
 
-  `SurfaceIntent.create/3 -> Candidate.to_candidate/2 -> Dispatch.submit/3`
-  on an injected `CommandBus`.
+  `AshSurface.Intent.create/3 -> AshSurface.Intent.Candidate.to_candidate/2
+  -> AshSurface.Intent.Dispatch.submit/3` on an injected flaky
+  `AshSurface.Intent.CommandBus`.
 
   The path is state, not traversal: every edge below is a falsifier against
   idempotence loss, input coercion, dishonest nils, error laundering, or a
-  local-execution bypass. Canonical shapes are declared locally in this file
-  (absent from lib on this branch) per file discipline; see the header.
+  local-execution bypass. All shapes come from the admitted lib family; the
+  former canonical-local declarations retired per the header (one identity
+  law, gapfix-intent-canon-004).
   """
 
   use ExUnit.Case, async: true
 
-  alias AshSurface.IntentPathTest.{Candidate, Dispatch, FlakyBus, IR, SurfaceIntent}
+  alias AshSurface.Intent
+  alias AshSurface.Intent.{Candidate, Dispatch, IR}
+  alias AshSurface.IntentPathTest.FlakyBus
 
   @action "AshSurface.IntentPathTest.MilestoneLedger#record"
   @input %{member_id: "member_zoela_01", milestone_id: "milestone_serve_43", cost_physical: 10}
@@ -338,20 +115,23 @@ defmodule AshSurface.IntentPathTest do
   # EDGE 1 -- identical intents idempotent --------------------------------
 
   test "identical addressed triples keep one intent_id across re-creation" do
-    a = SurfaceIntent.create(@action, @input, "ir:abc123")
-    b = SurfaceIntent.create(@action, @input, "ir:abc123")
+    a = Intent.create(@action, @input, "ir:abc123")
+    b = Intent.create(@action, @input, "ir:abc123")
 
     assert a.intent_id == b.intent_id
-    assert String.starts_with?(a.intent_id, "intent_")
+
+    # One identity law: bare lowercase sha256 hex over the canonical JSON of
+    # the ordered triple -- 64 chars, no prefix (lib/ash_surface/intent.ex).
+    assert a.intent_id =~ ~r/^[0-9a-f]{64}$/
+    assert byte_size(a.intent_id) == 64
 
     # Time is not identity: created_at never enters the digest, so the two
     # records are the same edge even if stamped at different instants.
     assert %{a | created_at: nil} == %{b | created_at: nil}
-    assert byte_size(a.intent_id) == 7 + 16
 
     # A different subject or action is a different edge -- the id discriminates.
-    other_subject = SurfaceIntent.create(@action, @input, "ir:def456")
-    other_action = SurfaceIntent.create(@action <> ":undo", @input, "ir:abc123")
+    other_subject = Intent.create(@action, @input, "ir:def456")
+    other_action = Intent.create(@action <> ":undo", @input, "ir:abc123")
     assert a.intent_id != other_subject.intent_id
     assert a.intent_id != other_action.intent_id
   end
@@ -359,14 +139,14 @@ defmodule AshSurface.IntentPathTest do
   test "creation is pure: the SurfaceIntent module exports no execution path" do
     # Intent manufacture is data only. Any execute/submit/dispatch/actuate
     # export would be a local-DO bypass; this tripwire fails the build the
-    # day one appears.
+    # day one appears (held against the lib owner AshSurface.Intent).
     for name <- [:execute, :submit, :dispatch, :actuate, :run, :call, :apply],
         arity <- 1..4 do
-      refute function_exported?(SurfaceIntent, name, arity),
+      refute function_exported?(Intent, name, arity),
              "SurfaceIntent must not export #{name}/#{arity}: intent is not actuation"
     end
 
-    assert function_exported?(SurfaceIntent, :create, 3)
+    assert function_exported?(Intent, :create, 3)
   end
 
   # EDGE 2 -- input maps pass through byte-equal --------------------------
@@ -379,37 +159,37 @@ defmodule AshSurface.IntentPathTest do
       :atom => :still_there
     }
 
-    intent = SurfaceIntent.create(@action, input, "ir:abc123")
+    intent = Intent.create(@action, input, "ir:abc123")
 
     assert intent.input === input
     assert :erlang.term_to_binary(intent.input) == :erlang.term_to_binary(input)
 
     # Re-creation hands back the same bytes: no silent normalization between
     # calls either.
-    again = SurfaceIntent.create(@action, input, "ir:abc123")
+    again = Intent.create(@action, input, "ir:abc123")
 
     assert :erlang.term_to_binary(again.input) == :erlang.term_to_binary(input)
 
-    # Coercion would collapse identity: string-key 1, atom-key 1, and
-    # string "1" must be three DISTINCT intents, so no layer normalized
-    # key types or stringified values on the way in.
-    ids =
-      [
-        SurfaceIntent.create(@action, %{"n" => 1}, nil),
-        SurfaceIntent.create(@action, %{n: 1}, nil),
-        SurfaceIntent.create(@action, %{"n" => "1"}, nil)
-      ]
-      |> Enum.map(& &1.intent_id)
-      |> Enum.uniq()
-      |> length()
+    # Identity under the ONE law is canonical JSON, so the atom-key and
+    # string-key maps collapse to the same identity (both encode {"n":1}) --
+    # that is the law, not storage coercion -- while a value-type change
+    # ("1" vs 1) stays a different edge. The stored maps themselves remain
+    # verbatim, asserted below: nothing was normalized on the way in.
+    json_key = Intent.create(@action, %{"n" => 1}, nil)
+    atom_key = Intent.create(@action, %{n: 1}, nil)
+    string_val = Intent.create(@action, %{"n" => "1"}, nil)
 
-    assert ids == 3
+    assert json_key.intent_id == atom_key.intent_id
+    assert json_key.intent_id != string_val.intent_id
+    assert json_key.input === %{"n" => 1}
+    assert atom_key.input === %{n: 1}
+    assert string_val.input === %{"n" => "1"}
   end
 
   # EDGE 3 -- all-nil-section candidates construct with honest nils -------
 
   test "an IR with no sections projects a candidate with nils present, never defaults" do
-    intent = SurfaceIntent.create(@action, @input, nil)
+    intent = Intent.create(@action, @input, nil)
     bare_ir = IR.create(@action)
 
     assert bare_ir.capability == nil
@@ -447,7 +227,7 @@ defmodule AshSurface.IntentPathTest do
   # EDGE 4 -- flaky-bus retries surface typed errors, no bypass -----------
 
   test "flaky-bus failures surface as the bus's own typed errors, then recover" do
-    intent = SurfaceIntent.create(@action, @input, nil)
+    intent = Intent.create(@action, @input, nil)
     ir = IR.create(@action)
 
     envelope = Candidate.to_candidate(intent, ir)
@@ -546,11 +326,13 @@ defmodule AshSurface.IntentPathTest do
   # EDGE 5 -- nil subject_ref constructs; walls are downstream law --------
 
   test "nil subject_ref constructs and flows; the wall stands at the DO boundary" do
-    # Manufacture refuses nothing about subject_ref: nil is honest content,
-    # not coerced to "" and not rejected.
-    nil_subject = SurfaceIntent.create(@action, @input, nil)
-    empty_subject = SurfaceIntent.create(@action, @input, "")
-    iri_subject = SurfaceIntent.create(@action, @input, "ir:abc123")
+    # Manufacture refuses nothing about subject_ref: the lib canon imposes no
+    # guard on it (nil is honest content, not coerced to "" and not
+    # rejected); its own spec prefers an IRI-shaped ref. The wall stands
+    # downstream, at the DO boundary.
+    nil_subject = Intent.create(@action, @input, nil)
+    empty_subject = Intent.create(@action, @input, "")
+    iri_subject = Intent.create(@action, @input, "ir:abc123")
 
     assert nil_subject.subject_ref == nil
     assert nil_subject.intent_id != empty_subject.intent_id
