@@ -8,3 +8,4 @@ lib/ash_surface/projectors/aria.ex:45 carries @calver "26.9.15" (one release beh
 ## History
 2026-09-16T22:29:52Z | IN_PROGRESS | ~/ash-surface-wt/g02 + exp/gapfix-aria-calver-002 | dispatched by rider (run1, target_n=9)
 2026-09-16T23:40:22Z | REAPED: agent dead (worktree silent >20min), reopened; cause unknown (no [1302] receipt visible); 0 commit(s) preserved on exp/gapfix-aria-calver-002 — successor agent: review branch git log + status before redoing
+2026-09-16T23:50:24Z | note: gapfix-aria-calver-002 stays OPEN/reap-standing (77min stale, ambiguous — one more observation cycle before redispatch; slow-agent pattern proven thrice)
