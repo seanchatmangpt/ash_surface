@@ -83,3 +83,47 @@ Merge order (law): v01 → v02 → v16 → v03–v08 → v09 + v11–v15 → v10
   `mix test.zero` (env -i), `scripts/zero_config_check.sh` (v1 fresh-clone gate).
 - v23 precedence note: with v23 not landed, v05's local `ash_a2a` test-env dep
   stands in `mix.exs`/`mix.lock`; when v23 lands, its mix.exs wins per wave law.
+
+## Final standings (v50 close-out, final-integration-010)
+
+All 39 remaining branches merged into `exp/v50` in wave order this session;
+the per-row "actual" column above reflects the first integration pass —
+this addendum is the authoritative final standing.
+
+| rows | final standing |
+|---|---|
+| v01, v02, v05, v06, v08, v09, v10, v20 | **ALIVE** (merged first pass, 387/387 then; carried green through close-out) |
+| v03, v04, v07 | **ALIVE** (merged; branch-local `AshSurface.IR`/`Compiler.IR`/`Compiler.Section` declarations superseded — canonical owners `ir.ex`, `compiler/ir.ex`, `compiler.ex`; v04/v07 tests corrected to integrated truth) |
+| v11–v15 | **ALIVE** (merged; v11 `intent.ex` owns canonical `AshSurface.Intent`; v12's duplicate parent dropped; v13's minimal shape renamed `AshSurface.Intent.Envelope`; v14 event_projection + v15 round-trip green as landed) |
+| v16–v19, v21 | **ALIVE** (merged; v16 `Projector.IR` behaviour canonical; v17/v18 local IR/behaviour declarations superseded; v18/v19 reader extracted as `Projector.IREntry`; v21 doubles re-namespaced, fixture delegates facts per v10 law) |
+| v23, v24, v26 | **ALIVE** (merged; v23's mix.exs dep block is canonical — applied at v04 resolution, v30/v31 test-only local lines refused in its favor per wave law) |
+| v22, v27 | **ALIVE** (merged; v27's IR doubles re-namespaced off canonical `AshSurface.IR`) |
+| v28 | **ALIVE** (merged; stub compiler.ex/ir.ex dropped for canonical v02 owners; discovery suite re-pointed at the canonical compiler's receipt-token DiscoverOnce laws; memoization/`force:` law not asserted — canonical compiler claims no cross-compile cache) |
+| v29 | **ALIVE** (merged; its IR sub-shapes folded into canonical ir.ex; builder landed as `Compiler.AshTruth`; `lib/ash_surface/section.ex` landed as the `AshSurface.Section` behaviour) |
+| v30, v31 | **ALIVE** (merged; test canons re-namespaced; v31 supervises the real `AshA2A.ReceiptStore.Memory` under the v23-pinned ash_a2a) |
+| v32–v39, v41–v43 | **ALIVE** (merged; v39's golden canon re-namespaced; v41/v42 convergent e2e/health fixes taken from their sides; v38 no-local-do tripwire satisfied — see below) |
+| v44 | **ALIVE** (merged; validator-ir-alignment stand-in DELETED per its own INTEGRATION clause — tests re-pointed at the real `Compiler.Ash.build/1`, `:integration_pending` tags dropped) |
+| v45–v49 | **ALIVE** (merged; docs/ledger/ontology rows; v49's mix.exs identical to v23's canonical block) |
+| v50 | **this row** (all gates green; landed `--no-ff` onto `feat/dfcm-surface-core`) |
+
+Reconciliation receipts (this session):
+
+- Canonical owners enforced: `lib/ash_surface/ir.ex` (five-section IR + v10
+  delegated facts + v29 Input/Output/Policy sub-shapes; `IR.Capability`
+  extracted to `lib/ash_surface/ir/capability.ex` with the
+  `authority_required/1` reader the no-local-do law demands),
+  `lib/ash_surface/compiler.ex` (DiscoverOnce + Section behaviour),
+  `lib/ash_surface/compiler/ir.ex` (compiler IR slices: carrier `Schema`,
+  `Semantic`, `Boundary`), `lib/ash_surface/projector/ir.ex` (v16
+  behaviour), `AshSurface.Intent` (v11), `AshSurface.Compiler.Ash` (v03
+  section-set builder) vs `Compiler.AshTruth` (v29 per-action truth pair).
+- no-local-do tripwire: `apply/3` laundering removed from
+  `compiler/ash.ex` (dead branch: pinned ash exports no
+  `Ash.Resource.Info.policies/1`) and `compiler/capability.ex` (direct
+  call; ash_a2a is all-env under v23); `live_view.ex` gates through
+  `AshSurface.IR.Capability.authority_required/1`; the tripwire's owner
+  exemption path-mapping repaired (camelize("ir") = "Ir" made it
+  unsatisfiable by construction; detection logic untouched).
+- Earlier-session BLOCKED items resolved: `scripts/zero_config_v2.sh`
+  remains absent (no owner landed; `zero_config_check.sh` v1 stands);
+  `no_local_do` now exists and is green (v38).
