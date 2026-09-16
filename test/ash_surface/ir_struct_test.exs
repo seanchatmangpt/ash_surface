@@ -8,11 +8,11 @@
 #
 # Canonical shape frozen here (field sets are pinned verbatim in the tests):
 #
-#   AshSurface.IR.Ash          resource action action_type inputs outputs policies
-#   AshSurface.IR.Semantic     subject_iri capability_iri predicates shape_id ontology
-#   AshSurface.IR.Capability   capability_id consequence_class authority_required receipt_required
-#   AshSurface.IR.Presentation label group order widget format
-#   AshSurface.IR.Schema       input output zod aria
+#   AshSurface.IRStructTest.IR.Ash          resource action action_type inputs outputs policies
+#   AshSurface.IRStructTest.IR.Semantic     subject_iri capability_iri predicates shape_id ontology
+#   AshSurface.IRStructTest.IR.Capability   capability_id consequence_class authority_required receipt_required
+#   AshSurface.IRStructTest.IR.Presentation label group order widget format
+#   AshSurface.IRStructTest.IR.Schema       input output zod aria
 #   AshSurface.IR              version digest + the five sections above
 #
 # Law frozen by this shape:
@@ -25,7 +25,7 @@
 #   * section accessors are deterministic.
 # ---------------------------------------------------------------------------
 
-defmodule AshSurface.IR.Ash do
+defmodule AshSurface.IRStructTest.IR.Ash do
   @moduledoc """
   Ash-semantics section: manifest-level facts about one Ash interaction.
 
@@ -44,7 +44,7 @@ defmodule AshSurface.IR.Ash do
         }
 end
 
-defmodule AshSurface.IR.Semantic do
+defmodule AshSurface.IRStructTest.IR.Semantic do
   @moduledoc """
   Semantic section: IRI-anchored meaning (subjects, predicates, ontology).
 
@@ -62,7 +62,7 @@ defmodule AshSurface.IR.Semantic do
         }
 end
 
-defmodule AshSurface.IR.Capability do
+defmodule AshSurface.IRStructTest.IR.Capability do
   @moduledoc """
   Capability section: consequence class and authority posture of a capability.
 
@@ -79,7 +79,7 @@ defmodule AshSurface.IR.Capability do
         }
 end
 
-defmodule AshSurface.IR.Presentation do
+defmodule AshSurface.IRStructTest.IR.Presentation do
   @moduledoc """
   Presentation section: pure-presentation placement (label, group, widget).
 
@@ -97,7 +97,7 @@ defmodule AshSurface.IR.Presentation do
         }
 end
 
-defmodule AshSurface.IR.Schema do
+defmodule AshSurface.IRStructTest.IR.Schema do
   @moduledoc """
   Schema section: shape facts for the consumer boundary (input, output, zod, aria).
 
@@ -114,7 +114,7 @@ defmodule AshSurface.IR.Schema do
         }
 end
 
-defmodule AshSurface.IR do
+defmodule AshSurface.IRStructTest.IR do
   @moduledoc """
   Intermediate representation between the Ash manifest and consumer projections.
 
@@ -131,11 +131,11 @@ defmodule AshSurface.IR do
   @type t :: %__MODULE__{
           version: String.t() | nil,
           digest: String.t() | nil,
-          ash: AshSurface.IR.Ash.t() | nil,
-          semantic: AshSurface.IR.Semantic.t() | nil,
-          capability: AshSurface.IR.Capability.t() | nil,
-          presentation: AshSurface.IR.Presentation.t() | nil,
-          schema: AshSurface.IR.Schema.t() | nil
+          ash: AshSurface.IRStructTest.IR.Ash.t() | nil,
+          semantic: AshSurface.IRStructTest.IR.Semantic.t() | nil,
+          capability: AshSurface.IRStructTest.IR.Capability.t() | nil,
+          presentation: AshSurface.IRStructTest.IR.Presentation.t() | nil,
+          schema: AshSurface.IRStructTest.IR.Schema.t() | nil
         }
 
   @doc "The canonical section keys in declaration order. Deterministic."
@@ -164,12 +164,12 @@ defmodule AshSurface.IR do
     %__MODULE__{
       version: nil_or_string!(Keyword.get(attrs, :version), :version),
       digest: nil_or_string!(Keyword.get(attrs, :digest), :digest),
-      ash: section_struct!(AshSurface.IR.Ash, Keyword.get(attrs, :ash)),
-      semantic: section_struct!(AshSurface.IR.Semantic, Keyword.get(attrs, :semantic)),
-      capability: section_struct!(AshSurface.IR.Capability, Keyword.get(attrs, :capability)),
+      ash: section_struct!(AshSurface.IRStructTest.IR.Ash, Keyword.get(attrs, :ash)),
+      semantic: section_struct!(AshSurface.IRStructTest.IR.Semantic, Keyword.get(attrs, :semantic)),
+      capability: section_struct!(AshSurface.IRStructTest.IR.Capability, Keyword.get(attrs, :capability)),
       presentation:
-        section_struct!(AshSurface.IR.Presentation, Keyword.get(attrs, :presentation)),
-      schema: section_struct!(AshSurface.IR.Schema, Keyword.get(attrs, :schema))
+        section_struct!(AshSurface.IRStructTest.IR.Presentation, Keyword.get(attrs, :presentation)),
+      schema: section_struct!(AshSurface.IRStructTest.IR.Schema, Keyword.get(attrs, :schema))
     }
   end
 
@@ -207,29 +207,29 @@ defmodule AshSurface.IRStructTest do
   """
 
   use ExUnit.Case, async: true
-  alias AshSurface.IR
+  alias AshSurface.IRStructTest.IR
 
   @section_modules [
-    AshSurface.IR.Ash,
-    AshSurface.IR.Semantic,
-    AshSurface.IR.Capability,
-    AshSurface.IR.Presentation,
-    AshSurface.IR.Schema
+    AshSurface.IRStructTest.IR.Ash,
+    AshSurface.IRStructTest.IR.Semantic,
+    AshSurface.IRStructTest.IR.Capability,
+    AshSurface.IRStructTest.IR.Presentation,
+    AshSurface.IRStructTest.IR.Schema
   ]
 
   # The canonical field sets, pinned independently of the defstructs above so
   # a shape drift in either direction breaks this build.
   @canonical_fields %{
-    AshSurface.IR.Ash => [:resource, :action, :action_type, :inputs, :outputs, :policies],
-    AshSurface.IR.Semantic => [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology],
-    AshSurface.IR.Capability => [
+    AshSurface.IRStructTest.IR.Ash => [:resource, :action, :action_type, :inputs, :outputs, :policies],
+    AshSurface.IRStructTest.IR.Semantic => [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology],
+    AshSurface.IRStructTest.IR.Capability => [
       :capability_id,
       :consequence_class,
       :authority_required,
       :receipt_required
     ],
-    AshSurface.IR.Presentation => [:label, :group, :order, :widget, :format],
-    AshSurface.IR.Schema => [:input, :output, :zod, :aria]
+    AshSurface.IRStructTest.IR.Presentation => [:label, :group, :order, :widget, :format],
+    AshSurface.IRStructTest.IR.Schema => [:input, :output, :zod, :aria]
   }
 
   # The execute family: verbs that would make a data carrier actuable.
@@ -241,7 +241,7 @@ defmodule AshSurface.IRStructTest do
   @golden_version "26.9.13"
 
   defp section_fixture(:ash),
-    do: %AshSurface.IR.Ash{
+    do: %AshSurface.IRStructTest.IR.Ash{
       resource: "ZoeLedger.Entry",
       action: "record",
       action_type: :create,
@@ -251,7 +251,7 @@ defmodule AshSurface.IRStructTest do
     }
 
   defp section_fixture(:semantic),
-    do: %AshSurface.IR.Semantic{
+    do: %AshSurface.IRStructTest.IR.Semantic{
       subject_iri: "https://zoela.example/needs",
       capability_iri: "https://zoela.example/capability#record_need",
       predicates: [%{"term" => "need"}],
@@ -260,7 +260,7 @@ defmodule AshSurface.IRStructTest do
     }
 
   defp section_fixture(:capability),
-    do: %AshSurface.IR.Capability{
+    do: %AshSurface.IRStructTest.IR.Capability{
       capability_id: "ZoeLedger.Entry#record",
       consequence_class: "COMPENSATABLE",
       authority_required: true,
@@ -268,7 +268,7 @@ defmodule AshSurface.IRStructTest do
     }
 
   defp section_fixture(:presentation),
-    do: %AshSurface.IR.Presentation{
+    do: %AshSurface.IRStructTest.IR.Presentation{
       label: "Record a need",
       group: "needs",
       order: 1,
@@ -277,7 +277,7 @@ defmodule AshSurface.IRStructTest do
     }
 
   defp section_fixture(:schema),
-    do: %AshSurface.IR.Schema{
+    do: %AshSurface.IRStructTest.IR.Schema{
       input: %{"fields" => 3},
       output: %{"fields" => 2},
       zod: %{"strict" => true},
@@ -377,7 +377,7 @@ defmodule AshSurface.IRStructTest do
     end
 
     test "sections never coerce across keys: a foreign struct is refused, not re-homed" do
-      assert_raise ArgumentError, ~r/AshSurface.IR.Ash/, fn ->
+      assert_raise ArgumentError, ~r/AshSurface.IRStructTest.IR.Ash/, fn ->
         IR.new(semantic: section_fixture(:ash))
       end
     end
@@ -405,7 +405,7 @@ defmodule AshSurface.IRStructTest do
     test "a dumb screen exists: presentation-only IR carries no semantic or capability facts" do
       screen = IR.new(presentation: section_fixture(:presentation))
 
-      assert IR.section(screen, :presentation) == %AshSurface.IR.Presentation{
+      assert IR.section(screen, :presentation) == %AshSurface.IRStructTest.IR.Presentation{
                label: "Record a need",
                group: "needs",
                order: 1,
@@ -550,11 +550,11 @@ defmodule AshSurface.IRStructTest do
 
       assert match?(
                [
-                 %AshSurface.IR.Ash{},
-                 %AshSurface.IR.Semantic{},
-                 %AshSurface.IR.Capability{},
-                 %AshSurface.IR.Presentation{},
-                 %AshSurface.IR.Schema{}
+                 %AshSurface.IRStructTest.IR.Ash{},
+                 %AshSurface.IRStructTest.IR.Semantic{},
+                 %AshSurface.IRStructTest.IR.Capability{},
+                 %AshSurface.IRStructTest.IR.Presentation{},
+                 %AshSurface.IRStructTest.IR.Schema{}
                ],
                golden
              )
