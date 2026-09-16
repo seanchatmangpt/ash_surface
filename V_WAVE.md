@@ -58,7 +58,7 @@ Merge order (law): v01 → v02 → v16 → v03–v08 → v09 + v11–v15 → v10
 | exp/v47 | docs | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
 | exp/v48 | docs | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
 | exp/v49 | docs | (not landed) | — | mix test → 0 | UNKNOWN-until-integration → **UNKNOWN** (no delta) |
-| exp/v50 | wave integration + this ledger | `V_WAVE.md`, `HANDWRITTEN.md`, integration reconciliations (see receipt) | all three canonical interfaces enforced as the merge law | full battery ×3, mix test.zero, zero_config_v2.sh, no_local_do; GATE mix test → 0 | **this row** |
+| exp/v50 | wave integration + this ledger | `V_WAVE.md`, `HANDWRITTEN.md`, integration reconciliations (see receipt) | all three canonical interfaces enforced as the merge law | full battery ×3, mix test.zero, zero_config_v2.sh, no_local_do; GATE mix test → 0. [receipt ref, gapfix-v2-receipt-008 @ 2026-09-16T23:49Z: the v50 session itself ran only v1 `zero_config_check.sh` (see Integration facts; final-integration-010 receipt) — v2's sole prior exit receipt was v40-era exp/v40 6c4ba94, a 308-test tree. v2 now receipted on the landed tree at a7a6b40 (725-test): EXIT[env-read guard]=0 EXIT[mix deps.get]=0 EXIT[npm install]=0 EXIT[mix test]=0 (725) EXIT[npm test]=0 (217/217) EXIT[mix test.zero]=0 (scrubbed env -i test.all re-run: 725 + 217/217), script exit 0, ZERO_CONFIG_OK] | **this row** |
 
 ## Integration facts (v50 session)
 
