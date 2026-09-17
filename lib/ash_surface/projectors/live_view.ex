@@ -175,6 +175,12 @@ defmodule AshSurface.Projectors.LiveView do
     Map.get(widget, name) || Map.get(widget, to_string(name)) || default_widget(type)
   end
 
+  # Nil (zero-config) must reach the type-derived default. It cannot share the
+  # binary/atom clause: `is_atom(nil)` is true, which would render every
+  # undeclared widget as `to_string(nil)` == "" and leave @type_widgets dead
+  # for the most common case. Surfaced by live_view_states_test.exs (045).
+  defp widget_for(nil, _name, type), do: default_widget(type)
+
   defp widget_for(widget, _name, _type) when is_binary(widget) or is_atom(widget),
     do: to_string(widget)
 
