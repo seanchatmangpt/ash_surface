@@ -124,6 +124,13 @@ defmodule AshSurface.Projector.ExpoReceiptsTest do
       assert receipts =~ "export function canonicalStringify(obj) {"
       assert receipts =~ "Object.keys(obj).sort()"
 
+      # The receiptHash integrity law (chicago-receipthash-038) travels with
+      # the envelope: the emitted preimage drops the receiptHash slot and
+      # reuses these canonical bytes. Behavior is state-pinned by
+      # ExpoReceiptsHashTest; here we pin its presence and purity.
+      assert receipts =~ "export function receiptHashPreimage(receipt) {"
+      assert receipts =~ "delete content.receiptHash;"
+
       # Purity: no entropy, no clock, no I/O inside the receipts emission.
       for impure <- [
             "Math.random",
@@ -166,7 +173,11 @@ defmodule AshSurface.Projector.ExpoReceiptsTest do
         |> Enum.map(fn [_match, name] -> name end)
         |> MapSet.new()
 
-      assert MapSet.new(["mxReceiptSchema", "canonicalStringify"]) == exports
+      # receiptHashPreimage is the verification-only preimage of the
+      # receiptHash integrity law (chicago-receipthash-038); it hashes nothing
+      # and constructs nothing.
+      assert MapSet.new(["mxReceiptSchema", "canonicalStringify", "receiptHashPreimage"]) ==
+               exports
 
       # Nothing anywhere in the emission mints, builds, signs, or forges receipts.
       for forbidden <-
