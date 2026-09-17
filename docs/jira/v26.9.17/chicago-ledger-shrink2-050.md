@@ -1,5 +1,5 @@
 # chicago-ledger-shrink2-050: second paydown prepared (doc-template family)
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mirror F7's prepared pattern for a second bounded row (scripts/README.md or DEP_GRAPH.md template): pack-side branch on ggen-marketplace with template+gate+render-check, consumer regeneration staged; if admission needs the operator cut (it will — no push authority), BLOCK with the exact cut per ticket law.
@@ -13,3 +13,4 @@ Mirror F7's prepared pattern for a second bounded row (scripts/README.md or DEP_
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g50 + exp/chicago-ledger-shrink2-50 | dispatched by coordinator (chicago wave)
 2026-09-17T06:30:36Z | REAPED: compound evidence (worktree silent 28-42min; STAGGER EXPERIMENT RESULT: successor died despite spaced launch — sustained-load class); branch preserved, 0 commit(s) ahead — successor reviews first
+2026-09-17T09:59:11Z | IN_PROGRESS | successor re-dispatch (final ticket; branch preserved — review git log first)
