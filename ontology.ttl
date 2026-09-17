@@ -221,8 +221,8 @@ surf:UnsupportedLedgerRow12 a surf:UnsupportedRow ;
 surf:UnsupportedLedgerRow13 a surf:UnsupportedRow ;
     surf:ledgerPath "TESTING.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
-    surf:unsupportedElement "test-suite-map doc template emission (supersedes the 2026-09-15 row's "true counts / zero-config v1/v2 battery" claim, falsified by the v-wave merges)" ;
-    surf:ledgerDate "2026-09-16" ;
+    surf:unsupportedElement "test-suite-map doc template emission (supersedes the 2026-09-15 row's `true counts / zero-config v1/v2 battery` claim, falsified by the v-wave merges)" ;
+    surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
 surf:UnsupportedLedgerRow14 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/MIGRATION_26_9_16.md" ;
@@ -302,7 +302,6 @@ surf:UnsupportedLedgerRow26 a surf:UnsupportedRow ;
     surf:unsupportedElement "per-action truth-section compiler template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
-
 surf:UnsupportedLedgerRow27 a surf:UnsupportedRow ;
     surf:ledgerPath "test/ash_surface/intent_path_test.exs + test/ash_surface/intent_round_trip_test.exs" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
@@ -327,17 +326,9 @@ surf:UnsupportedLedgerRow30 a surf:UnsupportedRow ;
     surf:unsupportedElement "static-analysis gate + coverage-receipt wiring template (dialyzer-config emission, ignore-ledger emission, workflow emission, coverage-command emission)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
-
 surf:UnsupportedLedgerRow31 a surf:UnsupportedRow ;
     surf:ledgerPath "LICENSE" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "package license-file template emission" ;
     surf:ledgerDate "2026-09-16" ;
-    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
-
-surf:UnsupportedLedgerRow32 a surf:UnsupportedRow ;
-    surf:ledgerPath "ix.exs" ;
-    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
-    surf:unsupportedElement "mix.exs alias/cli template emission" ;
-    surf:ledgerDate "2026-09-15" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
