@@ -40,7 +40,7 @@ defmodule AshSurface.CodecPropsTest do
 
   alias AshSurface.CanonicalJSON
   alias AshSurface.IR.Codec
-  alias AshSurface.IR.Surface
+  alias AshSurface.IR
 
   @section_keys ~w(actions identity profile resources transports)
   @max_runs 100
@@ -319,7 +319,7 @@ defmodule AshSurface.CodecPropsTest do
     check all(sections <- ir_sections(), max_runs: @max_runs) do
       # Order-invariant admission: two construction histories of the same
       # five-section map yield one identical struct, digest included.
-      assert {:ok, %Surface{} = ir} = Codec.from_map(Map.new(sections))
+      assert {:ok, %IR{} = ir} = Codec.from_map(Map.new(sections))
       assert {:ok, reversed_ir} = Codec.from_map(Map.new(Enum.reverse(sections)))
       assert ir == reversed_ir, "admission must not depend on section insertion order"
 
