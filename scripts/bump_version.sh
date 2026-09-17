@@ -154,6 +154,7 @@ test/ash_surface/project_test.exs
 test/ash_surface/projector/expo_actions_test.exs
 test/ash_surface/projector/voice_kiosk_test.exs
 test/ash_surface/projector_ir_determinism_test.exs
+test/ash_surface/refactor_safety_net_test.exs
 test/ash_surface/resource/validator_adversarial_test.exs
 test/ash_surface_test.exs
 test/js/consumer_fixture.test.mjs
