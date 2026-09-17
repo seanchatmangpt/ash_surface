@@ -107,7 +107,7 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
     }
 
     assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
-    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.9.16"
+    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.9.17"
 
     contract_path = Path.join(@tmp_dir, "contract.json")
     receipt_path = Path.join(@tmp_dir, "receipt.json")
@@ -152,11 +152,11 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
       "episode_id" => "MXEpisode/2026-09-13/000002",
       "subject_repo" => "seanchatmangpt/ash_surface",
       "subject_head" => "00f14b1b966900aa129f16a2e51727ef697823ec",
-      "pattern_version" => "v26.9.16",
-      "domain_version" => "v26.9.16",
-      "hddl_version" => "v26.9.16",
-      "fond_version" => "v26.9.16",
-      "verifier_version" => "v26.9.16",
+      "pattern_version" => "v26.9.17",
+      "domain_version" => "v26.9.17",
+      "hddl_version" => "v26.9.17",
+      "fond_version" => "v26.9.17",
+      "verifier_version" => "v26.9.17",
       "selected_decomposition" => [
         "observe_state",
         "project_candidates",

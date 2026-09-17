@@ -118,7 +118,7 @@ defmodule AshSurface.ManifestSerializerTest do
     # The envelope adds its layer on top.
     assert contract["surfaceSchemaVersion"] == AshSurface.schema_version()
     assert contract["ashManifestSchemaVersion"] == Manifest.schema_version()
-    assert contract["generatorIdentity"] == "ash_surface:v26.9.16"
+    assert contract["generatorIdentity"] == "ash_surface:v26.9.17"
     assert contract["manifestDigest"] =~ ~r/^[0-9a-f]{64}$/
     assert is_map_key(contract, "surface")
 
@@ -126,7 +126,7 @@ defmodule AshSurface.ManifestSerializerTest do
     assert Enum.map(actions, & &1["id"]) == [@read_id, @record_id]
 
     read = Enum.find(actions, &(&1["id"] == @read_id))
-    # v26.9.16 delegation: the unprofiled read action delegates no facts, so
+    # v26.9.17 delegation: the unprofiled read action delegates no facts, so
     # authorityBoundary/doAuthority/semanticId surface as nil.
     assert read["authorityBoundary"] == nil
     assert read["doAuthority"] == nil

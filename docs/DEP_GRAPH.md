@@ -1,9 +1,9 @@
-# DEP_GRAPH — the v26.9.16 dependency law
+# DEP_GRAPH — the v26.9.17 dependency law
 
-The law is versioned **v26.9.16** because its sharpest statements were codified in the
-`ash_a2a` v26.9.16 wave (`/Users/sac/ash_a2a/mix.exs` lines 156–223: the `:rdf`,
+The law is versioned **v26.9.17** because its sharpest statements were codified in the
+`ash_a2a` v26.9.17 wave (`/Users/sac/ash_a2a/mix.exs` lines 156–223: the `:rdf`,
 `:wasmex`, `:libcluster`/`:horde` edges and their scope limits). This repo —
-`ash_surface` 26.9.16 (`mix.exs:4`) — is the composition layer of that law. Every
+`ash_surface` 26.9.17 (`mix.exs:4`) — is the composition layer of that law. Every
 claim below is grounded in a cited file; the two law-layer repos were read read-only.
 
 ## Ownership (who owns what, one concern per owner)
@@ -79,7 +79,7 @@ Current, real edges (read from the three `mix.exs` files):
 - **ash_a2a → ash_r2rml.** `{:ash_r2rml, "~> 26.8"}` (`/Users/sac/ash_a2a/mix.exs:97`) —
   the only legal edge between the two law layers. Direction: capability *consumes*
   meaning.
-- **ash_a2a → rdf / wasmex** (v26.9.16): parser and wasm-host edges only, never
+- **ash_a2a → rdf / wasmex** (v26.9.17): parser and wasm-host edges only, never
   derivation (`/Users/sac/ash_a2a/mix.exs:174–223`).
 - **Manifest → ash_surface → projections.** `AGENTS.md:8–9`.
 - **AshTypescript ↛ ash_surface** and **ash_admin ↛ ash_surface**: no edge, ever —
@@ -108,7 +108,7 @@ Current, real edges (read from the three `mix.exs` files):
 
 ## Current vs target dependency list (`ash_surface`)
 
-Current — `mix.exs:43–48` (v26.9.16):
+Current — `mix.exs:43–48` (v26.9.17):
 
 | dep | constraint | role |
 |---|---|---|

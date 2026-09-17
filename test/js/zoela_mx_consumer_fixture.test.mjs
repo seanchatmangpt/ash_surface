@@ -73,11 +73,11 @@ test("ZOELA MX machine-only closed loop: Observation -> Planning candidate -> Ad
   const { port } = server.address();
 
   try {
-    // 1. AshSurface Contract (CalVer 26.9.16)
+    // 1. AshSurface Contract (CalVer 26.9.17)
     const surfaceContract = {
-      surfaceSchemaVersion: "26.9.16",
+      surfaceSchemaVersion: "26.9.17",
       ashManifestSchemaVersion: "1.1.0",
-      generatorIdentity: "ash_surface:v26.9.16",
+      generatorIdentity: "ash_surface:v26.9.17",
       manifest: {
         resources: [
           {
@@ -226,7 +226,7 @@ test("ZOELA MX machine-only closed loop: Observation -> Planning candidate -> Ad
 
     // 8. Step 6: Verify Replay Key Determinism
     const replayPayload = {
-      calver: "26.9.16",
+      calver: "26.9.17",
       generator: surfaceContract.generatorIdentity,
       actionId: actionDescriptor.id,
       input: brceExecutedCommand.input,
