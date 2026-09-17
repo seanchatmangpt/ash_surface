@@ -17,8 +17,9 @@ defmodule AshSurface.Intent do
     * `input` — the action input map the human supplied,
     * `subject_ref` — the exact subject the consequence edge terminates at.
       Conventionally this addresses the canonical intermediate representation
-      (`ir:<digest>`), whose local canonical shape — `ir.ex` is not yet admitted —
-      is `IR{version, digest, ash, semantic, capability, presentation, schema}`
+      (`ir:<digest>`), whose local canonical shape — admitted as `ir.ex`
+      (`AshSurface.IR`, per the gapfix-docs-truth-013 correction) — is
+      `IR{version, digest, ash, semantic, capability, presentation, schema}`
       with `ash`, `semantic`, `capability`, `presentation`, and `schema` as the
       five embedded structs,
     * `created_at` — when the edge was recorded (never part of its identity),

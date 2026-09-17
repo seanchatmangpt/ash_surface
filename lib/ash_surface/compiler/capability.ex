@@ -23,8 +23,9 @@ defmodule AshSurface.Compiler.IR.Capability do
       `AshSurface.Compiler.Capability`).
   """
 
-  # Mirrors AshA2A.Skill's `consequence` union verbatim (stated inline because
-  # ash_a2a is a test-env-only dependency here; no remote compile-time ref).
+  # Mirrors AshA2A.Skill's `consequence` union verbatim (stated inline so the
+  # type never demands the ash_a2a module be loaded; the dep is all-env but
+  # `runtime: false`, kept out of the boot path).
   @type consequence_class :: :observe | :change | :external_do | :unknown
 
   @type t :: %__MODULE__{
@@ -122,9 +123,10 @@ defmodule AshSurface.Compiler.Capability do
     end
   end
 
-  # Skill-shaped map match (not %AshA2A.Skill{}): ash_a2a is test-env-only
-  # in this branch, and a struct expansion would demand the module at
-  # compile time in every env. The atom alias needs no loaded module.
+  # Skill-shaped map match (not %AshA2A.Skill{}): a struct pattern would
+  # demand the AshA2A.Skill struct at compile time; the map match keeps this
+  # file compilable without the struct loaded. The atom alias needs no
+  # loaded module. (ash_a2a is an all-env dep, `runtime: false`.)
   defp project(%{__struct__: AshA2A.Skill, id: id, consequence: consequence}) do
     %Capability{
       capability_id: id,
