@@ -1,5 +1,5 @@
 # chicago-standing-table-029: Standing module exhaustive state table
-status: IN_PROGRESS
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 F3 landed AshSurface.Standing. State table: every base standing valid; :UNKNOWN rejected with message naming it as post-dispatch outcome; every REFUSED_* accepted; bare :REFUSED rejected; constructor refusals (Observation/PlanningEpisode/Event) fire with exact ArgumentError messages; JS STANDING_VALUES parity rows in test/js. Subject: lib/ash_surface/standing.ex + consumers.
@@ -14,3 +14,4 @@ F3 landed AshSurface.Standing. State table: every base standing valid; :UNKNOWN 
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g29 + exp/chicago-standing-table-29 | dispatched by coordinator (chicago wave)
 2026-09-17T06:40:01Z | REAPED: mid-life sustained-load death (worktree silent 20-29min); branch preserved — successor reviews git log first
 2026-09-17T07:23:03Z | IN_PROGRESS | successor re-dispatch (cold-hold lifted after 32min clean; half-pace cohort 1 of 4; branch preserved — review git log first)
+2026-09-17T07:36:36Z | DONE | ~/ash-surface-wt/g29 + exp/chicago-standing-table-29 @ ba184bc (+ f079397 style: pre-existing HEAD-red format fix, 2 untouched files) | predecessor's uncommitted subject tightening reviewed and landed: bare :REFUSED dropped from vocabulary (unnamed refusal = fabricated refusal), :UNKNOWN refused with exact post-dispatch message; state table 41 tests (5 base + 11 witnessed REFUSED_* + synthetic-openness probe + exact boundary/constructor messages for Observation/PlanningEpisode/Event); JS parity rows (STANDING_VALUES -"REFUSED", bare/empty-reason rejection); runtime golden re-frozen to ACTUAL 017c8a2d (predecessor's 1cbcc5cb was stale); falsifier EXECUTED: inject valid?(:REFUSED) -> exit 2 RED (3 failures, all bare-:REFUSED rows), restore byte-identical -> exit 0 GREEN (41 passed); gates: compile --warnings-as-errors 0, mix test 0 (854 passed), npm test 0 (260/260), format --check-formatted 0 (after f079397); 産面 delta: 274+/70- across 6 files, 100% test/subject-twin bytes, zero app-code debt | remaining: none — ready for rider integration (one --no-ff, mix-test-gated)
