@@ -8,7 +8,7 @@ import { z } from "zod";
  * emitted, or consumed.
  */
 
-export const SURFACE_RUNTIME_VERSION = "26.9.16";
+export const SURFACE_RUNTIME_VERSION = "26.9.17";
 const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
 
@@ -17,7 +17,7 @@ const jsonRecordSchema = z.record(z.string(), z.unknown());
 export const surfaceActionSchema = z
   .object({
     id: z.string().min(1),
-    // v26.9.16 delegation: semanticId, authorityBoundary, doAuthority, and
+    // v26.9.17 delegation: semanticId, authorityBoundary, doAuthority, and
     // receiptRequired are delegated facts. They arrive from the manifest's
     // custom.ash_surface metadata or are null — an absent key means "not
     // delegated" and surfaces as null; values are never defaulted or
@@ -101,7 +101,7 @@ export const ashSurfaceContractSchema = z
 /**
  * @typedef {Object} SurfaceAction
  * @property {string} id Stable Ash action identity.
- * @property {string|null} semanticId Delegated semantic URI; null when not delegated (v26.9.16 delegation).
+ * @property {string|null} semanticId Delegated semantic URI; null when not delegated (v26.9.17 delegation).
  * @property {string} resource Fully-qualified Ash resource module name.
  * @property {string} action Ash action name.
  * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"|null} authorityBoundary Delegated; null when not delegated.
