@@ -1,5 +1,5 @@
 # chicago-pathtruth-anchor-035: path-truth law enforcement anchor
-status: IN_PROGRESS
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 18: TESTING.md:8 states the path-truth law but nothing enforces it. Add test/ash_surface/path_truth_test.exs: parses TESTING.md (and PROJECTORS.md) cited paths, fails on any nonexistent file; allowlist for intentional external refs. Subject: docs + new test.
@@ -14,3 +14,4 @@ Mapper 18: TESTING.md:8 states the path-truth law but nothing enforces it. Add t
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g35 + exp/chicago-pathtruth-anchor-35 | dispatched by coordinator (chicago wave)
 2026-09-17T06:40:01Z | REAPED: mid-life sustained-load death (worktree silent 20-29min); branch preserved — successor reviews git log first
 2026-09-17T07:39:37Z | IN_PROGRESS | successor re-dispatch (cohort 2 of 4; window confirmed by cohort 1 completing 3/3; branch preserved — review git log first)
+2026-09-17T07:45:23Z | DONE | ~/ash-surface-wt/g35 + exp/chicago-pathtruth-anchor-35 @ 6bfd2d1 (+fdf0cfb format repair) | successor found predecessor's untracked path_truth_test.exs (3/3 green but unformatted) — formatted it; falsifier A: fake citation appended to TESTING.md -> RED exit 2 ("TESTING.md:255 cites missing lib/ash_surface/definitely_not_here.ex"), restore -> GREEN exit 0; falsifier B: existing path falsely marked [INTEGRATION] -> RED exit 2 (stale markers: "a marker path is never an existing gate"), restore -> GREEN exit 0; gates: mix compile --warnings-as-errors 0, mix test 0 (845 passed, 5 doctests = HEAD 842 + 3 new), mix format --check-formatted 0 (HEAD was format-RED on 2 unrelated committed files — repaired atomically in fdf0cfb before the ticket commit); JS untouched -> npm test not required, cross-language e2e green inside mix test | none — remaining: none (rider integrates; never pushed)
