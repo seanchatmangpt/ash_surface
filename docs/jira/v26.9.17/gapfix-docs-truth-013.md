@@ -7,3 +7,4 @@ Truth-reconcile, retract-in-place with provenance: (a) DEP_GRAPH.md:111-129 curr
 - every named claim matches the tree at landing SHA; retraction-with-provenance style (no silent rewrites); mix test 0 (docs-only but battery anyway).
 ## History
 2026-09-16T23:59:52Z | IN_PROGRESS | ~/ash-surface-wt/g13 + exp/gapfix-docs-truth-013 | dispatched by rider (target_n=8)
+2026-09-17T00:30:39Z | BLOCKED (same class, rider): docs-union merge deferred to the dedicated integration pass (013's surface is docs-only and low-risk, but the rider is standing down from hand-merges tonight after two regressions); branch green @522601c; retraction-with-provenance complete on branch.
