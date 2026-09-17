@@ -427,24 +427,9 @@ defmodule AshSurface.MXClosedLoopDeepTest do
       "timestamp" => receipt["timestamp"]
     }
 
-    :crypto.hash(:sha256, canonical_json(payload)) |> Base.encode16(case: :lower)
+    # finish-replay-020: the repo has ONE canonical-JSON law, lib-owned.
+    AshSurface.CanonicalJSON.sha256_hex(payload)
   end
-
-  defp canonical_json(val) when is_map(val) do
-    inner =
-      val
-      |> Enum.sort_by(fn {k, _} -> to_string(k) end)
-      |> Enum.map(fn {k, v} -> "#{Jason.encode!(to_string(k))}:#{canonical_json(v)}" end)
-      |> Enum.join(",")
-
-    "{" <> inner <> "}"
-  end
-
-  defp canonical_json(val) when is_list(val) do
-    "[" <> Enum.map_join(val, ",", &canonical_json/1) <> "]"
-  end
-
-  defp canonical_json(val), do: Jason.encode!(val)
 
   # ---------------------------------------------------------------------------
   # Loop fixtures

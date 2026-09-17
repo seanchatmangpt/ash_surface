@@ -23,7 +23,9 @@ defmodule AshSurface.ObservationDeepTest do
 
   @vector_time ~U[2026-01-15 12:00:00Z]
 
-  # sha256("zoe:KingdomNeed#need_42:" <> Jason.encode!(@facts)), hex-lower — recorded 2026-09-15.
+  # sha256("zoe:KingdomNeed#need_42:" <> canonical JSON of @facts), hex-lower —
+  # recorded 2026-09-15; byte-identical under the canonical (key-sorted) encoder
+  # since finish-replay-020 (Jason and the canonical encoder agree on these bytes).
   @golden_digest "efbe29ff13c210909d01033247ba6bf04fc47ea616cccd4c32460210d3adb94a"
   @golden_id "obs_efbe29ff13c21090"
 
@@ -88,10 +90,24 @@ defmodule AshSurface.ObservationDeepTest do
       assert a.observation_id == b.observation_id
 
       recomputed =
-        :crypto.hash(:sha256, "#{@subject}:#{Jason.encode!(@facts)}")
+        :crypto.hash(:sha256, "#{@subject}:#{AshSurface.CanonicalJSON.encode(@facts)}")
         |> Base.encode16(case: :lower)
 
       assert a.state_digest == recomputed
+    end
+
+    test "digest is canonical: a >32-key facts map rebuilt in a different construction order keeps the identical observation" do
+      # Beyond 32 keys a map is a HAMT whose iteration order is unspecified:
+      # the canonical (key-sorted) encoding, not raw Jason bytes, owns identity.
+      forward = Map.new(1..40, fn i -> {"fact_#{i}", i} end)
+      backward = forward |> Map.to_list() |> Enum.reverse() |> Map.new()
+
+      a = Observation.create(@subject, forward)
+      b = Observation.create(@subject, backward)
+
+      assert a.facts == b.facts
+      assert a.state_digest == b.state_digest
+      assert a.observation_id == b.observation_id
     end
 
     test "digest binds subject and facts: changing either changes identity" do

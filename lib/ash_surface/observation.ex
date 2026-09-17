@@ -6,6 +6,8 @@ defmodule AshSurface.Observation do
   time. It explicitly carries `authority_boundary: :OBSERVE` and zero DO authority.
   """
 
+  alias AshSurface.CanonicalJSON
+
   @enforce_keys [:observation_id, :exact_subject, :observed_at, :state_digest, :facts]
   defstruct [
     :observation_id,
@@ -39,7 +41,9 @@ defmodule AshSurface.Observation do
     standing = Keyword.get(opts, :standing, :ALIVE)
     purpose = Keyword.get(opts, :projection_purpose, "consumer_state_observation")
 
-    facts_json = Jason.encode!(facts)
+    # Canonical (key-sorted) JSON: observation identity is invariant under
+    # facts map construction history, flatmap or >32-key HAMT alike.
+    facts_json = CanonicalJSON.encode(facts)
 
     state_digest =
       :crypto.hash(:sha256, "#{exact_subject}:#{facts_json}") |> Base.encode16(case: :lower)

@@ -190,17 +190,37 @@ defmodule AshSurface.EventDeepTest do
       end
     end
 
-    test "identity formula is stable: state_digest is sha256 of subject:sequence:type:payload, event_id its 16-char prefix" do
+    test "identity formula is stable: state_digest is sha256 of subject:sequence:type:canonical payload, event_id its 16-char prefix" do
       payload = %{"selected_candidate" => "person_01"}
       ev = Event.create("zoe:KingdomNeed#need_42", 1, "need_selected", payload: payload)
 
       expected_digest =
-        :crypto.hash(:sha256, "zoe:KingdomNeed#need_42:1:need_selected:#{Jason.encode!(payload)}")
+        :crypto.hash(
+          :sha256,
+          "zoe:KingdomNeed#need_42:1:need_selected:#{AshSurface.CanonicalJSON.encode(payload)}"
+        )
         |> Base.encode16(case: :lower)
 
       assert ev.state_digest == expected_digest
       assert ev.event_id == "ev_" <> binary_part(expected_digest, 0, 16)
       assert String.length(ev.event_id) == 19
+    end
+
+    test "digest is canonical: a >32-key payload rebuilt in a different construction order keeps the identical event" do
+      # Beyond 32 keys a map is a HAMT whose iteration order is unspecified:
+      # only the canonical (key-sorted) encoding makes identity construction-
+      # history proof. Raw Jason bytes would leave identity at the mercy of
+      # that unspecified order.
+      forward = Map.new(1..40, fn i -> {"attr_#{i}", i} end)
+      backward = forward |> Map.to_list() |> Enum.reverse() |> Map.new()
+
+      opts = [occurred_at: ~U[2026-09-15 10:00:00Z]]
+      a = Event.create("s", 1, "t", Keyword.put(opts, :payload, Map.put(forward, "k", "v")))
+      b = Event.create("s", 1, "t", Keyword.put(opts, :payload, Map.put(backward, "k", "v")))
+
+      assert a.payload == b.payload
+      assert a.state_digest == b.state_digest
+      assert a.event_id == b.event_id
     end
 
     test "payload participates in identity: same sequence, different payload, distinct event" do

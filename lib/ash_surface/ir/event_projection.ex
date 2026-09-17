@@ -34,6 +34,23 @@ defmodule AshSurface.IR.EventProjection do
      fallback convention, e.g. `"ash:AshSurfaceTest.Post#create"`).
   3. `ash:<actionId>` from the receipt itself (`actionId` already carries
      `<resource>#<action>`).
+
+  ## Typed refusal, never invented fields (finish-replay-020)
+
+  The projection never invents receipt content. Since finish-replay-020 the
+  function returns a typed result:
+
+    * `{:ok, event}` — every section resolved;
+    * `{:error, refusal}` with `standing: :REFUSED_MISSING_TIMESTAMP` when the
+      receipt carries no parseable `timestamp`/`occurredAt` — the previous
+      `DateTime.utc_now()` fallback made timestamp-less receipts replay to
+      DIFFERENT observations, so it is now a typed refusal;
+    * `{:error, refusal}` with `standing: :REFUSED_INVALID_SUBJECT` when no
+      `subject_ref` can be resolved from any of the three sources above.
+
+  A refusal is a plain map `%{standing: atom, reason: term, authority_boundary: :OBSERVE}`
+  (the runtime-minted refusal shape, cf. `AshSurface.Health`). The production
+  route for runtime receipts is `AshSurface.Event.from_receipt/2`.
   """
 
   alias AshSurface.Event
@@ -53,6 +70,13 @@ defmodule AshSurface.IR.EventProjection do
            optional(String.t()) => term()
          }
 
+  @typedoc "Typed refusal (runtime-minted shape, cf. `AshSurface.Health`)."
+  @type refusal :: %{
+          required(:standing) => atom(),
+          required(:reason) => term(),
+          required(:authority_boundary) => :OBSERVE
+        }
+
   @typep receipt :: map()
 
   @event_type "state_transition"
@@ -64,17 +88,27 @@ defmodule AshSurface.IR.EventProjection do
   `consequence` becomes the payload, `receiptHash` the `receipt_ref`,
   `timestamp` the `occurred_at`, and `sequence` (when the receipt carries
   one) is carried verbatim instead of being invented here.
+
+  Returns `{:ok, event}`, or `{:error, refusal}` when the receipt carries no
+  resolvable subject (`:REFUSED_INVALID_SUBJECT`) or no parseable timestamp
+  (`:REFUSED_MISSING_TIMESTAMP`) — a receipt missing either does not replay
+  to identical bytes, so it is refused typed instead of patched with invented
+  content.
   """
-  @spec from_receipt(receipt(), ir_action() | nil) :: Event.t()
+  @spec from_receipt(receipt(), ir_action() | nil) :: {:ok, Event.t()} | {:error, refusal()}
   def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
-    Event.create(
-      subject_ref(receipt, ir_action),
-      sequence(receipt),
-      @event_type,
-      payload: fetch(receipt, [:consequence, "consequence"]) || %{},
-      receipt_ref: fetch(receipt, [:receipt_hash, "receiptHash", :receipt_ref, "receiptRef"]),
-      occurred_at: occurred_at(receipt)
-    )
+    with {:ok, subject} <- subject_ref(receipt, ir_action),
+         {:ok, occurred} <- occurred_at(receipt) do
+      {:ok,
+       Event.create(
+         subject,
+         sequence(receipt),
+         @event_type,
+         payload: fetch(receipt, [:consequence, "consequence"]) || %{},
+         receipt_ref: fetch(receipt, [:receipt_hash, "receiptHash", :receipt_ref, "receiptRef"]),
+         occurred_at: occurred
+       )}
+    end
   end
 
   ## Subject resolution: IR semantic subject_iri first, ash:<resource>#<action> fallback.
@@ -84,22 +118,26 @@ defmodule AshSurface.IR.EventProjection do
 
     case fetch(semantic, [:subject_iri, "subject_iri"]) do
       iri when is_binary(iri) and iri != "" ->
-        iri
+        {:ok, iri}
 
       _ ->
         case {fetch(ir_action || %{}, [:resource, "resource"]),
               fetch(ir_action || %{}, [:action, "action"])} do
           {resource, action} when is_binary(resource) and is_binary(action) ->
-            "ash:" <> resource <> "#" <> action
+            {:ok, "ash:" <> resource <> "#" <> action}
 
           _ ->
             case fetch(receipt, [:action_id, "actionId"]) do
               action_id when is_binary(action_id) ->
-                "ash:" <> action_id
+                {:ok, "ash:" <> action_id}
 
               _ ->
-                raise ArgumentError,
-                      "from_receipt/2 cannot resolve a subject_ref: no subject_iri, resource/action, or actionId"
+                {:error,
+                 %{
+                   standing: :REFUSED_INVALID_SUBJECT,
+                   reason: :unresolvable_subject_ref,
+                   authority_boundary: :OBSERVE
+                 }}
             end
         end
     end
@@ -112,20 +150,33 @@ defmodule AshSurface.IR.EventProjection do
     end
   end
 
+  ## Typed refusal on missing/unparseable time: never invent wall-clock into a replayed fact.
+
   defp occurred_at(receipt) do
     case fetch(receipt, [:timestamp, "timestamp", :occurred_at, "occurredAt"]) do
       ts when is_binary(ts) ->
         case DateTime.from_iso8601(ts) do
-          {:ok, dt, _offset} -> dt
-          _ -> DateTime.utc_now()
+          {:ok, dt, _offset} ->
+            {:ok, dt}
+
+          _ ->
+            {:error, missing_timestamp_refusal(ts)}
         end
 
       %DateTime{} = dt ->
-        dt
+        {:ok, dt}
 
-      _ ->
-        DateTime.utc_now()
+      other ->
+        {:error, missing_timestamp_refusal(other)}
     end
+  end
+
+  defp missing_timestamp_refusal(raw) do
+    %{
+      standing: :REFUSED_MISSING_TIMESTAMP,
+      reason: {:no_parseable_receipt_timestamp, raw},
+      authority_boundary: :OBSERVE
+    }
   end
 
   ## Zero-config key access: atom or string keys, JSON-decoded or literal maps.
