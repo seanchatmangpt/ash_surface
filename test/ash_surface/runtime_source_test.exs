@@ -21,7 +21,11 @@ defmodule AshSurface.RuntimeSourceTest do
   # finish-standing-022 (F3) + finish-select-025 (F6) union re-freeze: standing
   # enum union + REFUSED_-prefix guard AND the selection dimension facts twin;
   # golden recomputed from the merged runtime file (whole-file SHA-256 law).
-  @golden_runtime_sha256 "8373790caa0659073d8010aea16683d472e0e91bd62ba46354e08016585e8e42"
+  # chicago-standing-table-029 re-freeze: STANDING_VALUES drops bare "REFUSED"
+  # (a refusal must name its reason; the open "REFUSED_"-prefix regex branch is
+  # unchanged) — comment + enum + typedef bytes only, no schema behavior beyond
+  # the bare-"REFUSED" rejection that now mirrors lib AshSurface.Standing.
+  @golden_runtime_sha256 "017c8a2dac736cd4ed8eefd3f25174dec5f294e3954e635051a37a1f0d67e78f"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

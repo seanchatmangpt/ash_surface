@@ -232,10 +232,17 @@ rejectionTable("observationProjectionSchema", observationProjectionSchema, fullO
   wrong("standing enum \"DOUGH\" (off-vocabulary)", "standing", "DOUGH", "invalid_format"),
   wrong("standing \"ALIVEISH\" (not a prefix-exact member)", "standing", "ALIVEISH", "invalid_format"),
   wrong("standing \"UNKNOWN\" (post-dispatch outcome, never a standing)", "standing", "UNKNOWN", "invalid_format"),
+  // chicago-standing-table-029 parity rows: a refusal must name its reason,
+  // mirroring lib AshSurface.Standing (bare :REFUSED rejected; the open class
+  // is "REFUSED_" + a non-empty reason).
+  wrong("standing bare \"REFUSED\" (unnamed refusal)", "standing", "REFUSED", "invalid_format"),
+  wrong("standing \"REFUSED_\" (empty reason)", "standing", "REFUSED_", "invalid_format"),
 ]);
 
-// F3: the JS boundary mirrors the single lib-side owner (AshSurface.Standing):
-// the closed STANDING_VALUES enum plus the open "REFUSED_"-prefixed class.
+// F3 (tightened by chicago-standing-table-029): the JS boundary mirrors the
+// single lib-side owner (AshSurface.Standing): the closed STANDING_VALUES
+// enum (five base standings, no bare "REFUSED") plus the open
+// "REFUSED_"-prefixed class with a non-empty reason.
 test("STANDING_VALUES is the frozen canonical standing vocabulary mirror of AshSurface.Standing", () => {
   assert.deepEqual([...STANDING_VALUES], [
     "ALIVE",
@@ -243,7 +250,6 @@ test("STANDING_VALUES is the frozen canonical standing vocabulary mirror of AshS
     "BLOCKED",
     "BUILD_BROKEN",
     "UNSUPPORTED",
-    "REFUSED",
   ]);
   assert.equal(Object.isFrozen(STANDING_VALUES), true);
 });

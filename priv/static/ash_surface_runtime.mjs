@@ -20,29 +20,34 @@ const DIMENSION_PRIORITY = Object.freeze(["cost", "latency", "privacy"]);
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 
-// F3: one canonical standing vocabulary, owned lib-side by AshSurface.Standing
-// (lib/ash_surface/standing.ex). The five base standings plus bare "REFUSED"
-// are the closed z.enum() core; the open REFUSED class ("REFUSED_"-prefixed
-// refusal standings, e.g. "REFUSED_NO_AUTHORITY") is the regex branch.
-// "UNKNOWN" is deliberately not a standing — it is a post-dispatch outcome.
+// F3 (tightened by chicago-standing-table-029): one canonical standing
+// vocabulary, owned lib-side by AshSurface.Standing
+// (lib/ash_surface/standing.ex). The five base standings are the closed
+// z.enum() core; the open REFUSED class ("REFUSED_"-prefixed refusal
+// standings, e.g. "REFUSED_NO_AUTHORITY") is the regex branch. Bare "REFUSED"
+// is NOT a standing — a refusal must name its reason — and "UNKNOWN" is
+// deliberately not a standing: it is a post-dispatch outcome.
 export const STANDING_VALUES = Object.freeze([
   "ALIVE",
   "PARTIAL_ALIVE",
   "BLOCKED",
   "BUILD_BROKEN",
   "UNSUPPORTED",
-  "REFUSED",
 ]);
 
 const standingSchema = z.union([
   z.enum(STANDING_VALUES),
-  z.string().regex(/^REFUSED_/),
+  // The open REFUSED class: at least one reason char beyond the prefix —
+  // bare "REFUSED" and the empty reason "REFUSED_" are not refusals (mirrors
+  // lib/ash_surface/standing.ex "REFUSED_" <> _ rest law).
+  z.string().regex(/^REFUSED_.+/),
 ]);
 
 // F3 refusal guard: every declared possible refusal is a "REFUSED_"-prefixed
-// code (mirrors the Elixir REFUSED_* refusal vocabulary, e.g.
-// "REFUSED_UNKNOWN_ACTION"). Off-vocabulary names are refused at the boundary.
-const refusalCodeSchema = z.string().regex(/^REFUSED_/);
+// code with a named reason (mirrors the Elixir REFUSED_* refusal vocabulary,
+// e.g. "REFUSED_UNKNOWN_ACTION"). Off-vocabulary names and the unnamed
+// "REFUSED"/"REFUSED_" are refused at the boundary.
+const refusalCodeSchema = z.string().regex(/^REFUSED_.+/);
 
 export const surfaceActionSchema = z
   .object({
@@ -151,9 +156,10 @@ export const ashSurfaceContractSchema = z
  */
 
 /**
- * @typedef {("ALIVE"|"PARTIAL_ALIVE"|"BLOCKED"|"BUILD_BROKEN"|"UNSUPPORTED"|"REFUSED"|string)} Standing
+ * @typedef {("ALIVE"|"PARTIAL_ALIVE"|"BLOCKED"|"BUILD_BROKEN"|"UNSUPPORTED"|string)} Standing
  * A canonical standing: one of `STANDING_VALUES` or a "REFUSED_"-prefixed
- * refusal standing. Mirrors `AshSurface.Standing` (lib/ash_surface/standing.ex).
+ * refusal standing (bare "REFUSED" is not a standing — a refusal must name
+ * its reason). Mirrors `AshSurface.Standing` (lib/ash_surface/standing.ex).
  */
 
 /**
