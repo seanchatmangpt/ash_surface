@@ -1,5 +1,5 @@
 # chicago-props-codec-042: property-based codec/digest laws
-status: IN_PROGRESS
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 Add StreamData property tests: (1) canonical key-order invariance: shuffled-key maps -> identical CanonicalJSON bytes + digest; (2) value sensitivity; (3) five-section IR round-trip identity over bounded generators (realistic ash/semantic/capability/presentation/schema shapes). Subject: canonical_json.ex + ir/codec.ex.
@@ -16,3 +16,7 @@ Add StreamData property tests: (1) canonical key-order invariance: shuffled-key 
 2026-09-17T07:59:35Z | IN_PROGRESS | successor re-dispatch (cohort 3 of 4; window confirmed by cohorts 1-2 completing 6/6; branch preserved — review git log first)
 2026-09-17T08:02:50Z | REAPED: compound evidence — 102min silence (past max observed runtime), 0 active agent processes matched to this worktree, 0 commit(s) preserved — successor reviews first
 2026-09-17T08:09:08Z | IN_PROGRESS | successor re-dispatch (final cohort 4; branch preserved — review git log first; 045's lesson: long-runners are alive)
+2026-09-17T08:13:15Z | ALIVE | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 @ 943e131 | successor found predecessor's uncommitted partials (mix.exs stream_data dep + 311-line codec_props_test.exs); format gate RED at HEAD on 2 pre-existing files (mx_episode_compose_test, projector_ir_determinism_test — not ticket files) → owning-generator repair (mix format only, zero semantic edits, suite identical 845) committed as 943e131 | remaining: feature commit + falsifier
+2026-09-17T08:13:15Z | ALIVE | 9bee0e6 | falsifier cycle 1: drop key sort in CanonicalJSON.encode → exit 0 (NOT red): OTP 28 content-determines map iteration (flatmap AND HAMT), so construction-history equality is blind to a dropped sort; falsifier failure recorded, not papered over → repair: mixed-type-key sortedness pin added to property 1 (VM term order 2,10,:b,"1","a" ≠ stringified-sorted 1,10,2,a,b; bytes {"1":2,"10":4,"2":1,"a":5,"b":3} + digest pin) makes the sort load-bearing | remaining: falsifier cycle 2
+2026-09-17T08:13:15Z | ALIVE | 9bee0e6 | falsifier cycle 2 EXECUTED: RED `mix test test/ash_surface/codec_props_test.exs --seed 424242` exit 2 (property 1 failed at pin, 0 successful runs) → restore `git checkout -- lib/ash_surface/canonical_json.ex` → GREEN exit 0, 3 passed | remaining: final gate line
+2026-09-17T08:13:15Z | ALIVE | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 @ 943e131 + 9bee0e6 | gates: mix compile --warnings-as-errors 0; mix test 0 (845 passed: 5 doctests, 3 properties, 837 tests); mix format --check-formatted 0; npm test n/a (no JS touched); seed stability 424242×2 / 777 / random → 3 passed every run | remaining: none — DONE; integration/rider merge only
