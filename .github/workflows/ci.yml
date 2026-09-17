@@ -44,7 +44,12 @@ jobs:
         with:
           node-version: "22"
       - run: npm install
+      - name: Install Playwright observation runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.63.0
+          npx playwright install --with-deps chromium
       - run: node --check priv/static/ash_surface_runtime.mjs
+      - run: node --check priv/static/ash_surface_playwright.mjs
       - run: npm test
 
   # Bounded falsifier (ticket chicago-ci-falsifier-049): a guard that cannot
