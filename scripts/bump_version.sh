@@ -142,6 +142,9 @@ docs/jira/v26.9.16/refactor-safety-net-003.md
 docs/jira/v26.9.16/version-bump-011.md
 docs/jira/v26.9.17/gapfix-bump-mech-007.md
 docs/jira/v26.9.17/gapfix-docs-truth-013.md
+docs/jira/v26.9.17/gapfix-integration-018.md
+docs/jira/v26.9.17/gapfix-ontology-promo-017.md
+docs/jira/v26.9.17/gapfix-test-surface-015.md
 docs/jira/v26.9.17/_RUNLOG.md
 lib/ash_surface/ir.ex
 ontology.ttl
