@@ -1,5 +1,5 @@
 # chicago-props-transport-043: property-based selection laws
-status: IN_PROGRESS
+status: OPEN
 created: 2026-09-17T06:30:00Z
 ## Mission
 StreamData properties over generated fact profiles + transport sets: selected ∈ declared∩available always; preference law preserved when non-dominated; malformed shapes always typed refusals (never raises, never nil). Subject: transport.ex select/3.
@@ -14,3 +14,4 @@ StreamData properties over generated fact profiles + transport sets: selected �
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g43 + exp/chicago-props-transport-43 | dispatched by coordinator (chicago wave)
 2026-09-17T06:04:53Z | REAPED: agent rate-killed [1302] mid-life (12-14min — sustained-overload class, not launch-spike); worktree g43 + branch preserved — successor reviews git log first
 2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts
+2026-09-17T06:30:36Z | REAPED: compound evidence (worktree silent 28-42min; STAGGER EXPERIMENT RESULT: successor died despite spaced launch — sustained-load class); branch preserved, 0 commit(s) ahead — successor reviews first
