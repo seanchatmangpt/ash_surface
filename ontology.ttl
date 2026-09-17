@@ -486,3 +486,9 @@ surf:UnsupportedLedgerRow46 a surf:UnsupportedRow ;
     surf:unsupportedElement "Spark.Formatter plugin wiring template for a real surface DSL extension" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow47 a surf:UnsupportedRow ;
+    surf:ledgerPath "est/ash_surface/from_manifest_test.exs + priv/static/ash_surface_runtime.mjs (schema-site comment)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "enforced-absence tripwire rows + delegated-extension provenance note emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

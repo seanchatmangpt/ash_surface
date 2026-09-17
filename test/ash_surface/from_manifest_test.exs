@@ -206,6 +206,98 @@ defmodule AshSurface.FromManifestTest do
     assert {:error, {:unknown_transport, [:grpc]}} = Transport.select([:grpc], [:grpc])
   end
 
+  # chicago-ontology-producer-039: re-adjudication of 015's
+  # keep-typed-optional-no-producer on the post-F4 tree. The honest-producer
+  # side is REFUSED by law and the absence is ENFORCED by the rows below:
+  #
+  #   * contract/2 receives a Manifest + profile only — no ontology and no
+  #     release identity crosses the surface boundary (Ash's serializer omits
+  #     extension custom data and entrypoint config);
+  #   * F4 (MXEpisode.compose/1) binds surface.digest and the subject
+  #     repo/head at the EPISODE layer from operator-supplied inputs — it
+  #     adds no surface input, so it cannot feed a contract-layer producer;
+  #   * surface.digest -> ontologyDigest is circular: Surface.digest digests
+  #     the very contract that would carry the field;
+  #   * generator identity -> applicationReleaseIdentity mislabels
+  #     provenance: generatorIdentity already has its own field, and the
+  #     witnessed upstream value (the F5 fixture's "ash-surface-wt/v43@282f3ca")
+  #     is a generation-time repo/head fact, not derivable from the manifest;
+  #   * environment reads (repo ontology.ttl, Mix version, git head) would
+  #     make Surface.digest environment-dependent, breaking the frozen golden
+  #     determinism law pinned in AshSurface.DigestTest.
+  #
+  # Presence of either field in contract/2 output is therefore RED. This
+  # suite is the enforcement anchor; the typed optional schema rows in
+  # priv/static/ash_surface_runtime.mjs keep admitting witnessed upstream
+  # values (the schema accepts, the Elixir producer never emits).
+  @absence_law_fields ["ontologyDigest", "applicationReleaseIdentity"]
+
+  @lawful_envelope_keys ~w(ashManifestSchemaVersion generatorIdentity manifest
+    manifestDigest marketplaceIdentity surface surfaceSchemaVersion)
+
+  describe "enforced absence law: ontologyDigest / applicationReleaseIdentity" do
+    test "contract/2 emits neither delegated-identity field (presence is RED by law)" do
+      assert {:ok, surface} = AshSurface.from_manifest(generated_manifest(), profile: %{})
+
+      for field <- @absence_law_fields do
+        refute Map.has_key?(surface.contract, field),
+               "#{field} appeared in contract/2 output — the surface boundary " <>
+                 "receives no ontology or release input; emitting it would " <>
+                 "fabricate delegated provenance"
+      end
+
+      # The envelope is a closed seven-key projection; this pin makes ANY
+      # added identity field red until the law itself is consciously changed.
+      assert surface.contract |> Map.keys() |> Enum.sort() == Enum.sort(@lawful_envelope_keys)
+    end
+
+    test "even the maximal delegated state carries no ontology or release identity" do
+      # All four delegated facts admitted through the action profile (the
+      # custom.ash_surface IR section): they surface where delegation puts
+      # them — per action in the surface envelope — and nowhere else.
+      profile = %{
+        actions: %{
+          @read_id => %{
+            "semanticId" => "zoe:RealPostRead",
+            "authorityBoundary" => "OBSERVE",
+            "doAuthority" => false,
+            "receiptRequired" => true
+          }
+        }
+      }
+
+      assert {:ok, surface} = AshSurface.from_manifest(generated_manifest(), profile: profile)
+
+      action = Enum.find(surface.contract["surface"]["actions"], &(&1["id"] == @read_id))
+      assert action["semanticId"] == "zoe:RealPostRead"
+      assert action["authorityBoundary"] == "OBSERVE"
+      assert action["doAuthority"] == false
+      assert action["receiptRequired"] == true
+
+      for field <- @absence_law_fields do
+        refute Map.has_key?(surface.contract, field)
+      end
+    end
+
+    test "consumer profile data may repeat the names; the envelope producer still emits neither" do
+      profile = %{
+        ontologyDigest: "consumer-profile-data",
+        applicationReleaseIdentity: "consumer@1"
+      }
+
+      assert {:ok, surface} = AshSurface.from_manifest(literal_manifest(), profile: profile)
+
+      assert surface.contract["surface"]["profile"]["ontologyDigest"] == "consumer-profile-data"
+      assert surface.contract["surface"]["profile"]["applicationReleaseIdentity"] == "consumer@1"
+
+      # The law binds the envelope producer's top-level output, not consumer
+      # profile data carried below surface.profile.
+      for field <- @absence_law_fields do
+        refute Map.has_key?(surface.contract, field)
+      end
+    end
+  end
+
   describe "Ash.Info.Manifest.JsonSerializer round-trip" do
     test "the decorated manifest serializes and decodes to its canonical map" do
       assert {:ok, surface} =
