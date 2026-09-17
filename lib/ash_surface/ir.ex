@@ -42,11 +42,11 @@ defmodule AshSurface.IR do
   @type t :: %__MODULE__{
           version: String.t() | nil,
           digest: String.t() | nil,
-          ash: Ash.t() | nil,
-          semantic: Semantic.t() | nil,
-          capability: Capability.t() | nil,
-          presentation: Presentation.t() | nil,
-          schema: Schema.t() | nil
+          ash: __MODULE__.Ash.t() | nil,
+          semantic: __MODULE__.Semantic.t() | nil,
+          capability: __MODULE__.Capability.t() | nil,
+          presentation: __MODULE__.Presentation.t() | nil,
+          schema: __MODULE__.Schema.t() | nil
         }
 
   @section_modules %{
@@ -87,7 +87,12 @@ defmodule AshSurface.IR do
   Reads one of the five embedded structs out of an IR.
   """
   @spec section(t(), section_name()) ::
-          Ash.t() | Semantic.t() | Capability.t() | Presentation.t() | Schema.t() | nil
+          __MODULE__.Ash.t()
+          | __MODULE__.Semantic.t()
+          | __MODULE__.Capability.t()
+          | __MODULE__.Presentation.t()
+          | __MODULE__.Schema.t()
+          | nil
   def section(%__MODULE__{} = ir, name) when is_map_key(@section_modules, name) do
     Map.get(ir, name)
   end

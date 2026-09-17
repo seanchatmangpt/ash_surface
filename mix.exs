@@ -21,7 +21,22 @@ defmodule AshSurface.MixProject do
       source_url: @source_url,
       homepage_url: @source_url,
       package: package(),
-      aliases: aliases()
+      aliases: aliases(),
+      dialyzer: dialyzer()
+    ]
+  end
+
+  # Dialyzer baseline (gapfix-dialyzer-010): findings that are real defects are
+  # fixed; the residual suppression lives in dialyzer.ignore-warnings with a
+  # per-line justification. ex_unit is needed in the PLT because test support
+  # modules reference ExUnit callbacks. ash_a2a and ash_r2rml are runtime:
+  # false all-env deps whose functions ash_surface calls directly — without
+  # them in the PLT dialyzer reports their functions as unknown.
+  defp dialyzer do
+    [
+      plt_add_apps: [:ex_unit, :ash_a2a, :ash_r2rml],
+      ignore_warnings: "dialyzer.ignore-warnings",
+      list_unused_filters: true
     ]
   end
 
@@ -47,6 +62,9 @@ defmodule AshSurface.MixProject do
       # igniter: no `only:` restriction — ash_a2a (all-env dep) requires it
       # beyond dev/test; runtime: false keeps it out of the boot path.
       {:igniter, "~> 0.7", runtime: false},
+      # Static success-typing analysis (gapfix-dialyzer-010). Dev-only: the
+      # analysis tool never ships and never enters the boot path.
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # ash_r2rml pinned to git HEAD (7d958a8) overriding ash_a2a's hex
       # "~> 26.8" requirement — git version 26.9.12 satisfies it.
       {:ash_r2rml,

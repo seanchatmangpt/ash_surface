@@ -190,12 +190,17 @@ defmodule AshSurface do
           "profile" => action_profile
         }
 
-        custom = Map.put(action.custom || %{}, :ash_surface, surface_custom)
+        # Ash.Info.Manifest.Action.custom is contractually map() (struct
+        # default %{}); no nil fallback exists or is needed (dialyzer
+        # guard_fail, gapfix-dialyzer-010).
+        custom = Map.put(action.custom, :ash_surface, surface_custom)
         %{entrypoint | action: %{action | custom: custom}}
       end)
 
+    # Manifest.custom is contractually map() (struct default %{}); same
+    # no-nil-fallback reasoning as the action custom above.
     root_custom =
-      Map.put(manifest.custom || %{}, :ash_surface, %{
+      Map.put(manifest.custom, :ash_surface, %{
         "schemaVersion" => @surface_schema_version,
         "profile" => Map.delete(profile, "actions")
       })

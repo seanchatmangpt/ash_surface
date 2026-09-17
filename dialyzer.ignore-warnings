@@ -1,0 +1,18 @@
+# dialyzer.ignore-warnings — suppression ledger for `mix dialyzer`
+# (gapfix-dialyzer-010).
+#
+# Policy: real defects are FIXED at the source, never filtered. A line below
+# is admitted only when the finding is a proven dialyzer false positive or a
+# third-party contract quirk, and each line carries its own justification
+# directly above it (legacy format: each non-comment line is a substring
+# filter matched against formatted warnings).
+#
+# Baseline 2026-09-16: EMPTY — all 14 initial findings were fixed at source
+# (10 unknown_type: nested IR section types now __MODULE__-qualified in
+# lib/ash_surface/ir.ex; 1 guard_fail + 1 latent twin: dead `|| %{}` against
+# map()-typed manifest custom fields in lib/ash_surface.ex; 3
+# unknown_function: :ash_a2a/:ash_r2rml added to plt_add_apps so the analysis
+# sees the runtime:false deps ash_surface calls directly).
+#
+# Keep this file committed even when empty: it is the only lawful home for a
+# dialyzer suppression, and `list_unused_filters: true` evicts stale filters.
