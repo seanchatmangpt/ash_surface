@@ -21,6 +21,12 @@ defmodule AshSurface.IR do
      format).
   5. `Schema` — boundary schemas (input, output, the Zod projection, aria).
 
+  Serialization and content addressing of this IR — the JSON-isomorphic
+  staging map and the content digest — is owned by `AshSurface.IR.Codec`
+  (`lib/ash_surface/ir/codec.ex`). There is one IR canon (this struct) and one
+  codec for it; no parallel staging shape is admitted
+  (chicago-codec-canon-034).
+
   Reading a fact here is not evidence that the fact was verified in this
   session, and no field of this struct authorizes a DO. Consumers must
   re-derive standing from the sources; the IR only transports what those
