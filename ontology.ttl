@@ -221,7 +221,7 @@ surf:UnsupportedLedgerRow12 a surf:UnsupportedRow ;
 surf:UnsupportedLedgerRow13 a surf:UnsupportedRow ;
     surf:ledgerPath "TESTING.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
-    surf:unsupportedElement "test-suite-map doc template emission (one emission pays down this row + the TESTING_QUICKSTART.md row)" ;
+    surf:unsupportedElement "test-suite-map doc template emission (supersedes the 2026-09-15 row's "true counts / zero-config v1/v2 battery" claim, falsified by the v-wave merges)" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
 surf:UnsupportedLedgerRow14 a surf:UnsupportedRow ;
