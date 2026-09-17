@@ -47,6 +47,36 @@ jobs:
       - run: node --check priv/static/ash_surface_runtime.mjs
       - run: npm test
 
+  # Bounded falsifier (ticket chicago-ci-falsifier-049): a guard that cannot
+  # fail guards nothing. scripts/ci_falsifier.sh runs the tripwire canaries on
+  # pristine HEAD, then for each recipe in scripts/mutation_recipes.md mutates
+  # the REAL subject (runtime artifact, digest producer, IR codec golden),
+  # demands the guarding tests turn RED, restores, and demands GREEN. Any
+  # mutation a guard survives = dead guard = this job RED (proven with a
+  # mis-wired-recipe variant: guard survives -> FALSIFIER_FAIL, exit 1).
+  # Bounded by design: one compile + seven narrow `mix test` invocations
+  # (~10s of test work warm); timeout-minutes: 5 encodes the <5min law.
+  # The subset deliberately avoids the two zod-importing e2e tests, so this
+  # job needs no npm bootstrap (see zero-config bootstrap-order discovery).
+  # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28).
+  falsifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      - run: bash scripts/ci_falsifier.sh
+
   # Fresh-clone proof (zero-config gate law, v1): a pristine local clone of
   # HEAD must build and pass the full battery with zero configuration.
   zero-config:
