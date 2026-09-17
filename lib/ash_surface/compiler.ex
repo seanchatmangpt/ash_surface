@@ -61,7 +61,7 @@ defmodule AshSurface.Compiler do
   alias Ash.Info.Manifest
   alias AshSurface.IR
 
-  @ir_version "26.9.16"
+  @ir_version "26.9.17"
 
   @section_keys [:ash, :semantic, :capability, :presentation, :schema]
 
