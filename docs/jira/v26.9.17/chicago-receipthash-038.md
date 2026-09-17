@@ -1,5 +1,5 @@
 # chicago-receipthash-038: receiptHash formula pinning
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 10: receiptHash is shape-only. Pin the FORMULA: canonical-JSON over the named receipt fields (document the field list at the schema site), compute independently in test (and JS twin row) asserting the emitted value; reorder-invariant, value-sensitive.
@@ -11,3 +11,4 @@ Mapper 10: receiptHash is shape-only. Pin the FORMULA: canonical-JSON over the n
 ## Acceptance
 - formula documented at owner site + independent-computation rows both languages; falsifier: field-order change -> same hash (invariance RED if violated), value change -> different (RED if not); gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g38 + exp/chicago-receipthash-38 | dispatched by coordinator (chicago wave)

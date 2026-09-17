@@ -1,5 +1,5 @@
 # chicago-runtime-ledger-037: runtime.mjs pack-source ledger row
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 02: priv/static/ash_surface_runtime.mjs is hand-maintained pack source with NO HANDWRITTEN row. Admit the row (+ UNSUPPORTED bijection pair) naming the intended owner (JS runtime template family in ash-extension-pack) and paydown path; byte-provenance note (golden SHA law already pins content).
@@ -11,3 +11,4 @@ Mapper 02: priv/static/ash_surface_runtime.mjs is hand-maintained pack source wi
 ## Acceptance
 - ledger+ontology pair admitted, bijection tripwire green; falsifier: remove the pair -> tripwire RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g37 + exp/chicago-runtime-ledger-37 | dispatched by coordinator (chicago wave)

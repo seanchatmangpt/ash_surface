@@ -1,5 +1,5 @@
 # chicago-intent-gate-032: intent KNOWN-ness gate state transitions
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 F2 landed the pre-bus gate. State table: in-set id reaches bus (count 1); out-of-set refuses pre-bus (bus count 0); empty set admits nothing; malformed set typed refusal; no-key = no gate byte-identical. Subject: lib/ash_surface/intent/dispatch.ex.
@@ -11,3 +11,4 @@ F2 landed the pre-bus gate. State table: in-set id reaches bus (count 1); out-of
 ## Acceptance
 - >=6 state rows with bus-call counting (the law IS the boundary); falsifier: remove the gate -> out-of-set row RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g32 + exp/chicago-intent-gate-32 | dispatched by coordinator (chicago wave)

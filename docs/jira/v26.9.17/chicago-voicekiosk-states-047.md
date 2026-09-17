@@ -1,5 +1,5 @@
 # chicago-voicekiosk-states-047: VoiceKiosk flow-state tests
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Flow states: authority-admitted vs not; CONFIRM always required; autoExecute=false in every emitted plan; ANSWER phrasing only for never-delegated DO (documented nuance); dialogue structure asserted as data. Subject: lib/ash_surface/projector/voice_kiosk.ex.
@@ -11,3 +11,4 @@ Flow states: authority-admitted vs not; CONFIRM always required; autoExecute=fal
 ## Acceptance
 - >=8 state rows; falsifier: flip autoExecute -> RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g47 + exp/chicago-voicekiosk-states-47 | dispatched by coordinator (chicago wave)

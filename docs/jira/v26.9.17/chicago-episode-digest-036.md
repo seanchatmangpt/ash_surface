@@ -1,5 +1,5 @@
 # chicago-episode-digest-036: PlanningEpisode canonical digest law
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 10: episodes cross languages with NO digest law while Event/Observation have one. Define the canonical digest (sorted-key JSON over the episode record, mirroring CanonicalJSON), implement Elixir-side + JS twin (if episodes cross), pin both. Subject: lib/ash_surface/planning_episode.ex (+ canonical_json.ex reuse).
@@ -11,3 +11,4 @@ Mapper 10: episodes cross languages with NO digest law while Event/Observation h
 ## Acceptance
 - digest state rows: order-invariant, value-sensitive, pinned both sides where applicable; falsifier: raw-Jason (unsorted) digest -> invariance row RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g36 + exp/chicago-episode-digest-36 | dispatched by coordinator (chicago wave)

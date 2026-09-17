@@ -1,5 +1,5 @@
 # chicago-ci-falsifier-049: CI runs the falsifier subset
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Wire a bounded falsifier job into ci.yml: runs the mutation-recipe script subset (from chicago-golden-mutation-041) + tripwire canaries, fast (<5min), pins per .tool-versions; actionlint/yamllint clean. Subject: .github/workflows/ci.yml + scripts.
@@ -11,3 +11,4 @@ Wire a bounded falsifier job into ci.yml: runs the mutation-recipe script subset
 ## Acceptance
 - workflow valid; falsifier subset green on HEAD; falsifier: a known-bad recipe variant -> job RED locally simulated (act or documented); gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g49 + exp/chicago-ci-falsifier-49 | dispatched by coordinator (chicago wave)

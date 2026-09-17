@@ -1,5 +1,5 @@
 # chicago-doctest-sweep-052: doctests for every boundary public
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 First-doctests landed for from_manifest/compile. Extend: project_ir/2 (one projector), transport select/3, Standing validators, MXEpisode.compose/1, Intent.create/3 — each with runnable iex examples asserting real output; modules lacking any public doc noted. Subject: lib docstrings + test/ash_surface/doctest_test.exs.
@@ -11,3 +11,4 @@ First-doctests landed for from_manifest/compile. Extend: project_ir/2 (one proje
 ## Acceptance
 - >=6 new doctest groups green; falsifier: wrong expected output in one example -> RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g52 + exp/chicago-doctest-sweep-52 | dispatched by coordinator (chicago wave)

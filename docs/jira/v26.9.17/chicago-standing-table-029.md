@@ -1,5 +1,5 @@
 # chicago-standing-table-029: Standing module exhaustive state table
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 F3 landed AshSurface.Standing. State table: every base standing valid; :UNKNOWN rejected with message naming it as post-dispatch outcome; every REFUSED_* accepted; bare :REFUSED rejected; constructor refusals (Observation/PlanningEpisode/Event) fire with exact ArgumentError messages; JS STANDING_VALUES parity rows in test/js. Subject: lib/ash_surface/standing.ex + consumers.
@@ -11,3 +11,4 @@ F3 landed AshSurface.Standing. State table: every base standing valid; :UNKNOWN 
 ## Acceptance
 - state table covers all 5 + REFUSED class + boundary messages; zod parity rows; falsifier: admit an invalid standing in one constructor -> new tests RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g29 + exp/chicago-standing-table-29 | dispatched by coordinator (chicago wave)

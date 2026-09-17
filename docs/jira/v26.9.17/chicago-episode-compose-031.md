@@ -1,5 +1,5 @@
 # chicago-episode-compose-031: MXEpisode.compose state + verifier round-trips
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 F4 landed MXEpisode.compose/1. State tests: full episode from real parts (live fixture) -> verifier :ok; each-missing-part refusal table; subject-binding violation row; non-canonical digest row; verify_file/1 on a written episode file. Subject: lib/ash_surface/mx_episode.ex + priv/verifier.
@@ -11,3 +11,4 @@ F4 landed MXEpisode.compose/1. State tests: full episode from real parts (live f
 ## Acceptance
 - >=10 state rows; falsifier: drop observed_transitions witness -> verifier/validate RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g31 + exp/chicago-episode-compose-31 | dispatched by coordinator (chicago wave)

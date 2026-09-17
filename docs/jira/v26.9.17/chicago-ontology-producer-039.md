@@ -1,5 +1,5 @@
 # chicago-ontology-producer-039: ontologyDigest/applicationReleaseIdentity: honest producer or enforced absence
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 015 adjudicated keep-typed-optional-no-producer. Decide by evidence on the CURRENT tree (F4 landed since): either wire an honest producer from admitted state (surface.digest + generator identity — no fabrication) with state rows, OR encode the absence as an enforced contract test (fields absent from contract/2 output BY LAW, presence = RED) + doc note at the schema site.
@@ -11,3 +11,4 @@ created: 2026-09-17T06:30:00Z
 ## Acceptance
 - one of the two landed with state rows + executed falsifier for the chosen side; no fabricated provenance; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g39 + exp/chicago-ontology-producer-39 | dispatched by coordinator (chicago wave)

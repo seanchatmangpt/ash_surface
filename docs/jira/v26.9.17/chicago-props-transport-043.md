@@ -1,5 +1,5 @@
 # chicago-props-transport-043: property-based selection laws
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 StreamData properties over generated fact profiles + transport sets: selected ∈ declared∩available always; preference law preserved when non-dominated; malformed shapes always typed refusals (never raises, never nil). Subject: transport.ex select/3.
@@ -11,3 +11,4 @@ StreamData properties over generated fact profiles + transport sets: selected �
 ## Acceptance
 - 3 properties with shrinking proven (a falsifier run showing a shrunk counterexample on an injected bug); gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g43 + exp/chicago-props-transport-43 | dispatched by coordinator (chicago wave)

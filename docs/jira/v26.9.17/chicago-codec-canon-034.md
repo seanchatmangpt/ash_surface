@@ -1,5 +1,5 @@
 # chicago-codec-canon-034: codec.ex single-canon reconciliation
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 02: ir/codec.ex:12-14,33 carries a stale parallel five-section canon claim while ir.ex is the admitted canon. Reconcile to ONE canon; state tests: codec round-trips the real five-section IR from a live fixture (both directions), digest pinned equal to fixture surface digest. Subject: lib/ash_surface/ir/codec.ex + ir.ex.
@@ -11,3 +11,4 @@ Mapper 02: ir/codec.ex:12-14,33 carries a stale parallel five-section canon clai
 ## Acceptance
 - round-trip + digest state rows on real fixture; stale canon text gone; falsifier: introduce key-order dependence -> digest row RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g34 + exp/chicago-codec-canon-34 | dispatched by coordinator (chicago wave)
