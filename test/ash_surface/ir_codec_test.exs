@@ -1,373 +1,283 @@
 defmodule AshSurface.IrCodecTest do
   @moduledoc """
-  Serialization and content-addressing law of the ash_surface IR codec.
+  State rows of the single-canon reconciliation (chicago-codec-canon-034):
+  `AshSurface.IR.Codec` round-trips the REAL five-section IR assembled by
+  `AshSurface.Compiler.compile` from a live fixture (the real shared
+  `AshSurface.Fixtures.VolunteerMilestone` resource), in both directions, and
+  its digest canon is pinned to the fixture surface's own digest.
 
-  `AshSurface.IR.Codec` (lib/ash_surface/ir/codec.ex) content-addresses the
-  canonical five-section `AshSurface.IR.Surface` map (the surface-contract
-  staging IR; the per-action `AshSurface.IR` canon lives in ir.ex) with the *existing* `AshSurface` digest canon:
+  No test doubles: manifest generation, surface verification, IR assembly,
+  and the codec under test are the real admitted subjects; assertions hit
+  returned values only. The declared sub-shape row feeds a real
+  `AshSurface.IR` struct to the pure staging law — it is an input, not a
+  stand-in for the subject.
 
-      canonical map
-      |> canonical_term()      # keys stringified + sorted recursively;
-      |>                       # list order preserved and semantic
-      :erlang.term_to_binary()
-      |> :crypto.hash(:sha256, &1)
-      |> Base.encode16(case: :lower)
+  The former subject of this suite — the codec's parallel
+  `AshSurface.IR.Surface` staging struct (`actions | identity | profile |
+  resources | transports`) and its fail-closed reader — is retired: there is
+  ONE IR canon (`AshSurface.IR`) and one codec for it. Unknown-key tolerance
+  is the admitted `from_map/1` law (golden suite pins it); what stays
+  fail-closed is typed: non-map subjects, missing sections, wrong-typed
+  values, and non-JSON-isomorphic leaves are refused.
 
-  The canon is private upstream (`AshSurface.digest/2` in lib/ash_surface.ex);
-  exactly as `AshSurface.Health` does, the codec runs the same pipeline and
-  agreement here is **pinned against freshly built real surfaces** — any drift
-  between the codec's digest and `AshSurface.from_manifest/2`'s digest on the
-  same contract breaks this build.
-
-  ## What the law demands
-
-    * `to_map/1` emits exactly the five section keys in canonical sorted
-      order; nil sections serialize honestly as `nil` (JSON `null`), never as
-      fabricated empty maps; the digest never enters the preimage.
-    * `from_map/1` is the fail-closed inverse: exactly five keys, each `nil`
-      or a JSON-isomorphic map; it recomputes the digest, so
-      `from_map(to_map(ir)) == {:ok, ir}` whenever `ir.digest` still
-      content-addresses `ir`'s sections.
-    * Jason encode/decode round-trips every admitted IR structurally, and
-      byte-stably across decode/re-encode.
-    * golden digests and golden canonical JSON bytes are frozen in `@golden`
-      and `@golden_json`; any drift in section shape, canonicalization, or
-      serialization breaks the build by design.
+  Falsifier on record: introduce key-order dependence into `digest/1`'s
+  canonical term (invert the key sort, so the preimage carries assembly order
+  instead of the normalized key order) and the row
+  "digest pinned to the fixture surface digest" goes RED — the codec stops
+  agreeing with `AshSurface`'s own sorted canon; restore the sort and it goes
+  GREEN. (Merely dropping the sort was tried first and is invisible on this
+  runtime: flatmaps iterate key-sorted and >32-key HAMT order is a function
+  of the key set, so construction history never reaches the preimage — the
+  inversion is the minimal mutation that makes key order observable.)
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
-  alias Ash.Info.Manifest
-  alias Ash.Info.Manifest.{Action, Entrypoint}
+  alias AshSurface.Fixtures.VolunteerMilestone
+  alias AshSurface.IR
   alias AshSurface.IR.Codec
-  alias AshSurface.IR.Surface
 
-  @section_keys ~w(actions identity profile resources transports)
+  # Deliberately not id-sorted: the codec rows below must hold regardless of
+  # assembly order (the compiler id-sorts; the codec never depends on it).
+  @entrypoints [
+    {VolunteerMilestone, :record},
+    {VolunteerMilestone, :read}
+  ]
 
-  # Frozen golden digests (64 lowercase hex chars), computed from real
-  # `Codec.from_map/1` execution over the 5 fixtures below. Any drift in the
-  # IR section shape, the canonical term form, or the digest pipeline breaks
-  # these by design.
-  @golden %{
-    identity_only: "5adb6d52a9d56f229a5931bd1273b4207af60f66564965a7ffc4d1d51675f63a",
-    full_surface: "0f24054b0b87f5aee37988bf0ecba26f43966b9753325be410a1dda7f825745b",
-    sparse: "b2aae6e5e310f199f7224026a2274aa9806e3e7a4244a52c47264c55876905db",
-    large_profile: "9d0321027cadf9100ee2afc2681331895f5f57ced7c041df3e3fcdeb0374936b",
-    refusal_actions: "9c4bc2574d8d9474c6a96deb40f0b2d438a118bbcfeafda9d5fc2e14582c2db6"
-  }
-
-  # Frozen golden canonical JSON bytes (Jason over to_map/1). Pins the stable
-  # canonical key order end-to-end: top-level sections in canonical sorted
-  # order, nil sections as JSON null.
-  @golden_json %{
-    identity_only:
-      ~s({"actions":null,"identity":{"generatorIdentity":"ash_surface:v26.9.17","surfaceSchemaVersion":"26.9.17"},"profile":null,"resources":null,"transports":null}),
-    full_surface:
-      ~s({"actions":{"entries":[{"authorityBoundary":"OBSERVE","doAuthority":false,"id":"AshSurface.IrPost#read"},{"authorityBoundary":"DO","doAuthority":true,"id":"AshSurface.IrLedger#record"}]},"identity":{"generatorIdentity":"ash_surface:v26.9.17","manifestDigest":"deadbeef","surfaceSchemaVersion":"26.9.17"},"profile":{"audience":"internal","flags":{"verifyReceipts":true}},"resources":{"AshSurface.IrPost":{"attributes":["id","body"]}},"transports":{"declared":["http","phoenix_channel"],"preferred":"http"}})
-  }
-
-  defp large_profile do
-    Map.new(1..40, fn i -> {"opt" <> String.pad_leading(Integer.to_string(i), 2, "0"), i} end)
+  describe "one canon" do
+    test "the codec serves the admitted five-section IR; the parallel staging struct is retired" do
+      assert IR.sections() == [:ash, :semantic, :capability, :presentation, :schema]
+      assert match?({:error, :nofile}, Code.ensure_loaded(AshSurface.IR.Surface))
+    end
   end
 
-  defp canonical_maps do
-    [
-      identity_only: %{
-        "actions" => nil,
-        "identity" => %{
-          "surfaceSchemaVersion" => "26.9.17",
-          "generatorIdentity" => "ash_surface:v26.9.17"
-        },
-        "profile" => nil,
-        "resources" => nil,
-        "transports" => nil
-      },
-      full_surface: %{
-        "actions" => %{
-          "entries" => [
-            %{
-              "id" => "AshSurface.IrPost#read",
-              "authorityBoundary" => "OBSERVE",
-              "doAuthority" => false
-            },
-            %{
-              "id" => "AshSurface.IrLedger#record",
-              "authorityBoundary" => "DO",
-              "doAuthority" => true
+  describe "round-trip of the real five-section IR from a live fixture (both directions)" do
+    test "struct -> staging map -> struct closes, with recomputed digest agreement" do
+      for ir <- live_irs!() do
+        staged = Codec.to_map(ir)
+
+        assert Map.keys(staged) == ~w(ash capability presentation schema semantic version)
+
+        assert {:ok, rebuilt} = Codec.from_map(staged)
+
+        # Direction 1: the staging map is a fixed point of the round trip.
+        assert Codec.to_map(rebuilt) == staged
+
+        # from_map recomputes the digest from the admitted content.
+        assert rebuilt.digest == Codec.digest(staged)
+
+        # The five sections come back as admitted: honestly nil when the real
+        # compile admitted no facts (the bare fixture carries only the ash
+        # section), the declared struct when present.
+        for section <- IR.sections() do
+          value = Map.get(rebuilt, section)
+
+          assert value == nil or value.__struct__ == IR.section(section),
+                 "expected #{section} to be nil or an admitted #{inspect(IR.section(section))}"
+        end
+
+        assert %IR.Ash{} = rebuilt.ash
+        assert rebuilt.version == ir.version
+      end
+    end
+
+    test "direction 2: from_map(to_map(ir)) is an exact involution on rebuilt IRs" do
+      for ir <- live_irs!() do
+        {:ok, rebuilt} = Codec.from_map(Codec.to_map(ir))
+        assert {:ok, ^rebuilt} = Codec.from_map(Codec.to_map(rebuilt))
+      end
+    end
+
+    test "the real IR's staging map is byte-stable JSON across decode/re-encode" do
+      for ir <- live_irs!() do
+        staged = Codec.to_map(ir)
+        json = Jason.encode!(staged)
+
+        assert {:ok, from_json} = Codec.from_map(Jason.decode!(json))
+        assert Codec.to_map(from_json) == staged
+        assert from_json.digest == Codec.digest(staged)
+      end
+    end
+
+    test "staging renders the real ash section's admitted facts (atoms as source-alias strings)" do
+      irs = live_irs!()
+      by_id = Enum.map(irs, &{&1.ash.action, &1}) |> Map.new()
+
+      assert MapSet.new(Map.keys(by_id)) == MapSet.new([:read, :record])
+
+      for {action, ir} <- by_id do
+        ash = Codec.to_map(ir)["ash"]
+
+        assert ash["resource"] == "AshSurface.Fixtures.VolunteerMilestone"
+        assert ash["action"] == Atom.to_string(action)
+        assert ash["action_type"] == Atom.to_string(ir.ash.action_type)
+        assert is_list(ash["inputs"]) and is_list(ash["policies"])
+      end
+    end
+
+    test "declared sub-shapes stage to field-complete string-keyed maps" do
+      ir = %IR{
+        version: "26.9.17",
+        ash: %IR.Ash{
+          resource: VolunteerMilestone,
+          action: :record,
+          action_type: :create,
+          inputs: [%IR.Input{name: :member_id, type: "string", required: true, default: nil}],
+          outputs: [%IR.Output{returns: :string}],
+          policies: [
+            %IR.Policy{
+              bypass: false,
+              conditions: [%{check: "action_types", opts: %{types: [:create]}}],
+              checks: [%{check: "actor_present", kind: :simple}]
             }
           ]
-        },
-        "identity" => %{
-          "surfaceSchemaVersion" => "26.9.17",
-          "generatorIdentity" => "ash_surface:v26.9.17",
-          "manifestDigest" => "deadbeef"
-        },
-        "profile" => %{"audience" => "internal", "flags" => %{"verifyReceipts" => true}},
-        "resources" => %{"AshSurface.IrPost" => %{"attributes" => ["id", "body"]}},
-        "transports" => %{"declared" => ["http", "phoenix_channel"], "preferred" => "http"}
-      },
-      sparse: %{
-        "actions" => %{
-          "entries" => [%{"id" => "AshSurface.IrPost#read", "authorityBoundary" => "OBSERVE"}]
-        },
-        "identity" => %{"surfaceSchemaVersion" => "26.9.17"},
-        "profile" => nil,
-        "resources" => nil,
-        "transports" => nil
-      },
-      large_profile: %{
-        "actions" => nil,
-        "identity" => %{"surfaceSchemaVersion" => "26.9.17"},
-        "profile" => large_profile(),
-        "resources" => nil,
-        "transports" => nil
-      },
-      refusal_actions: %{
-        "actions" => %{
-          "entries" => [
-            %{
-              "id" => "AshSurface.IrLedger#submit",
-              "possibleRefusals" => ["REFUSED_NO_AUTHORITY", "REFUSED_UNKNOWN_REVERSIBILITY"]
-            },
-            %{"id" => "AshSurface.IrLedger#read", "possibleRefusals" => []}
-          ]
-        },
-        "identity" => %{
-          "surfaceSchemaVersion" => "26.9.17",
-          "generatorIdentity" => "ash_surface:v26.9.17"
-        },
-        "profile" => %{"audience" => "public"},
-        "resources" => nil,
-        "transports" => %{"declared" => ["http"]}
-      }
-    ]
-  end
-
-  defp build(name) do
-    fixture = canonical_maps()[name]
-    assert {:ok, %Surface{} = ir} = Codec.from_map(fixture)
-    ir
-  end
-
-  describe "IR canonical shape" do
-    test "declares exactly the five sections plus digest" do
-      assert Surface.sections() == [:actions, :identity, :profile, :resources, :transports]
-
-      assert Enum.sort(Surface.__struct__() |> Map.keys() |> List.delete(:__struct__)) ==
-               Enum.sort(Surface.sections() ++ [:digest])
-    end
-
-    test "a section may be nil honestly" do
-      ir = build(:identity_only)
-
-      for section <- Surface.sections() do
-        assert match?(nil, Map.get(ir, section)) or is_map(Map.get(ir, section))
-      end
-
-      assert ir.profile == nil and ir.resources == nil and ir.transports == nil
-      assert is_map(ir.identity)
-    end
-  end
-
-  describe "to_map/1" do
-    test "emits exactly the five section keys in canonical sorted order" do
-      for {name, _} <- canonical_maps() do
-        assert Map.keys(Codec.to_map(build(name))) == @section_keys
-      end
-    end
-
-    test "nil sections serialize honestly as nil, never as fabricated maps" do
-      m = Codec.to_map(build(:identity_only))
-
-      assert m["actions"] == nil
-      assert m["profile"] == nil
-      assert m["resources"] == nil
-      assert m["transports"] == nil
-
-      assert m["identity"] == %{
-               "surfaceSchemaVersion" => "26.9.17",
-               "generatorIdentity" => "ash_surface:v26.9.17"
-             }
-    end
-
-    test "section content passes through unchanged (no silent transformation)" do
-      fixture = canonical_maps()[:full_surface]
-      m = Codec.to_map(build(:full_surface))
-
-      for key <- @section_keys, do: assert(m[key] == fixture[key])
-    end
-
-    test "the canonical map is the digest preimage: no digest key inside" do
-      refute Map.has_key?(Codec.to_map(build(:full_surface)), "digest")
-    end
-  end
-
-  describe "from_map/1 round-trip" do
-    test "from_map(to_map(ir)) == {:ok, ir} — IR.digest field agreement included" do
-      for {name, _} <- canonical_maps() do
-        ir = build(name)
-        assert {:ok, ^ir} = Codec.from_map(Codec.to_map(ir))
-      end
-    end
-
-    test "round-trip through the golden canonical JSON is byte-stable" do
-      for {name, json} <- @golden_json do
-        ir = build(name)
-        assert Jason.encode!(Codec.to_map(ir)) == json
-
-        assert {:ok, ^ir} = Codec.from_map(Jason.decode!(json))
-        assert Jason.encode!(Codec.to_map(build(name))) == json
-      end
-    end
-  end
-
-  describe "Jason encode/decode round-trip" do
-    test "Jason.decode!(Jason.encode!(to_map(ir))) == to_map(ir)" do
-      for {name, _} <- canonical_maps() do
-        m = Codec.to_map(build(name))
-        assert Jason.decode!(Jason.encode!(m)) == m
-      end
-    end
-
-    test "JSON null round-trips to nil sections" do
-      assert {:ok, ir} = Codec.from_map(Jason.decode!(@golden_json[:identity_only]))
-
-      assert ir.actions == nil and ir.profile == nil and ir.resources == nil and
-               ir.transports == nil
-
-      assert ir.digest == @golden[:identity_only]
-    end
-  end
-
-  describe "digest/1 — the existing AshSurface canon" do
-    test "agrees with AshSurface.from_manifest/2 digests on real surfaces (reuse pin)" do
-      ep = fn res, name, type ->
-        %Entrypoint{resource: res, action: struct!(Action, name: name, type: type, custom: %{})}
-      end
-
-      plain = %Manifest{entrypoints: [ep.(AshSurface.IrPost, :read, :read)]}
-
-      profiled = %Manifest{
-        entrypoints: [ep.(AshSurface.IrLedger, :record, :create)]
+        }
       }
 
-      assert {:ok, s1} = AshSurface.from_manifest(plain, profile: %{})
-      assert Codec.digest(s1.contract) == s1.digest
+      ash = Codec.to_map(ir)["ash"]
 
-      assert {:ok, s2} =
-               AshSurface.from_manifest(profiled,
-                 profile: %{audience: :internal, transports: [:http, :phoenix_channel]}
-               )
+      assert ash["resource"] == "AshSurface.Fixtures.VolunteerMilestone"
 
-      assert Codec.digest(s2.contract) == s2.digest
-    end
+      assert ash["inputs"] == [
+               %{"name" => "member_id", "type" => "string", "required" => true, "default" => nil}
+             ]
 
-    test "digest text form is 64 lowercase hex characters" do
-      for {name, _} <- canonical_maps() do
-        assert Codec.digest(Codec.to_map(build(name))) =~ ~r/^[0-9a-f]{64}$/
-      end
-    end
+      assert ash["outputs"] == [%{"returns" => "string"}]
 
-    test "is deterministic: repeated calls yield one digest" do
-      m = Codec.to_map(build(:full_surface))
-      assert Enum.uniq(for(_ <- 1..7, do: Codec.digest(m))) |> length() == 1
-    end
+      assert ash["policies"] == [
+               %{
+                 "bypass" => false,
+                 "conditions" => [
+                   %{"check" => "action_types", "opts" => %{"types" => ["create"]}}
+                 ],
+                 "checks" => [%{"check" => "actor_present", "kind" => "simple"}]
+               }
+             ]
 
-    test "IR.digest field agreement: digest(to_map(ir)) == ir.digest" do
-      for {name, _} <- canonical_maps() do
-        ir = build(name)
-        assert Codec.digest(Codec.to_map(ir)) == ir.digest
-      end
-    end
-
-    test "golden-frozen digest vectors" do
-      computed = Map.new(canonical_maps(), fn {name, _} -> {name, build(name).digest} end)
-      assert computed == @golden
-    end
-
-    test "key-order independent: shuffled top-level and reversed >32-key section" do
-      shuffled =
-        canonical_maps()[:full_surface]
-        |> Map.to_list()
-        |> Enum.reverse()
-        |> Map.new()
-
-      assert Codec.digest(shuffled) == Codec.digest(canonical_maps()[:full_surface])
-
-      reversed_profile =
-        1..40
-        |> Enum.reverse()
-        |> Map.new(fn i -> {"opt" <> String.pad_leading(Integer.to_string(i), 2, "0"), i} end)
-
-      assert map_size(reversed_profile) > 32
-
-      assert Codec.digest(Map.put(canonical_maps()[:large_profile], "profile", reversed_profile)) ==
-               @golden[:large_profile]
-    end
-
-    test "sensitive to any section change, to nil-vs-empty, and to list order" do
-      base = canonical_maps()[:full_surface]
-      base_digest = Codec.digest(base)
-
-      for key <- @section_keys do
-        changed = put_in(base[key]["mutated"], true)
-
-        refute Codec.digest(changed) == base_digest,
-               "expected change in #{key} to move the digest"
-      end
-
-      nil_vs_empty = Map.put(canonical_maps()[:identity_only], "profile", %{})
-      refute Codec.digest(nil_vs_empty) == Codec.digest(canonical_maps()[:identity_only])
-
-      [first, second] = get_in(base["actions"]["entries"])
-      reordered = put_in(base["actions"]["entries"], [second, first])
-      refute Codec.digest(reordered) == base_digest
+      # The staged map is admitted back, digest-agreeing and staging-stable.
+      assert {:ok, rebuilt} = Codec.from_map(Codec.to_map(ir))
+      assert rebuilt.digest == Codec.digest(Codec.to_map(ir))
+      assert Codec.to_map(rebuilt) == Codec.to_map(ir)
     end
   end
 
-  describe "from_map/1 refuses fail-closed" do
-    test "non-map subjects" do
-      for bad <- [:nope, "nope", 42, nil, [section: %{}]] do
+  describe "digest pinned to the fixture surface digest" do
+    test "the codec digest canon agrees with the live fixture surface's own digest" do
+      surface = surface!()
+      assert surface.digest =~ ~r/^[0-9a-f]{64}$/
+      assert Codec.digest(surface.contract) == surface.digest
+    end
+
+    test "codec digests of the real staging maps are deterministic and 64-char lowercase hex" do
+      for ir <- live_irs!() do
+        staged = Codec.to_map(ir)
+        digest = Codec.digest(staged)
+
+        assert digest =~ ~r/^[0-9a-f]{64}$/
+        assert Enum.uniq(for(_ <- 1..7, do: Codec.digest(staged))) == [digest]
+      end
+    end
+
+    test "content-addresses content, not map construction history (falsifier target)" do
+      staged = Codec.to_map(hd(live_irs!()))
+
+      # Construction history of the staging map itself is irrelevant.
+      shuffled = staged |> Map.to_list() |> Enum.reverse() |> Map.new()
+      assert Codec.digest(shuffled) == Codec.digest(staged)
+
+      # A >32-key member crosses the flatmap/HAMT boundary: iteration order of
+      # a hash-array-mapped trie must not move the digest.
+      wide = Map.new(1..40, &{"pred_#{String.pad_leading(Integer.to_string(&1), 2, "0")}", &1})
+      assert map_size(wide) > 32
+
+      reversed_wide = wide |> Enum.reverse() |> Map.new()
+
+      # The real fixture admits no semantic facts, so the section is honestly
+      # nil; the wide map replaces it wholesale (a declared-field subset —
+      # forward-tolerant readers admit it).
+      with_wide = Map.put(staged, "semantic", %{"predicates" => wide})
+
+      assert Codec.digest(Map.put(staged, "semantic", %{"predicates" => reversed_wide})) ==
+               Codec.digest(with_wide)
+
+      # and the wide map is still admitted by the reader, digest-agreeing on
+      # the canonical (field-complete) re-staging.
+      assert {:ok, rebuilt} = Codec.from_map(with_wide)
+      assert rebuilt.digest == Codec.digest(Codec.to_map(rebuilt))
+    end
+  end
+
+  describe "from_map typed refusals over the real staging map" do
+    test "non-map subjects are refused" do
+      for bad <- [:nope, "nope", 42, nil, [ash: nil]] do
         assert {:error, {:ir_map_required, ^bad}} = Codec.from_map(bad)
       end
     end
 
-    test "missing section keys" do
-      dropped = Map.drop(canonical_maps()[:full_surface], ["profile", "transports"])
-      assert {:error, {:missing_ir_sections, ["profile", "transports"]}} = Codec.from_map(dropped)
+    test "missing section keys are named" do
+      staged = Codec.to_map(hd(live_irs!()))
+      dropped = Map.drop(staged, ["presentation", "semantic"])
+
+      assert {:error, {:missing_ir_sections, ["presentation", "semantic"]}} =
+               Codec.from_map(dropped)
     end
 
-    test "unknown section keys — including a carried digest" do
-      with_digest =
-        Map.put(canonical_maps()[:full_surface], "digest", "0" <> String.duplicate("0", 63))
+    test "sections that are neither maps nor nil are typed-rejected" do
+      staged = Codec.to_map(hd(live_irs!()))
 
-      assert {:error, {:unknown_ir_sections, ["digest"]}} = Codec.from_map(with_digest)
+      assert {:error, {:section_must_be_map_or_nil, "schema", "nope"}} =
+               Codec.from_map(Map.put(staged, "schema", "nope"))
     end
 
-    test "sections that are neither maps nor nil" do
-      for bad_value <- [[], "entries", 7] do
-        assert {:error, {:section_must_be_map_or_nil, "actions", ^bad_value}} =
-                 Codec.from_map(Map.put(canonical_maps()[:full_surface], "actions", bad_value))
-      end
+    test "non-JSON-isomorphic leaves are typed-rejected (staging never fabricates)" do
+      staged = Codec.to_map(hd(live_irs!()))
+
+      poisoned = Map.put(staged, "semantic", %{"predicates" => %{"tuple" => {:ok, :tuple}}})
+
+      assert {:error, {:not_json_isomorphic, "semantic", {:ok, :tuple}}} =
+               Codec.from_map(poisoned)
     end
 
-    test "non-JSON-isomorphic section content" do
-      for {label, value} <- [
-            {"tuple leaf", %{"t" => {:error, :tuple}}},
-            {"atom nested key", %{atom_key: 1}},
-            {"tuple leaf inside a list", %{"l" => ["a", {:inner, 1}]}},
-            {"atom value inside a list", %{"l" => [:http]}},
-            {"non-UTF-8 binary", %{"b" => <<0xFF, 0xFE>>}}
-          ] do
-        assert {:error, {:not_json_isomorphic, "transports", _}} =
-                 Codec.from_map(Map.put(canonical_maps()[:full_surface], "transports", value)),
-               label
-      end
+    test "forward tolerance: unknown keys and a carried digest are ignored" do
+      staged = Codec.to_map(hd(live_irs!()))
+
+      future =
+        Map.merge(staged, %{
+          "futureFacet" => %{"x" => 1},
+          "digest" => String.duplicate("0", 64)
+        })
+
+      assert {:ok, plain} = Codec.from_map(staged)
+      assert {:ok, ^plain} = Codec.from_map(future)
     end
 
-    test "structs are not IR maps" do
-      ir = %Surface{actions: nil, identity: nil, profile: nil, resources: nil, transports: nil}
-      assert {:error, {:ir_map_required, ^ir}} = Codec.from_map(ir)
+    test "wrong-typed version is typed-rejected" do
+      staged = Codec.to_map(hd(live_irs!()))
+
+      assert {:error, {:version_must_be_string_or_nil, 26.9}} =
+               Codec.from_map(Map.put(staged, "version", 26.9))
     end
+  end
+
+  ## helpers
+
+  # The real manufacturing pass over the live fixture: manifest generation
+  # from the compiled Ash resource, then surface verification.
+  defp surface! do
+    assert {:ok, manifest} =
+             Ash.Info.Manifest.generate(otp_app: :ash_surface, action_entrypoints: @entrypoints)
+
+    assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: %{})
+    surface
+  end
+
+  # The real five-section IRs: the compiler's assembly over the fixture's
+  # manifest, one IR per action, id-sorted.
+  defp live_irs! do
+    surface = surface!()
+    assert {:ok, irs} = AshSurface.Compiler.compile(surface.manifest)
+    assert length(irs) == 2
+    assert Enum.map(irs, & &1.ash.action) == [:read, :record]
+    irs
   end
 end
