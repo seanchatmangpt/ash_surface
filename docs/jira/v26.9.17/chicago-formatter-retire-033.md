@@ -1,5 +1,5 @@
 # chicago-formatter-retire-033: formatter.ex decorative module: wire or retire
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 14: lib/ash_surface/formatter.ex registers a plugin for a nonexistent AshSurface.Resource — decorative. Decide by evidence: wire it to the real surface (formatter output state-tested on a fixture) OR retire the module with HANDWRITTEN+UNSUPPORTED pair recording the decision. Either way the Vision-15 necessity law holds afterward.
@@ -13,3 +13,4 @@ Mapper 14: lib/ash_surface/formatter.ex registers a plugin for a nonexistent Ash
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g33 + exp/chicago-formatter-retire-33 | dispatched by coordinator (chicago wave)
 2026-09-17T06:49:55Z | REAPED: cluster death at ~30min (sustained-load grind; 5 simultaneous); branch preserved — successor reviews git log first
+2026-09-17T07:23:03Z | IN_PROGRESS | successor re-dispatch (cold-hold lifted after 32min clean; half-pace cohort 1 of 4; branch preserved — review git log first)
