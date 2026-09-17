@@ -1,16 +1,17 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (308 tests, 33 files) and `npm test` (175 tests, 13 files), chained
-by `mix test.all` and proven zero-config by `mix test.zero` and
-`scripts/zero_config_check.sh`.
+`mix test` (767 tests, 68 files) and `npm test` (220 tests, 16 files), chained
+by `mix test.all` and proven zero-config by `mix test.zero`,
+`scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
 Path-truth law for this document: every cited path either exists on this
 branch, or is marked **[INTEGRATION]** — a sibling-canonical path owned by a
 v-wave branch that is absent here by design and lands with the v-wave merge
 (ticket `final-integration-010`, merge order in `V_WAVE.md`). An
 **[INTEGRATION]** path is never an existing gate; never report one green from
-this branch.
+this branch. At this SHA the v-wave has landed: zero paths carry the
+**[INTEGRATION]** marker (the vocabulary is retained for future waves).
 
 ## 1. Zero-config contract
 
@@ -18,15 +19,17 @@ From a fresh clone, the full verification loop is exactly:
 
 ```sh
 mix deps.get
-mix test
 npm install
+mix test
 npm test
 ```
 
 Nothing else. No environment variables, no database, no external network:
 
-- No DB. The only deps are `ash`, `spark`, `jason`, and `igniter` (dev/test).
-  The fixture resource in `test/support/fixtures.ex` uses the in-memory
+- No DB. The deps are `ash`, `spark`, `jason`, `igniter` and `dialyxir`
+  (dev/test, `runtime: false`), plus the delegation deps `ash_r2rml` and
+  `ash_a2a` (git-pinned, `runtime: false` — see section 3). The fixture
+  resource in `test/support/fixtures.ex` uses the in-memory
   `Ash.DataLayer.Ets` data layer; there is no Ecto repo and no Postgres.
 - No env. `config/config.exs` sets one Ash string-length option and nothing
   else; `test/test_helper.exs` is a single `ExUnit.start()`.
@@ -35,6 +38,12 @@ Nothing else. No environment variables, no database, no external network:
   `node:http` in the JS tests) and dispatch to `127.0.0.1` only.
 - Scratch writes (projected artifacts, e2e contracts/receipts) go under
   `_build/test/*`, not the source tree.
+
+Order law: `npm install` precedes `mix test`. The Elixir e2e suite spawns
+`test/js/consumer_e2e_runner.mjs`, whose line 4 is `import { z } from "zod"`
+— without `node_modules`, `mix test` fails. Both battery scripts encode this
+(`scripts/zero_config_check.sh`, `scripts/zero_config_v2.sh`: "npm install
+--no-audit — before mix test: e2e tests import zod").
 
 If any of the four commands above fails on a clean clone, that is a defect,
 not a setup problem.
@@ -48,21 +57,22 @@ not a setup problem.
   config dependency fails loudly here, not in CI.
 - `bash scripts/zero_config_check.sh` — the fresh-local-clone proof: clones
   this tree to a scratch dir, re-runs the battery in
-  `env -i PATH HOME ZERO_CONFIG_SANITIZED=1`, and is fail-closed (no
-  auto-skip on network errors; it cannot print a false `ZERO_CONFIG_OK`).
-  Terminal line `ZERO_CONFIG_OK` on exit 0. See `scripts/README.md`.
+  `env -i PATH HOME ZERO_CONFIG_SANITIZED=1` (npm install before mix test,
+  per the order law above), and is fail-closed (no auto-skip on network
+  errors; it cannot print a false `ZERO_CONFIG_OK`). Terminal line
+  `ZERO_CONFIG_OK` on exit 0. See `scripts/README.md`.
 
-### Zero-config v2 battery **[INTEGRATION]**
+### Zero-config v2 battery (in-repo)
 
-`scripts/zero_config_v2.sh` **[INTEGRATION]** — full battery in a fresh
-local clone (`env -i PATH HOME`, local `git clone`, `mix deps.get`,
-`mix test`, `npm install`, `npm test`, `mix test.zero` when present), plus a
-guard that
-fails if any `test/` file reads env vars outside the documented allowlist.
-Owned by ticket `zero-config-battery-002`; it exists on no branch at the
-time of writing and lands at integration. Until it lands, the v1 battery
-above is the proof, and the v2 additions (env-read guard, `mix test.zero`
-inside the fresh clone) must not be claimed as green.
+- `bash scripts/zero_config_v2.sh` — everything v1 proves, plus: (1) an
+  env-read guard — no file under `test/` reads an environment variable
+  outside the documented allowlist (`@zero_env_allowlist` in `mix.exs`);
+  reads must carry a literal variable name, and an opaque read fails
+  closed; (2) `mix test.zero` re-run inside the fresh clone when the alias
+  is defined there. Hermetic re-exec through `env -i PATH HOME`, per-step
+  `EXIT[<label>]=<code>` receipt lines, fail-closed (any failure aborts
+  before the terminal line, so it cannot print a false `ZERO_CONFIG_OK`).
+  Owned by ticket `zero-config-battery-002`; live in-repo at this SHA.
 
 ## 2. What Chicago-style means here
 
@@ -75,13 +85,17 @@ collaborators:
   digests, projected artifacts, receipts). No `assert_received`, no message
   spying, no mock frameworks anywhere in `test/` (every occurrence of the
   word "mock" in the tree is a negative assertion).
-- **Doubles only for injected adapters — and even then, real ones.** The
-  codebase has zero mock/stub doubles. The only seams are (a) the transport
-  endpoint, where tests inject a *real* ephemeral loopback HTTP server
-  (`test/support/fixtures.ex`, `node:http` in JS) instead of faking HTTP, and
+- **Doubles only for injected adapters — and even then, state-asserted.**
+  There is no mock framework. The seams are (a) the transport endpoint,
+  where tests inject a *real* ephemeral loopback HTTP server
+  (`test/support/fixtures.ex`, `node:http` in JS) instead of faking HTTP,
   (b) the projector module passed to `AshSurface.project/3`
   (`test/ash_surface/project_test.exs`,
-  `test/ash_surface/projector/expo_test.exs`). Consequence records are
+  `test/ash_surface/projector/expo_test.exs`), and (c) the compiler's
+  `:sections` injection, where `test/ash_surface/compiler_discovery_test.exs`
+  binds `test/support/compiler_echo_section.ex` — a behaviour-conformant
+  echo stub that records its calls in the process dictionary so discovery
+  and injection laws are asserted on recorded state. Consequence records are
   written to and read back from the real ETS-backed Ash resource.
 - **Golden vectors for drift detection.** Fixed known inputs are pinned to
   expected digests/artifact shapes so cross-language or refactoring drift
@@ -122,10 +136,9 @@ extension, never a mock of its Info functions:
   extension's published consequence law (proving the builder invents
   nothing). The builder's test fails if the builder duplicates, contradicts,
   or fabricates a delegated fact.
-- **Canonical exemplar (sibling-canonical):**
-  `test/ash_surface/compiler/capability_section_test.exs` **[INTEGRATION]**
-  (owned by the v05 branch; lands at integration). On this branch the
-  delegation-law *precursors* are already live:
+- **Canonical exemplar:** `test/ash_surface/compiler/capability_section_test.exs`
+  (the delegation-law exemplar for the capability section builder). The
+  delegation-law *precursors* remain live as companions:
   `test/ash_surface/action_id_test.exs` pins that serialized
   `semanticId` is exactly `"ash:" <> action_id` (the delegated-facts law of
   the v10 slimming — `semanticId`/`authorityBoundary`/`doAuthority`/
@@ -133,21 +146,23 @@ extension, never a mock of its Info functions:
   `test/ash_surface/digest_test.exs` pins the digest determinism those facts
   feed.
 - **Deps law for the delegation batteries.** `ash_a2a` and `ash_r2rml` enter
-  as real test-env deps, never as vendored copies: the canonical `mix.exs`
-  is the v23 branch's (`ash_r2rml` git-pinned to override `ash_a2a`'s hex
-  requirement, `ash_a2a` as a git dep, `runtime: false`); until v23 lands,
-  the merged v05 local `ash_a2a` test-env line stands, per `V_WAVE.md`
-  precedence.
+  as real deps, never as vendored copies: `mix.exs` pins `ash_r2rml` to git
+  ref `7d958a8` (`override: true`, its version satisfying `ash_a2a`'s hex
+  requirement) and `ash_a2a` to git ref `e25ed6e`, both `runtime: false` so
+  neither enters the boot path. This is the v23-canonical shape, landed at
+  this SHA.
 
-### No-local-DO tripwire **[INTEGRATION]**
+### No-local-DO tripwire (live)
 
-The wave plan (ticket `final-integration-010`, gate list "no_local_do green")
-names a no-local-DO tripwire: a gate that fails the build when the tree
-performs a local DO — consequential actuation outside the brokered,
-receipt-bearing path. It is defined nowhere in-repo at the time of writing
-(named by the plan, owned by the machinery rows); it lands at integration.
-Until then: this branch's tests never actuate anything (loopback sockets and
-ETS only), and any future tripwire citation must wait for its owning file.
+`test/ash_surface/no_local_do_test.exs` — the invariant
+"AshSurface does not determine whether it may DO" as executable law. It
+walks every file under `lib/ash_surface/**/*.ex` plus the root
+`lib/ash_surface.ex` envelope (`File.read!/1` + `Code.string_to_quoted!/1`,
+raw source AND AST), asserting the surface never executes resource actions
+itself and never re-derives the delegated `do_authority` fact — authority is
+read through `AshSurface.IR.Capability.authority_required/1`, never computed
+locally. Named by the wave plan (ticket `final-integration-010`, gate list
+"no_local_do green"); live on this branch as part of `mix test`.
 
 ## 4. Suite map
 
@@ -157,14 +172,24 @@ Legend:
   health, consumer e2e). Unmarked = original surface/runtime suites.
 - **[DEEP]** = deep/adversarial follow-on suite for an already-mapped
   surface (falsifiers, edge tables, invariant batteries).
-- **[INTEGRATION]** = sibling-canonical: owned by a v-wave branch, absent
-  from this branch by design, lands with the v-wave merge
-  (`final-integration-010`); never an existing gate.
+- **[INTEGRATION]** = sibling-canonical path absent from this branch by
+  design, lands with the v-wave merge. Vocabulary retained; zero rows carry
+  this marker at this SHA.
 
 | Product surface | Test file(s) |
 | --- | --- |
 | `lib/ash_surface.ex` (`AshSurface`, `Surface`, `Projector` structs + build/verify/project/digest, `from_manifest/2`, `from_app/1`, `action_id/1`, `runtime_source/0`) | `test/ash_surface_test.exs`; `test/ash_surface/from_manifest_test.exs`; `test/ash_surface/from_app_test.exs`; `test/ash_surface/project_test.exs`; `test/ash_surface/action_id_test.exs`; `test/ash_surface/runtime_source_test.exs` |
-| Manifest/surface serialization envelope + cross-language digest law + version sync (`mix.exs` @version, runtime `SURFACE_RUNTIME_VERSION`, `package.json`) | `test/ash_surface/manifest_serializer_test.exs`; `test/ash_surface/digest_test.exs`; `test/ash_surface/version_sync_test.exs`; `test/js/digest_cross_language.test.mjs`; `test/js/version_sync.test.mjs` |
+| Manifest/surface serialization envelope + cross-language digest law + version sync (`mix.exs` @version, runtime `SURFACE_RUNTIME_VERSION`, `package.json`) | `test/ash_surface/manifest_serializer_test.exs`; `test/ash_surface/digest_test.exs`; `test/ash_surface/version_sync_test.exs`; `test/js/digest_cross_language.test.mjs`; `test/js/digest_cross_language_v2.test.mjs`; `test/js/version_sync.test.mjs` |
+| `lib/ash_surface/ir.ex` — `AshSurface.IR`, five sections `ash \| semantic \| capability \| presentation \| schema` (+ `version`, `digest`) and the v10 delegated-facts block; `lib/ash_surface/ir/capability.ex` | `test/ash_surface/ir_test.exs`; `test/ash_surface/ir_struct_test.exs` |
+| `lib/ash_surface/ir/codec.ex` — IR serialization + content-addressing codec over `AshSurface.IR.Surface` | `test/ash_surface/ir_codec_test.exs`; `test/ash_surface/ir_codec_golden_test.exs` |
+| `lib/ash_surface/compiler.ex` — DiscoverOnce compiler orchestrator (`compile/2` with `:sections` injection); `lib/ash_surface/section.ex` — `AshSurface.Compiler.Section` behaviour | `test/ash_surface/compiler_test.exs`; `test/ash_surface/compiler_discovery_test.exs` (echo section: `test/support/compiler_echo_section.ex`) |
+| Compiler section builders (`lib/ash_surface/compiler/section/{ash,capability,presentation,schema,semantic}.ex`) + section readers/facts (`lib/ash_surface/compiler/{aria,capability,presentation,schema,semantic,ash_truth,ir}.ex`) | `test/ash_surface/compiler/ash_section_test.exs`; `test/ash_surface/compiler/capability_section_test.exs` (the delegation exemplar, see section 3); `test/ash_surface/compiler/presentation_section_test.exs`; `test/ash_surface/compiler/schema_section_test.exs`; `test/ash_surface/compiler/semantic_section_test.exs`; `test/ash_surface/compiler/aria_section_test.exs`; companions: `test/ash_surface/ash_section_truth_test.exs`; `test/ash_surface/capability_delegation_test.exs`; `test/ash_surface/semantic_delegation_test.exs`; `test/ash_surface/schema_section_test.exs`; `test/ash_surface/presentation_section_test.exs` |
+| Intent group (`lib/ash_surface/intent.ex`, `lib/ash_surface/intent/{candidate,dispatch}.ex`) | `test/ash_surface/intent_test.exs`; `test/ash_surface/intent/candidate_test.exs`; `test/ash_surface/intent/dispatch_test.exs`; `test/ash_surface/intent_path_test.exs`; `test/ash_surface/intent_round_trip_test.exs` |
+| `Projector.IR` behaviour (`lib/ash_surface/projector/ir.ex`, `lib/ash_surface/projector/ir_entry.ex`) + IR event projection | `test/ash_surface/projector/ir_projector_test.exs`; `test/ash_surface/projector_ir_determinism_test.exs`; `test/ash_surface/ir/event_projection_test.exs`; `test/js/ir_projection.test.mjs`; `test/js/ir_projector_deep.test.mjs` |
+| `lib/ash_surface/projector/voice_kiosk.ex` — fifth projector, IR extensibility proof | `test/ash_surface/projector/voice_kiosk_test.exs` |
+| `lib/ash_surface/projectors/{aria,js,live_view}.ex` — projector set | `test/ash_surface/projectors/aria_projector_test.exs`; `test/ash_surface/projectors/js_projector_test.exs`; `test/ash_surface/projectors/live_view_test.exs`; `test/ash_surface/aria_projector_test.exs`; `test/ash_surface/live_view_projector_test.exs` |
+| No-local-DO invariant walk over `lib/ash_surface/**/*.ex` (see section 3) | `test/ash_surface/no_local_do_test.exs` |
+| Whole-tree refactor safety net + validator/IR alignment | `test/ash_surface/refactor_safety_net_test.exs`; `test/ash_surface/resource/validator_ir_alignment_test.exs` |
 | `lib/ash_surface/transport.ex` (`AshSurface.Transport`, incl. `Decision`, select/fallback/outcome laws) | `test/ash_surface_test.exs` (selection/fallback laws); `test/ash_surface/transport_select_test.exs` **[NEW]**; `test/ash_surface/transport_fallback_test.exs` **[NEW]**; `test/ash_surface/transport_outcome_test.exs` **[NEW]**; `test/ash_surface/transport_falsifiers_test.exs` **[NEW]**; real `select/3` call in `test/ash_surface/health_test.exs` **[NEW]**; `test/js/transport_law.test.mjs` **[NEW]** |
 | `lib/ash_surface/health.ex` | `test/ash_surface/health_test.exs` **[NEW]**; `test/ash_surface/health_deep_test.exs` **[DEEP]** |
 | `lib/ash_surface/event.ex` | `test/ash_surface/event_test.exs` **[NEW]**; `test/ash_surface/event_deep_test.exs` **[DEEP]**; `test/js/event_observation.test.mjs` **[NEW]** |
@@ -178,26 +203,11 @@ Legend:
 | Cross-language manifest -> surface -> JS dispatch -> Ash consequence -> receipt | `test/ash_surface/consumer_fixture_test.exs` **[NEW]** (spawns `test/js/consumer_e2e_runner.mjs` against the loopback server) |
 | Projected Expo artifacts (manufactured output) | `test/ash_surface/projector/expo_test.exs` **[NEW]** (file set + `node --check`), plus `npm run check` for the runtime itself |
 
-IR-era rows (the v26.9.16 v-wave; all sibling-canonical unless noted):
-
-| Canonical surface (owner) | Test file(s) |
-| --- | --- |
-| `lib/ash_surface/ir.ex` — `AshSurface.IR`, five sections `ash \| semantic \| capability \| presentation \| schema` (+ `version`, `digest`), extended by the v10 delegated-facts block (v01 + v10) | `test/ash_surface/ir_test.exs` **[INTEGRATION]**; delegation-law precursors already on this branch: `test/ash_surface/action_id_test.exs`, `test/ash_surface/digest_test.exs` |
-| `lib/ash_surface/compiler.ex` — DiscoverOnce compiler orchestrator + `AshSurface.Compiler.Section` behaviour (`build(action, context)`) (v02) | `test/ash_surface/compiler_test.exs` **[INTEGRATION]** |
-| `lib/ash_surface/compiler/capability.ex` — capability section, ash_a2a projection (v05) | `test/ash_surface/compiler/capability_section_test.exs` **[INTEGRATION]** (the delegation-test exemplar, see section 3) |
-| `lib/ash_surface/compiler/presentation.ex` — presentation section reader (v06) | `test/ash_surface/compiler/presentation_section_test.exs` **[INTEGRATION]** |
-| `lib/ash_surface/compiler/aria.ex` — accessibility-as-data in `IR.Schema.aria` (v08) | `test/ash_surface/compiler/aria_section_test.exs` **[INTEGRATION]** |
-| ash / semantic / schema section builders (v03 / v04 / v07; semantic projects ash_r2rml facts) | not landed on any branch at the time of writing **[INTEGRATION]** — cite no test path until they land |
-| `lib/ash_surface/ir/codec.ex` — IR serialization + content-addressing codec over `AshSurface.IR.Surface` (v09) | `test/ash_surface/ir_codec_test.exs` **[INTEGRATION]** |
-| `lib/ash_surface/projector/voice_kiosk.ex` — fifth projector, IR extensibility proof (v20) | `test/ash_surface/projector/voice_kiosk_test.exs` **[INTEGRATION]** |
-| `Projector.IR` behaviour (v16) | defined on no branch at the time of writing; the extant projectors (this branch's `lib/ash_surface/projector/expo.ex` included) run through `AshSurface.project/3` until it lands **[INTEGRATION]** |
-| intent group (codec/intent, v11–v15) | no owning file landed on any branch **[INTEGRATION]** — cite no path until it lands |
-| `scripts/zero_config_v2.sh` — zero-config v2 battery (ticket `zero-config-battery-002`) | on no branch; see section 1 **[INTEGRATION]** |
-| no-local-DO tripwire (`no_local_do` gate, ticket `final-integration-010`) | defined nowhere in-repo; see section 3 **[INTEGRATION]** |
-
-Support: `test/support/fixtures.ex` is the only shared file, and it holds the
-fixture Ash domain/resource (ETS) and the ephemeral loopback HTTP server — it
-is a fixture domain, not a helpers module.
+Support: `test/support/fixtures.ex` holds the fixture Ash domain/resource
+(ETS) and the ephemeral loopback HTTP server — it is a fixture domain, not a
+helpers module. `test/support/compiler_echo_section.ex` is the one injected
+double (see section 2), kept in `test/support` so it compiles to a beam the
+compiler's `Code.ensure_loaded` validation can witness.
 
 ## 5. How to add a test
 
@@ -213,9 +223,10 @@ Elixir:
   global Spark app env).
 - Helpers live inside your own test module as `defp`s (see `manifest/0` in
   `test/ash_surface_test.exs`, `canonical_json/1` in
-  `test/ash_surface/consumer_fixture_test.exs`). Do not create shared support
-  modules; `test/support/fixtures.ex` is reserved for the fixture domain and
-  loopback server.
+  `test/ash_surface/consumer_fixture_test.exs`). The only shared support
+  files are `test/support/fixtures.ex` (fixture domain + loopback server)
+  and `test/support/compiler_echo_section.ex` (the compiler `:sections`
+  double); do not add others without a seam that requires a compiled module.
 - Scratch output goes under `_build/test/<suite>`; create it in `setup`.
 - Delegation seams follow section 3: register the real sibling extension on
   the inline resource and assert against its real `Info`/published law —
@@ -234,8 +245,9 @@ JavaScript:
 
 Gates before you call it done: `mix test`, `npm test` (or the chained
 `mix test.all`), and `mix format --check-formatted`; when the change touches
-the zero-config story, add `mix test.zero` and
-`bash scripts/zero_config_check.sh` (per `AGENTS.md`, cheapest
-high-information gate first; never call generated code ALIVE without an exact
-consumer execution receipt; never report an **[INTEGRATION]** gate —
-`scripts/zero_config_v2.sh`, `no_local_do` — green from this branch).
+the zero-config story, add `mix test.zero`,
+`bash scripts/zero_config_check.sh`, and `bash scripts/zero_config_v2.sh`
+(per `AGENTS.md`, cheapest high-information gate first; never call generated
+code ALIVE without an exact consumer execution receipt; never report an
+**[INTEGRATION]** path — a path absent from this branch by design — green
+from this branch; the no-local-DO tripwire runs inside `mix test`).
