@@ -1,13 +1,12 @@
 # Semantic section of the ash_surface compiler.
 #
-# This file currently declares, locally, the canonical shapes that the
-# compiler/ir.ex and compiler/section.ex owners will land later:
-#
-#   * `AshSurface.Compiler.Section` — the behaviour every compiler section
-#     implements.
-#   * `AshSurface.Compiler.IR` — the canonical IR shapes (`IR.Semantic` here).
-#
-# When those files land, these local declarations move there unchanged.
+# [Corrected by gapfix-docs-truth-013: this header said the file "currently
+# declares, locally" the `AshSurface.Compiler.Section` behaviour and
+# `IR.Semantic`, to move "when those files land". They landed:
+# `lib/ash_surface/compiler/ir.ex` carries the `IR.Semantic` slice verbatim,
+# and the Section behaviour is canonical in `lib/ash_surface/compiler.ex`
+# (`lib/ash_surface/compiler/section.ex` never existed). This file's local
+# duplicates were dropped at integration; only the Semantic builder remains.]
 
 defmodule AshSurface.Compiler.Semantic do
   @moduledoc """

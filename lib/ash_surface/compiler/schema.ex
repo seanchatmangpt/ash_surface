@@ -1,9 +1,11 @@
-# Canonical compiler-section behaviour. Declared locally by the schema
-# section until lib/ash_surface/compiler/section.ex lands; when the shared
-# file arrives it replaces this definition byte-for-byte in shape.
-
-# Canonical compiler IR. Declared locally by the schema section until
-# lib/ash_surface/compiler/ir.ex lands; the shape below is canonical.
+# [Corrected by gapfix-docs-truth-013 — the two pending-move notes that stood
+# here described local Section-behaviour and compiler-IR declarations in this
+# file. Both completed differently than written: the canonical Section
+# behaviour landed in lib/ash_surface/compiler.ex
+# (lib/ash_surface/compiler/section.ex never existed), and the canonical
+# compiler IR landed in lib/ash_surface/compiler/ir.ex. This file's local
+# duplicates were dropped at integration; only the Schema section builder
+# below remains.]
 
 defmodule AshSurface.Compiler.Schema do
   @moduledoc """

@@ -27,7 +27,7 @@ test-all:
     if grep -q 'test\.all' mix.exs; then
         mix test.all
     else
-        echo "ERROR: mix test.all is not defined in mix.exs (alias owned by t36; not yet landed on this branch)." >&2
+        echo "ERROR: mix test.all is not defined in mix.exs (alias landed with t36/v50; seeing this means mix.exs regressed)." >&2
         echo "FALLBACK: running both suites directly." >&2
         mix test
         npm test
@@ -40,7 +40,7 @@ zero-config:
     if [ -f scripts/zero_config_check.sh ]; then
         bash scripts/zero_config_check.sh
     else
-        echo "ERROR: scripts/zero_config_check.sh not found (zero-config machinery not yet landed on this branch)." >&2
+        echo "ERROR: scripts/zero_config_check.sh not found (landed on the integrated tree; seeing this means the tree regressed)." >&2
         echo "Refusing to fabricate a pass; no fallback exists for this gate." >&2
         exit 1
     fi
