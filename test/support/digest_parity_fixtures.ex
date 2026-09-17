@@ -257,30 +257,27 @@ defmodule AshSurface.DigestParityFixtures do
       |> Map.new(fn %{"id" => id} = action -> {id, action} end)
 
     ir_staging = %{
-      "actions" => staging_actions,
-      "identity" => %{
+      "ash" => staging_actions,
+      "semantic" => %{
         "generatorIdentity" => "ash_surface:v26.9.17",
         "manifestDigest" => Map.fetch!(c2.contract, "manifestDigest"),
         "surfaceSchemaVersion" => "26.9.17"
       },
-      "profile" => %{"audience" => "operators"},
-      "resources" => nil,
-      "transports" => %{
-        "declared" => ["http", "phoenix_channel"],
-        "selection" => "before_dispatch"
-      }
+      "capability" => nil,
+      "presentation" => %{"audience" => "operators"},
+      "schema" => nil
     }
 
     ir_sparse = %{
-      "actions" => nil,
-      "identity" => nil,
-      "profile" => nil,
-      "resources" => nil,
-      "transports" => nil
+      "ash" => nil,
+      "semantic" => nil,
+      "capability" => nil,
+      "presentation" => nil,
+      "schema" => nil
     }
 
     ir_deep = %{
-      "actions" => %{
+      "ash" => %{
         "Σ🜂#capability" => %{
           "bools" => [true, false, nil],
           "bounds" => %{
@@ -294,10 +291,10 @@ defmodule AshSurface.DigestParityFixtures do
           "order" => ["b", "a"]
         }
       },
-      "identity" => nil,
-      "profile" => %{"order" => ["z", "a", "m"]},
-      "resources" => nil,
-      "transports" => nil
+      "semantic" => nil,
+      "capability" => nil,
+      "presentation" => %{"order" => ["z", "a", "m"]},
+      "schema" => nil
     }
 
     [

@@ -385,7 +385,7 @@ test("sensitivity: any single content mutation flips the digest in every table",
 
   // T4 ir
   const mutatedSections = reverseKeyOrder(TABLES.ir[2].sections);
-  mutatedSections.actions["Σ🜂#capability"].glyph = "Σ🜂✗";
+  mutatedSections.ash.resource = "AshSurface.Fixtures.Mutated";
   assert.notEqual(canonicalTermDigest(mutatedSections), TABLES.ir[2].elixirDigest);
 
   // T5 receipt
