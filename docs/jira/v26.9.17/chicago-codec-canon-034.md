@@ -1,5 +1,5 @@
 # chicago-codec-canon-034: codec.ex single-canon reconciliation
-status: IN_PROGRESS
+status: OPEN
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 02: ir/codec.ex:12-14,33 carries a stale parallel five-section canon claim while ir.ex is the admitted canon. Reconcile to ONE canon; state tests: codec round-trips the real five-section IR from a live fixture (both directions), digest pinned equal to fixture surface digest. Subject: lib/ash_surface/ir/codec.ex + ir.ex.
@@ -14,3 +14,4 @@ Mapper 02: ir/codec.ex:12-14,33 carries a stale parallel five-section canon clai
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g34 + exp/chicago-codec-canon-34 | dispatched by coordinator (chicago wave)
 2026-09-17T06:11:10Z | REAPED: compound evidence — 0 commits + 22min silence during active storm (10th casualty pattern); worktree g34 + branch preserved — successor reviews git log first
 2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts
+2026-09-17T06:40:01Z | REAPED: mid-life sustained-load death (worktree silent 20-29min); branch preserved — successor reviews git log first

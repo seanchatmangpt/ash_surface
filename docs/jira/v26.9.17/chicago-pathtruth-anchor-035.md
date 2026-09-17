@@ -1,5 +1,5 @@
 # chicago-pathtruth-anchor-035: path-truth law enforcement anchor
-status: IN_PROGRESS
+status: OPEN
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 18: TESTING.md:8 states the path-truth law but nothing enforces it. Add test/ash_surface/path_truth_test.exs: parses TESTING.md (and PROJECTORS.md) cited paths, fails on any nonexistent file; allowlist for intentional external refs. Subject: docs + new test.
@@ -12,3 +12,4 @@ Mapper 18: TESTING.md:8 states the path-truth law but nothing enforces it. Add t
 - anchor test green over all current citations; falsifier: add a fake citation -> RED (executed); gates 0.
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g35 + exp/chicago-pathtruth-anchor-35 | dispatched by coordinator (chicago wave)
+2026-09-17T06:40:01Z | REAPED: mid-life sustained-load death (worktree silent 20-29min); branch preserved — successor reviews git log first
