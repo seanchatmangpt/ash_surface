@@ -112,8 +112,9 @@ defmodule AshSurface.Event do
   @spec from_receipt(map(), map() | nil) :: {:ok, t()} | {:error, EventProjection.refusal()}
   def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
     EventProjection.from_receipt(receipt, ir_action)
+  end
 
- defp validate_identity_ref(ref, _name) when is_binary(ref) and ref != "", do: :ok
+  defp validate_identity_ref(ref, _name) when is_binary(ref) and ref != "", do: :ok
 
   defp validate_identity_ref(ref, name) do
     raise ArgumentError,
