@@ -106,8 +106,10 @@ defmodule AshSurface.Event do
   must never hand-roll an event from receipt sections.
 
   Returns `{:ok, event}` on success, or `{:error, refusal}` typed by the
-  projection (e.g. a receipt carrying no parseable timestamp refuses instead
-  of inventing one — replay equality is preserved by construction).
+  projection (e.g. a receipt carrying no parseable timestamp, a receipt with
+  no resolvable subject, or a receipt whose runtime-minted `receiptHash`
+  refuses to bind its covered sections — none of these is ever patched with
+  invented content, so replay equality is preserved by construction).
   """
   @spec from_receipt(map(), map() | nil) :: {:ok, t()} | {:error, EventProjection.refusal()}
   def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
