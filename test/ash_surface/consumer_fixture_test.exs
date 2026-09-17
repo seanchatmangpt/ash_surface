@@ -206,4 +206,253 @@ defmodule AshSurface.ConsumerFixtureTest do
     assert AshSurface.CanonicalJSON.sha256_hex(Map.drop(receipt, ["receiptHash"])) ==
              receipt["receiptHash"]
   end
+
+  test "closed loop: intent -> live HTTP dispatch -> receipt -> event back-projection -> observation -> projector bytes on disk",
+       %{port: port} do
+    # -- Stage 0: admit the surface from the real Ash resource --------------
+    assert {:ok, manifest} =
+             Manifest.generate(
+               otp_app: :ash_surface,
+               action_entrypoints: [
+                 {VolunteerMilestone, :record},
+                 {VolunteerMilestone, :read}
+               ]
+             )
+
+    profile = %{
+      audience: :public,
+      actions: %{
+        "AshSurface.Fixtures.VolunteerMilestone#record" => %{
+          consumer: :mobile,
+          transport: :http
+        }
+      }
+    }
+
+    assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
+
+    contract_path = Path.join(@tmp_dir, "loop_contract.json")
+    receipt_path = Path.join(@tmp_dir, "loop_receipt.json")
+    File.write!(contract_path, Jason.encode!(surface.contract))
+
+    # -- Stage 1 END-STATE: the intent exists as content-addressed data -----
+    # The manufactured edge: one aimed action id, one payload, one subject.
+    # The payload is exactly what the consumer runtime will dispatch, so the
+    # loop below is ONE consequence graph, not adjacent fragments.
+    input = %{
+      member_id: "member_zoela_01",
+      milestone_id: "milestone_serve_42",
+      cost_physical: 10,
+      reward_spiritual: 100
+    }
+
+    subject_ref = "ash:AshSurface.Fixtures.VolunteerMilestone#record"
+
+    intent =
+      AshSurface.Intent.create(
+        "AshSurface.Fixtures.VolunteerMilestone#record",
+        input,
+        subject_ref
+      )
+
+    # Content-addressed identity: same triple, same id, any time.
+    assert intent.intent_id ==
+             :crypto.hash(:sha256, Jason.encode!([intent.surface_action_id, input, subject_ref]))
+             |> Base.encode16(case: :lower)
+
+    intent_map = AshSurface.Intent.to_map(intent)
+    assert intent_map["surfaceActionId"] == intent.surface_action_id
+
+    # -- Stage 2: the REAL node runtime dispatches over live HTTP -----------
+    {output, exit_code} =
+      System.cmd("node", [
+        "test/js/consumer_e2e_runner.mjs",
+        contract_path,
+        to_string(port),
+        receipt_path
+      ])
+
+    assert exit_code == 0, "Node runner failed with exit code #{exit_code}: #{output}"
+
+    # -- Stage 3 END-STATE: the on-disk receipt binds the intent to the
+    #    physical Ash consequence ------------------------------------------
+    assert File.exists?(receipt_path)
+    assert {:ok, receipt} = Jason.decode(File.read!(receipt_path))
+
+    # The dispatched action and payload are EXACTLY the intent's aimed edge.
+    assert receipt["actionId"] == intent.surface_action_id
+
+    assert AshSurface.CanonicalJSON.encode(receipt["input"]) ==
+             AshSurface.CanonicalJSON.encode(intent_map["input"])
+
+    assert receipt["dispatchState"] == "completed"
+    assert receipt["selectedTransport"] == "http"
+
+    # The receipt is self-verifying: its hash binds its own content.
+    assert receipt["receiptHash"] == recomputed_receipt_hash(receipt)
+
+    # The receipt's consequence id names a REAL record in the Ash data layer.
+    assert {:ok, records} =
+             Ash.read(VolunteerMilestone, domain: AshSurface.Fixtures.Domain)
+
+    successful_record =
+      Enum.find(records, fn r -> r.id == receipt["consequence"]["id"] end)
+
+    refute is_nil(successful_record),
+           "Receipt consequence #{inspect(receipt["consequence"]["id"])} has no physical record in the Ash data layer"
+
+    assert successful_record.member_id == "member_zoela_01"
+
+    # -- Stage 4 END-STATE: the receipt back-projects to the observation-stream
+    #    event through the one production route ------------------------------
+    ir_action = %{
+      "resource" => "AshSurface.Fixtures.VolunteerMilestone",
+      "action" => "record"
+    }
+
+    assert {:ok, event} = AshSurface.Event.from_receipt(receipt, ir_action)
+
+    # The projection invents nothing: every section is carried verbatim.
+    assert event.receipt_ref == receipt["receiptHash"]
+    assert event.payload == receipt["consequence"]
+    assert event.subject_ref == subject_ref
+    assert event.authority_boundary == :OBSERVE
+
+    assert {:ok, ts, 0} = DateTime.from_iso8601(receipt["timestamp"])
+    assert event.occurred_at == ts
+
+    # -- Stage 5 END-STATE: the observation of the REAL data-layer state,
+    #    citing the loop's receipt as its evidence ---------------------------
+    facts = %{
+      "member_id" => successful_record.member_id,
+      "milestone_id" => successful_record.milestone_id,
+      "cost_physical" => successful_record.cost_physical,
+      "reward_spiritual" => successful_record.reward_spiritual,
+      "status" => successful_record.status
+    }
+
+    observation =
+      AshSurface.Observation.create(event.subject_ref, facts,
+        evidence_refs: [receipt["receiptHash"]]
+      )
+
+    # Content-addressed: digest is sha256 over subject + canonical facts.
+    expected_digest =
+      :crypto.hash(:sha256, "#{event.subject_ref}:#{AshSurface.CanonicalJSON.encode(facts)}")
+      |> Base.encode16(case: :lower)
+
+    assert observation.state_digest == expected_digest
+    assert observation.observation_id == "obs_" <> binary_part(expected_digest, 0, 16)
+    assert observation.exact_subject == event.subject_ref
+    assert observation.standing == :ALIVE
+    assert observation.authority_boundary == :OBSERVE
+    assert observation.evidence_refs == [receipt["receiptHash"]]
+
+    # -- Stage 6 END-STATE: one projector renders the loop's surface to
+    #    deterministic bytes on disk ------------------------------------------
+    assert {:ok, ash_section} = AshSurface.Compiler.AshTruth.build(VolunteerMilestone, :record)
+
+    # One delegated aria fact set, reused verbatim in the IR and in the final
+    # end-state read-back: the projector must carry these, never invent.
+    delegated_aria_inputs = %{
+      "member_id" => %{"role" => "textbox", "required" => true},
+      "milestone_id" => %{"role" => "textbox", "required" => true},
+      "cost_physical" => %{"role" => "spinbutton", "required" => true},
+      "reward_spiritual" => %{"role" => "spinbutton", "required" => true}
+    }
+
+    ir =
+      AshSurface.IR.new(
+        ash: ash_section,
+        presentation: %AshSurface.IR.Presentation{
+          label: "Record volunteer milestone",
+          group: "serving",
+          order: 1
+        },
+        schema: %AshSurface.IR.Schema{aria: %{"inputs" => delegated_aria_inputs}}
+      )
+
+    aria_prefix = "loop_aria"
+
+    assert {:ok, aria_contract, aria_meta} =
+             AshSurface.Projectors.ARIA.project_ir(ir,
+               prefix: aria_prefix,
+               target_dir: @tmp_dir
+             )
+
+    assert aria_meta == %{
+             prefix: aria_prefix,
+             surface_count: 1,
+             group_count: 1,
+             emitted: aria_prefix <> ".json"
+           }
+
+    aria_path = Path.join(@tmp_dir, aria_prefix <> ".json")
+    assert File.exists?(aria_path)
+
+    # The emitted bytes ARE the contract rendering, and re-projection is
+    # byte-identical: the artifact is deterministic, not incidental.
+    on_disk = File.read!(aria_path)
+    assert on_disk == AshSurface.Projectors.ARIA.to_json(aria_contract)
+
+    assert {:ok, rerendered, _meta} = AshSurface.Projectors.ARIA.project_ir(ir)
+    assert AshSurface.Projectors.ARIA.to_json(rerendered) == on_disk
+
+    # The on-disk artifact names the loop's own surface identity.
+    decoded = Jason.decode!(on_disk)
+    assert decoded["tabOrder"] == ["VolunteerMilestone.record"]
+    assert [rendered_surface] = decoded["surfaces"]
+    assert rendered_surface["id"] == "VolunteerMilestone.record"
+    assert rendered_surface["resource"] == "VolunteerMilestone"
+    assert rendered_surface["action"] == "record"
+    assert rendered_surface["label"] == "Record volunteer milestone"
+
+    # Rendered inputs are the intent's own input surface — exactly the members
+    # the human aimed, no more, no fewer — and exactly the REAL Ash accept list
+    # of the dispatched action. Two end-state bindings, one artifact.
+    rendered_names = rendered_surface["inputs"] |> Enum.map(& &1["name"]) |> Enum.sort()
+
+    assert rendered_names ==
+             intent.input |> Map.keys() |> Enum.map(&to_string/1) |> Enum.sort()
+
+    accept_names =
+      VolunteerMilestone
+      |> Ash.Resource.Info.action(:record)
+      |> Map.get(:accept)
+      |> Enum.map(&to_string/1)
+      |> Enum.sort()
+
+    assert rendered_names == accept_names,
+           "rendered aria inputs diverged from the REAL Ash accept list"
+
+    # Every rendered `required` fact matches the REAL attribute law of the
+    # resource (`allow_nil?`), and every rendered role is the delegated aria
+    # fact read verbatim — the artifact carries admitted facts, never guesses.
+    for {name, facts} <- delegated_aria_inputs do
+      rendered_input = Enum.find(rendered_surface["inputs"], &(&1["name"] == name))
+
+      refute is_nil(rendered_input), "no rendered aria input for #{name}"
+
+      assert rendered_input["role"] == facts["role"],
+             "rendered role for #{name} diverged from the delegated aria fact"
+
+      attribute = Ash.Resource.Info.attribute(VolunteerMilestone, name)
+
+      assert rendered_input["required"] == not attribute.allow_nil?,
+             "rendered required for #{name} diverged from Ash attribute law"
+    end
+  end
+
+  defp recomputed_receipt_hash(receipt) do
+    payload = %{
+      "actionId" => receipt["actionId"],
+      "input" => receipt["input"],
+      "consequence" => receipt["consequence"],
+      "dispatchState" => receipt["dispatchState"],
+      "selectedTransport" => receipt["selectedTransport"],
+      "timestamp" => receipt["timestamp"]
+    }
+
+    AshSurface.CanonicalJSON.sha256_hex(payload)
+  end
 end
