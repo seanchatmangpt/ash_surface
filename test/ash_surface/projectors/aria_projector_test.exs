@@ -8,6 +8,13 @@ defmodule AshSurface.Projectors.AriaProjectorTest do
 
   The full contract and its JSON rendering are golden-frozen below: any
   semantic change to the projection must land here as a deliberate edit.
+
+  The state table (chicago-aria-states-046) pins the projector's input state
+  space as data rows — the complete action-type -> surface-role mapping
+  (roles read verbatim, never inferred from a type), OBSERVE-only live
+  regions, DO-politeness absent, and the F5 delegated-lookup-null
+  fail-closed states — every row exercised through the real `project_ir/2`
+  with its emitted JSON fields asserted exactly.
   """
 
   use ExUnit.Case, async: true
@@ -343,6 +350,280 @@ defmodule AshSurface.Projectors.AriaProjectorTest do
                ARIA.project_ir(fixture_irs(), prefix: "acme_aria", target_dir: tmp_dir)
 
       assert File.ls!(tmp_dir) == ["acme_aria.json"]
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # State table (chicago-aria-states-046): the projector's input state space
+  # pinned as data. Every row is exercised through the REAL `project_ir/2`
+  # (no test doubles; the only injected seam is the tmp_dir emission target
+  # the emission law itself demands). Expected values are observable
+  # outcomes only: the surface role field, the live field (or its absence),
+  # and the same fields read back out of the emitted on-disk JSON bytes.
+  #
+  # Row laws under test:
+  # - type->role mapping: the surface role is the delegated aria role fact
+  #   read verbatim — for EVERY Ash action type — and nil when absent;
+  #   never inferred from the action type.
+  # - live regions are OBSERVE-only; the delegated politeness is admitted
+  #   (defaulting to "polite", case-normalized) exactly on OBSERVE surfaces.
+  # - DO-politeness is absent: a DO surface never carries a live fact,
+  #   delegated politeness or not.
+  # - F5 fail-closed: a null delegated boundary lookup (policy map without
+  #   the authorityBoundary fact) resolves to NOT-OBSERVE — no "OBSERVE"
+  #   string fallback — so the live fact is absent even when a politeness
+  #   was delegated.
+  # ---------------------------------------------------------------------------
+
+  @state_table [
+    %{
+      row: 1,
+      name: "read/OBSERVE, no delegated role or politeness -> nil role, default polite live",
+      type: :read,
+      boundary: "OBSERVE",
+      aria: %{},
+      role: nil,
+      live: "polite"
+    },
+    %{
+      row: 2,
+      name:
+        "read/OBSERVE, delegated table role + assertive politeness -> verbatim role, admitted live",
+      type: :read,
+      boundary: "OBSERVE",
+      aria: %{"role" => "table", "live" => "assertive"},
+      role: "table",
+      live: "assertive"
+    },
+    %{
+      row: 3,
+      name: "read/OBSERVE, delegated off politeness -> admitted verbatim",
+      type: :read,
+      boundary: "OBSERVE",
+      aria: %{"live" => "off"},
+      role: nil,
+      live: "off"
+    },
+    %{
+      row: 4,
+      name: "create/DO, delegated form role + assertive politeness -> verbatim role, live ABSENT",
+      type: :create,
+      boundary: "DO",
+      aria: %{"role" => "form", "live" => "assertive"},
+      role: "form",
+      live: "ABSENT"
+    },
+    %{
+      row: 5,
+      name: "create/DO, no facts -> nil role (never inferred from :create), live ABSENT",
+      type: :create,
+      boundary: "DO",
+      aria: %{},
+      role: nil,
+      live: "ABSENT"
+    },
+    %{
+      row: 6,
+      name: "update/DO, delegated polite politeness -> live ABSENT (DO-politeness dropped)",
+      type: :update,
+      boundary: "DO",
+      aria: %{"live" => "polite"},
+      role: nil,
+      live: "ABSENT"
+    },
+    %{
+      row: 7,
+      name: "update/OBSERVE, atom-keyed region role -> verbatim role, default polite live",
+      type: :update,
+      boundary: "OBSERVE",
+      aria: %{role: "region"},
+      role: "region",
+      live: "polite"
+    },
+    %{
+      row: 8,
+      name: "destroy/DO, no facts -> nil role, live ABSENT",
+      type: :destroy,
+      boundary: "DO",
+      aria: %{},
+      role: nil,
+      live: "ABSENT"
+    },
+    %{
+      row: 9,
+      name: "destroy/OBSERVE, delegated ASSERTIVE politeness -> case-normalized assertive live",
+      type: :destroy,
+      boundary: "OBSERVE",
+      aria: %{"live" => "ASSERTIVE"},
+      role: nil,
+      live: "assertive"
+    },
+    %{
+      row: 10,
+      name: "action/DO, delegated button role -> verbatim role on generic type, live ABSENT",
+      type: :action,
+      boundary: "DO",
+      aria: %{"role" => "button"},
+      role: "button",
+      live: "ABSENT"
+    },
+    %{
+      row: 11,
+      name: "action/OBSERVE, no facts -> nil role, default polite live",
+      type: :action,
+      boundary: "OBSERVE",
+      aria: %{},
+      role: nil,
+      live: "polite"
+    },
+    %{
+      row: 12,
+      name:
+        "read/nil-boundary, delegated region role + assertive politeness -> role verbatim, live ABSENT (F5)",
+      type: :read,
+      boundary: nil,
+      aria: %{"role" => "region", "live" => "assertive"},
+      role: "region",
+      live: "ABSENT"
+    },
+    %{
+      row: 13,
+      name: "update/nil-boundary, delegated polite politeness -> live ABSENT (F5 fail-closed)",
+      type: :update,
+      boundary: nil,
+      aria: %{"live" => "polite"},
+      role: nil,
+      live: "ABSENT"
+    },
+    %{
+      row: 14,
+      name:
+        "update/CONSTRUCT, delegated form role + polite politeness -> role verbatim, live ABSENT",
+      type: :update,
+      boundary: "CONSTRUCT",
+      aria: %{"role" => "form", "live" => "polite"},
+      role: "form",
+      live: "ABSENT"
+    },
+    %{
+      row: 15,
+      name:
+        "read/OBSERVE, null aria map -> nil role, default polite live (null lookup fails closed, no invention)",
+      type: :read,
+      boundary: "OBSERVE",
+      aria: nil,
+      role: nil,
+      live: "polite"
+    },
+    %{
+      row: 16,
+      name: "create/DO, null aria map -> nil role, live ABSENT",
+      type: :create,
+      boundary: "DO",
+      aria: nil,
+      role: nil,
+      live: "ABSENT"
+    }
+  ]
+
+  # Builds the row's IR through the real constructor; no projector seams.
+  # A nil boundary is pinned as a policy map that delegates facts but NOT
+  # the authorityBoundary fact — the delegated lookup runs and finds null.
+  defp state_ir(row) do
+    policies =
+      case row.boundary do
+        nil -> [%{"effect" => "allow", "description" => "no boundary fact delegated here"}]
+        boundary -> [%{"authorityBoundary" => boundary}]
+      end
+
+    IR.new(
+      ash: %IR.Ash{
+        resource: "S#{row.row}",
+        action: :go,
+        action_type: row.type,
+        policies: policies
+      },
+      presentation: %IR.Presentation{label: "Row #{row.row}"},
+      schema: %IR.Schema{aria: row.aria}
+    )
+  end
+
+  describe "state table (chicago-aria-states-046)" do
+    for row <- @state_table do
+      @row row
+      @tag :tmp_dir
+      test "row #{@row.row}: #{@row.name}", %{tmp_dir: tmp_dir} do
+        assert {:ok, contract, %{emitted: "ash_surface_aria.json"}} =
+                 ARIA.project_ir(state_ir(@row), target_dir: tmp_dir)
+
+        surface = hd(contract["surfaces"])
+        assert surface["id"] == "S#{@row.row}.go"
+
+        # type->role mapping: the role is the delegated fact verbatim —
+        # never inferred from the action type.
+        assert surface["role"] == @row.role
+
+        # live law: admitted politeness on OBSERVE, absent everywhere else.
+        # "ABSENT" pins the ABSENCE of the emitted live field (it is outside
+        # the politeness domain polite|assertive|off, so it is unambiguous).
+        if @row.live == "ABSENT" do
+          refute Map.has_key?(surface, "live")
+        else
+          assert surface["live"] == @row.live
+        end
+
+        # emitted JSON fields asserted from the on-disk bytes.
+        emitted =
+          tmp_dir
+          |> Path.join("ash_surface_aria.json")
+          |> File.read!()
+          |> Jason.decode!()
+
+        assert emitted["contract"] == "aria"
+        json_surface = hd(emitted["surfaces"])
+        assert json_surface["role"] == @row.role
+
+        if @row.live == "ABSENT" do
+          refute Map.has_key?(json_surface, "live")
+        else
+          assert json_surface["live"] == @row.live
+        end
+      end
+    end
+
+    test "the table is complete over all five Ash action types" do
+      assert @state_table |> Enum.map(& &1.type) |> Enum.uniq() |> Enum.sort() == [
+               :action,
+               :create,
+               :destroy,
+               :read,
+               :update
+             ]
+
+      assert @state_table |> Enum.map(& &1.boundary) |> MapSet.new() |> MapSet.size() >= 4
+    end
+
+    test "DO-politeness absence pinned as data: no DO row carries a live region" do
+      do_rows = Enum.filter(@state_table, &(&1.boundary == "DO"))
+      assert length(do_rows) >= 5
+
+      for row <- do_rows do
+        assert row.live == "ABSENT",
+               "row #{row.row} (#{row.type}/DO) must not resolve a live region"
+      end
+    end
+
+    test "F5 fail-closed pinned as data: null delegated boundary lookup never resolves a live region" do
+      null_rows = Enum.filter(@state_table, &is_nil(&1.boundary))
+      assert length(null_rows) >= 2
+
+      for row <- null_rows do
+        assert row.live == "ABSENT",
+               "row #{row.row}: null boundary lookup must not OBSERVE-fallback into a live region"
+
+        assert is_binary(row.aria["live"]),
+               "row #{row.row}: F5 rows must delegate a politeness to prove it is dropped"
+      end
     end
   end
 end
