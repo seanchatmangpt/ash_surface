@@ -140,6 +140,11 @@ defmodule AshSurface.IntentPathTest do
     # Intent manufacture is data only. Any execute/submit/dispatch/actuate
     # export would be a local-DO bypass; this tripwire fails the build the
     # day one appears (held against the lib owner AshSurface.Intent).
+    # Load the module under test before the export probes: function_exported?/3
+    # is false for not-yet-loaded modules, which made this tripwire flaky under
+    # async scheduling (gapfix-integration-018, observed 2026-09-17).
+    Code.ensure_loaded!(Intent)
+
     for name <- [:execute, :submit, :dispatch, :actuate, :run, :call, :apply],
         arity <- 1..4 do
       refute function_exported?(Intent, name, arity),
