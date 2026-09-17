@@ -468,3 +468,9 @@ surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
     surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
+    surf:ledgerPath "priv/static/ash_surface_runtime.mjs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "JS runtime template family emission in ash-extension-pack (runtime ontology facts -> executable .mjs template projection); paydown: the pack grows the family and emits this file from the ontology's runtime facts, golden re-frozen at cutover, ledger row + UNSUPPORTED row retired together" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
