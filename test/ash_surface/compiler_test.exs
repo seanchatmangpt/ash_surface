@@ -308,7 +308,7 @@ defmodule AshSurface.CompilerTest do
                Compiler.compile(manifest(), sections: rec_sections())
 
       assert Enum.all?(irs, &match?(%IR{}, &1))
-      assert Enum.all?(irs, &(&1.version == "26.9.16"))
+      assert Enum.all?(irs, &(&1.version == "26.9.17"))
 
       assert create.ash == %IR.Ash{
                resource: "AshSurface.CompilerTest.Post",

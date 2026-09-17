@@ -1,10 +1,10 @@
-# DEP_GRAPH — the v26.9.16 dependency law
+# DEP_GRAPH — the v26.9.17 dependency law
 
-The law is versioned **v26.9.16** because its sharpest statements were codified in the
+The law is versioned **v26.9.17** because its sharpest statements were codified in the
 `ash_a2a` v26.9.16 wave (`/Users/sac/ash_a2a/mix.exs` lines 156–237: the `:libcluster`/`:horde`,
 `:rdf` and `:wasmex` edges and their scope limits; span corrected from "156–223" by
 gapfix-docs-truth-013 — the `:wasmex` block extends to its `{:wasmex, "~> 0.15.1"}` line 237). This repo —
-`ash_surface` 26.9.16 (`mix.exs:4`) — is the composition layer of that law. Every
+`ash_surface` 26.9.17 (`mix.exs:4`) — is the composition layer of that law. Every
 claim below is grounded in a cited file; the two law-layer repos were read read-only.
 
 ## Ownership (who owns what, one concern per owner)
@@ -113,7 +113,7 @@ Current, real edges (read from the three `mix.exs` files):
 
 ## Current vs target dependency list (`ash_surface`)
 
-Current — `mix.exs:42–62` (v26.9.16, six deps; the last two git-pinned):
+Current — `mix.exs:42–62` (v26.9.17, six deps; the last two git-pinned):
 
 | dep | constraint | role |
 |---|---|---|

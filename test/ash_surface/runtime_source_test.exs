@@ -15,7 +15,10 @@ defmodule AshSurface.RuntimeSourceTest do
   # gapfix-test-surface-015: re-frozen after the ontologyDigest/
   # applicationReleaseIdentity producer-or-remove ledger comment was added to
   # ashSurfaceContractSchema (comment-only change; no executable byte moved).
-  @golden_runtime_sha256 "8a58151b172fdd09eb9e21d788d2f35911db7b7d418877402445506f9690942c"
+  # gapfix-bump-mech-007 at integration (018): re-frozen after the 26.9.17
+  # carrier bump and the 015 comment union — the schema-site comment is still
+  # comment-only; the version marker moved through the bump mechanism.
+  @golden_runtime_sha256 "37d5c1c91f9e23743c31e0830c2381d954783af42bad244d68e3b7923964fcc2"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

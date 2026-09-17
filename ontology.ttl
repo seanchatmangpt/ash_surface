@@ -445,3 +445,10 @@ surf:UnsupportedLedgerRow37 a surf:UnsupportedRow ;
     surf:unsupportedElement "runtime-boundary test-table + delegated-extension provenance facts in the runtime family" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow38 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (carrier/citation classification + IR_GOLDEN regen family: CITATION_FILES table of 37 historical-citation files preserved byte-for-byte with md5 preservation proof across the apply; drift scan now refuses UNCLASSIFIED files instead of all outside-text files; post-apply law: old version survives only in citations or as v-prefixed history comments; carriers += lib/ash_surface/compiler.ex @ir_version + test/ash_surface/compiler_test.exs lockstep assertion; new computed family IR_GOLDEN_DIGEST x1 — ir_codec_golden_test.exs frozen digest self-proven at the old version and re-frozen through the real AshSurface.IR.Codec.digest pipeline, file version literals moved by targeted quote/label rules so the declaration's v-prefixed wave citations stay)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism classification facts (citation table, per-file evidence, IR-golden regen family) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
