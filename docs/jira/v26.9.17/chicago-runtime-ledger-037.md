@@ -1,5 +1,5 @@
 # chicago-runtime-ledger-037: runtime.mjs pack-source ledger row
-status: IN_PROGRESS
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mapper 02: priv/static/ash_surface_runtime.mjs is hand-maintained pack source with NO HANDWRITTEN row. Admit the row (+ UNSUPPORTED bijection pair) naming the intended owner (JS runtime template family in ash-extension-pack) and paydown path; byte-provenance note (golden SHA law already pins content).
@@ -12,3 +12,4 @@ Mapper 02: priv/static/ash_surface_runtime.mjs is hand-maintained pack source wi
 - ledger+ontology pair admitted, bijection tripwire green; falsifier: remove the pair -> tripwire RED; gates 0.
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g37 + exp/chicago-runtime-ledger-37 | dispatched by coordinator (chicago wave)
+2026-09-17T06:12:36Z | DONE | exp/chicago-runtime-ledger-37 @ 1a2ae2f4ef25127e8b75a567bc9e125fec6db61d | deps.get 0; npm install 0; mix compile --warnings-as-errors 0; mix format --check-formatted 0; mix test 844 passed/0; npm test 258 pass/0; tripwire 6/6 exit 0; falsifier A (ontology UNSUPPORTED half removed: sed 471,476d) mix test handwritten_ledger_test exit 2 RED (44 vs 43 + pair-pin), restore 6/6 0; falsifier B (whole pair removed: ontology + HANDWRITTEN row) exit 2 RED (both runtime pin tests, generic bijection stayed green), restore 6/6 0 | remaining: paydown — ash-extension-pack grows the JS runtime template family and emits priv/static/ash_surface_runtime.mjs from ontology runtime facts; golden re-frozen at cutover, ledger row + UnsupportedLedgerRow44 retired together
