@@ -7,6 +7,11 @@ defmodule AshSurface.Projector.VoiceKioskTest do
   schema inputs, and capability gating — `authority_required` actions are
   phrased as confirmations and are never auto-executions. Hand-built
   `AshSurface.Surface` state; no mocks, no env, no db, no network.
+
+  The flow-state table pins the authority-admitted vs not-admitted frontier
+  (10 rows) as data: CONFIRM always required for admitted plans, autoExecute
+  false in every emitted plan except the ungated OBSERVE answer, and ANSWER
+  phrasing within the DO family only for never-delegated DO.
   """
 
   use ExUnit.Case, async: false
@@ -154,6 +159,148 @@ defmodule AshSurface.Projector.VoiceKioskTest do
     end
   end
 
+  # Slot data of fields_resource() asserted as literal data: every flow-state
+  # row's expected intent embeds this exact list, so each row pins the whole
+  # dialogue structure (actionId, prompt, slots, mode, autoExecute), not just
+  # the gating bits.
+  @slot_data [
+    %{"name" => "cost_physical", "grammar" => "a whole number", "required" => true},
+    %{"name" => "id", "grammar" => "an identifier", "required" => true},
+    %{"name" => "member_id", "grammar" => "free text", "required" => true},
+    %{"name" => "mood_note", "grammar" => "free text", "required" => false},
+    %{"name" => "payload", "grammar" => "any value", "required" => false}
+  ]
+
+  # Documented nuance (flow states): ANSWER phrasing is a dialogue mode, not
+  # an execution grant. A DO action whose authority was never delegated
+  # (doAuthority=false, no admitted "authority_required" capability) is still
+  # phrased as an ANSWER, yet its plans carry autoExecute=false — the only
+  # auto-executable state in the whole table is an ungated OBSERVE answer.
+  # Delegated authority always confirms: CONFIRM is required and no
+  # authority-admitted plan ever auto-executes.
+  @flow_state_table [
+    %{
+      name: "delegated DO via the doAuthority flag",
+      boundary: "DO",
+      do_authority: true,
+      capabilities: [],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "delegated DO via an admitted authority_required capability",
+      boundary: "DO",
+      do_authority: false,
+      capabilities: ["authority_required"],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "doAuthority dominates an OBSERVE boundary",
+      boundary: "OBSERVE",
+      do_authority: true,
+      capabilities: [],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "authority_required gates an OBSERVE action",
+      boundary: "OBSERVE",
+      do_authority: false,
+      capabilities: ["authority_required"],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "both delegation signals present on a DO action",
+      boundary: "DO",
+      do_authority: true,
+      capabilities: ["authority_required"],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "authority_required gates even among unrelated capabilities",
+      boundary: "OBSERVE",
+      do_authority: false,
+      capabilities: ["authority_required", "offline_cache"],
+      expect: %{mode: "CONFIRM", prompt: "Please confirm: record milestone", auto: false}
+    },
+    %{
+      name: "ungated OBSERVE answers and may auto-execute",
+      boundary: "OBSERVE",
+      do_authority: false,
+      capabilities: [],
+      expect: %{mode: "ANSWER", prompt: "record milestone", auto: true}
+    },
+    %{
+      name: "ungated OBSERVE with unrelated capabilities answers and may auto-execute",
+      boundary: "OBSERVE",
+      do_authority: false,
+      capabilities: ["offline_cache"],
+      expect: %{mode: "ANSWER", prompt: "record milestone", auto: true}
+    },
+    %{
+      name: "never-delegated DO: ANSWER phrasing, never auto-execute",
+      boundary: "DO",
+      do_authority: false,
+      capabilities: [],
+      expect: %{mode: "ANSWER", prompt: "record milestone", auto: false}
+    },
+    %{
+      name: "never-delegated DO with unrelated capabilities: ANSWER phrasing, never auto-execute",
+      boundary: "DO",
+      do_authority: false,
+      capabilities: ["offline_cache"],
+      expect: %{mode: "ANSWER", prompt: "record milestone", auto: false}
+    }
+  ]
+
+  describe "flow state table (authority-admitted vs not)" do
+    @describetag flow_states: true
+
+    for {row, i} <- Enum.with_index(@flow_state_table, 1) do
+      @tag row: row, row_no: i
+      test "row #{i}: #{row.name}", %{row: row, row_no: i} do
+        assert flow_intent(row, i) == %{
+                 "actionId" => "Volunteer.Milestone#flow-row-#{i}",
+                 "prompt" => row.expect.prompt,
+                 "slots" => @slot_data,
+                 "mode" => row.expect.mode,
+                 "autoExecute" => row.expect.auto
+               }
+      end
+    end
+
+    test "CONFIRM is always required: every authority-admitted row confirms and no admitted plan auto-executes" do
+      for {row, i} <- Enum.with_index(@flow_state_table, 1), row.expect.mode == "CONFIRM" do
+        intent = flow_intent(row, i)
+
+        assert intent["mode"] == "CONFIRM"
+        assert intent["prompt"] == "Please confirm: record milestone"
+        assert intent["autoExecute"] == false
+      end
+    end
+
+    test "autoExecute is false in every emitted plan except the ungated OBSERVE answer" do
+      for {row, i} <- Enum.with_index(@flow_state_table, 1) do
+        intent = flow_intent(row, i)
+        auto_executable? = row.expect.mode == "ANSWER" and row.boundary == "OBSERVE"
+
+        assert intent["autoExecute"] == auto_executable?
+      end
+    end
+
+    test "within the DO family, ANSWER phrasing belongs only to never-delegated DO and never auto-executes" do
+      for {row, i} <- Enum.with_index(@flow_state_table, 1), row.boundary == "DO" do
+        intent = flow_intent(row, i)
+        delegated? = row.expect.mode == "CONFIRM"
+
+        assert intent["mode"] == if(delegated?, do: "CONFIRM", else: "ANSWER")
+
+        assert intent["prompt"] ==
+                 if(delegated?, do: "Please confirm: record milestone", else: "record milestone")
+
+        assert intent["autoExecute"] == false
+      end
+    end
+  end
+
   describe "determinism" do
     test "intents are sorted by actionId regardless of contract order, and projection is pure" do
       actions = [
@@ -239,4 +386,22 @@ defmodule AshSurface.Projector.VoiceKioskTest do
   end
 
   defp fetch_intent(ir), do: Enum.at(ir["intents"], 0)
+
+  # Builds one flow-state table row's action state: delegated-authority facts
+  # (boundary/doAuthority/capabilities) set explicitly per row, per the v10
+  # delegation law — never derived from the action type.
+  defp flow_action(row, i) do
+    %{
+      "id" => "Volunteer.Milestone#flow-row-#{i}",
+      "resource" => @resource,
+      "action" => "record_milestone",
+      "authorityBoundary" => row.boundary,
+      "doAuthority" => row.do_authority,
+      "profile" => %{"capabilities" => row.capabilities}
+    }
+  end
+
+  defp flow_intent(row, i) do
+    surface([flow_action(row, i)], fields_resource()) |> VoiceKiosk.project_ir() |> fetch_intent()
+  end
 end
