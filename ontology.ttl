@@ -334,3 +334,10 @@ surf:UnsupportedLedgerRow31 a surf:UnsupportedRow ;
     surf:unsupportedElement "package license-file template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow32 a surf:UnsupportedRow ;
+    surf:ledgerPath "ix.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "mix.exs alias/cli template emission" ;
+    surf:ledgerDate "2026-09-15" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
