@@ -25,15 +25,12 @@ defmodule AshSurface.MXClosedLoopDeepTest do
   @repo_root Path.expand("../..", __DIR__)
   @tmp_dir Path.join(@repo_root, "_build/test/mx_closed_loop_deep")
   @runtime_url "file://" <> Path.expand("../../priv/static/ash_surface_runtime.mjs", __DIR__)
-  @verifier_script Path.expand(
-                     "../../ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py",
-                     __DIR__
-                   )
   @action_id "AshSurface.Fixtures.VolunteerMilestone#record"
 
-  # Mirrors the mx-episode-schema@v26.9.17 required-field law used by
-  # verify_closure_episode.py, plus the subject-binding law this repo's episodes
-  # must satisfy (every emitted event binds back to the observation's subject).
+  # Mirrors the mx-episode-schema@v26.9.17 required-field law used by the
+  # vendored in-repo verify_closure_episode.py, plus the subject-binding law
+  # this repo's episodes must satisfy (every emitted event binds back to the
+  # observation's subject).
   @episode_required_fields [
     "episode_id",
     "subject_repo",
@@ -261,23 +258,21 @@ defmodule AshSurface.MXClosedLoopDeepTest do
     assert {:error, {:invalid_standing, "PROBABLY_FINE"}} =
              verify_episode_law(bad_standing, obs.exact_subject, receipt)
 
-    # Independent verifier agreement where the marketplace checkout is vendored.
-    if File.exists?(@verifier_script) do
-      missing_path = Path.join(tmp_dir, "verify_episode_missing.json")
-      File.write!(missing_path, Jason.encode!(missing_receipt))
+    # Independent verifier agreement: the mx-episode-schema verifier is
+    # vendored in-repo (finish-experience-023), so the external check runs
+    # unconditionally and can no longer fail-open-skip on a missing checkout.
+    missing_path = Path.join(tmp_dir, "verify_episode_missing.json")
+    File.write!(missing_path, Jason.encode!(missing_receipt))
 
-      {missing_out, missing_code} = run_python_verifier(missing_path)
-      assert missing_code == 1
-      assert String.contains?(missing_out, "MISSING_EPISODE_FIELDS")
+    assert {:error, {"MISSING_EPISODE_FIELDS", _missing_message}} =
+             AshSurface.MXEpisode.verify_file(missing_path)
 
-      calver_drift = Map.put(valid_episode, "pattern_version", "v25.9.12")
-      calver_path = Path.join(tmp_dir, "verify_episode_calver.json")
-      File.write!(calver_path, Jason.encode!(calver_drift))
+    calver_drift = Map.put(valid_episode, "pattern_version", "v25.9.12")
+    calver_path = Path.join(tmp_dir, "verify_episode_calver.json")
+    File.write!(calver_path, Jason.encode!(calver_drift))
 
-      {calver_out, calver_code} = run_python_verifier(calver_path)
-      assert calver_code == 1
-      assert String.contains?(calver_out, "CALVER_MISMATCH")
-    end
+    assert {:error, {"CALVER_MISMATCH", _calver_message}} =
+             AshSurface.MXEpisode.verify_file(calver_path)
   end
 
   test "composed MX receipt carries the full provenance lattice of the episode",
@@ -789,21 +784,5 @@ defmodule AshSurface.MXClosedLoopDeepTest do
     assert.equal(receipt.dispatchState, "completed");
     fs.writeFileSync("#{receipt_path}", JSON.stringify(receipt, null, 2));
     """
-  end
-
-  defp run_python_verifier(episode_path) do
-    verify_cmd = """
-    import json, sys
-    from verify_closure_episode import verify_episode
-
-    with open('#{episode_path}') as f:
-        data = json.load(f)
-
-    res = verify_episode(data)
-    print(f'[{res.code}] {res.message}')
-    sys.exit(0 if res.valid else 1)
-    """
-
-    System.cmd("python3.11", ["-c", verify_cmd], cd: Path.dirname(@verifier_script))
   end
 end
