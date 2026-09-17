@@ -16,6 +16,10 @@ defmodule AshSurface.CanonicalJSON do
       state digests hash the canonical encoding, so event/observation identity
       is map-order invariant (previously raw `Jason.encode!`, which leaked
       HAMT iteration order for >32-key payloads);
+    * `AshSurface.PlanningEpisode.digest/1` / `create/2` — the episode record
+      (minus the derived `episodeId`) digests canonically and `episode_id` is
+      its `"ep_"` content-address prefix (chicago-episode-digest-036;
+      previously an `inspect/1` pipeline with no cross-language law);
     * receipt-hash re-derivation — the JavaScript runtime twins mint
       `receiptHash` over the same law (`canonicalStringify` in
       `test/js/consumer_e2e_runner.mjs`); agreement is pinned by the e2e and
