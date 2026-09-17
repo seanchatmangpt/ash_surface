@@ -11,6 +11,9 @@ defmodule AshSurface.Projector.ExpoActionsTest do
     `receiptRequired`) are emitted exactly as delegated via
     `custom.ash_surface`, and as nil when not delegated (v26.9.16
     delegation); they are never re-derived from action type
+  - the delegated boundary lookup emitted into the artifact fails closed:
+    `getAuthorityBoundary` answers an unknown id with `null`, never a
+    fabricated `"OBSERVE"` admission (finish-tripwires-024 tripwire)
   """
 
   use ExUnit.Case, async: false
@@ -110,6 +113,48 @@ defmodule AshSurface.Projector.ExpoActionsTest do
 
     assert record["authorityBoundary"] == nil
     assert record["doAuthority"] == nil
+  end
+
+  @lookup_anchor "export function getAuthorityBoundary(id) {"
+  # Heredoc indentation stripping emits the helper at column zero (body at two
+  # spaces, closing brace at column zero); nested braces in the body are all
+  # inline, so non-greedy to the first `\n}` isolates exactly this function
+  # even if exports are ever appended after it.
+  @lookup_body_regex ~r/export function getAuthorityBoundary\(id\) \{([\s\S]*?)\n\}/
+
+  # TRIPWIRE (finish-tripwires-024): the delegated lookup path in the rendered
+  # artifact must fail closed. The v26.9.16 law — an absent key == "not
+  # delegated" == null — extends to an ABSENT ACTION: an id that admits no
+  # descriptor has no delegated boundary, so the lookup answers null and the
+  # caller faces the unknown instead of receiving a fabricated `"OBSERVE"`
+  # admission (unknown ≠ OBSERVE; a fail-open default would let an unadmitted
+  # id masquerade as the safest boundary and read as licensed). The gate walks
+  # the RENDERED artifact (not a cached fixture), asserts the lookup exists
+  # (a walk over a missing function passes vacuously — truncation is evidence,
+  # never permission), forbids the "OBSERVE" literal anywhere in the lookup
+  # body (a comparison literal would be a local re-derivation, same hole), and
+  # pins the delegated read plus the null fail-closed arm.
+  test "TRIPWIRE delegated boundary lookup fails closed: no OBSERVE string fallback", ctx do
+    %{source: source} = projected(ctx, %{})
+
+    assert source =~ @lookup_anchor,
+           "actions.mjs no longer emits getAuthorityBoundary — the delegated " <>
+             "lookup path is gone and this tripwire is unenforced"
+
+    assert [lookup_body] = Regex.run(@lookup_body_regex, source, capture: :all_but_first),
+           "getAuthorityBoundary body could not be isolated — emitter shape " <>
+             "changed; re-pin this tripwire consciously"
+
+    refute lookup_body =~ "OBSERVE",
+           "the delegated boundary lookup fabricates an OBSERVE admission on " <>
+             "the delegated lookup path — fail closed (null), never fail open"
+
+    assert lookup_body =~ ~r/action\.authorityBoundary/,
+           "getAuthorityBoundary stopped reading the delegated fact — a lookup " <>
+             "that does not delegate is a re-derivation"
+
+    assert lookup_body =~ ~r/:\s*null/,
+           "getAuthorityBoundary's unknown-id arm must fail closed with null"
   end
 
   test "profile-admitted boundaries (SELECT, CONSTRUCT) are emitted verbatim", ctx do
