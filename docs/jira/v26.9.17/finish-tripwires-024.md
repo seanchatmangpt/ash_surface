@@ -1,5 +1,5 @@
 # finish-tripwires-024: F5 — close the two authority-tripwire holes
-status: IN_PROGRESS
+status: DONE
 status: DONE
 created: 2026-09-17T04:30:00Z
 ## Mission
