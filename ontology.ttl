@@ -433,3 +433,9 @@ surf:UnsupportedLedgerRow41 a surf:UnsupportedRow ;
     surf:unsupportedElement "episode round-trip test-table emission + verifier re-point emission" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow42 a surf:UnsupportedRow ;
+    surf:ledgerPath "est/ash_surface/projector_ir_determinism_test.exs + lib/ash_surface/ir/event_projection.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "test re-point emission over the IR/projector family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
