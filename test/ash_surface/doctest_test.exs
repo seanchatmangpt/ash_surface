@@ -16,10 +16,30 @@ defmodule AshSurface.DoctestTest do
       covered (with real doubles) in `AshSurface.CompilerTest`; doc examples
       cannot reference test doubles, so the docs pin the laws that ARE the
       module's documented surface.
+    * `AshSurface.Transport` (chicago-doctest-sweep-052) — `select/3`'s
+      undelegated preference law, the dimension-weighed frontier (preference
+      never picks a dominated alternative), and the typed refusals;
+      `facts_from_profile/1`'s normalize/not-delegated/refusal contract.
+    * `AshSurface.Standing` — the vocabulary gates: `valid?/1`, `validate!/1`,
+      and `refused?/1` (base members are never refusals; `:UNKNOWN` is not a
+      standing at all).
+    * `AshSurface.MXEpisode.compose/1` — the closed-loop composition over the
+      real Observation/PlanningEpisode/Event projections, the frozen
+      five-step decomposition witnesses, the subject-binding law, and the
+      missing-parts refusal.
+    * `AshSurface.Intent.create/3` — the content-addressed triple: pinned
+      sha256 id, and time-is-not-identity replay.
+    * `AshSurface.Projectors.ARIA.project_ir/2` — the ARIA contract shape and
+      the read-never-infer + OBSERVE-only live-region laws.
   """
 
   use ExUnit.Case, async: true
 
   doctest AshSurface
   doctest AshSurface.Compiler
+  doctest AshSurface.Transport
+  doctest AshSurface.Standing
+  doctest AshSurface.MXEpisode
+  doctest AshSurface.Intent
+  doctest AshSurface.Projectors.ARIA
 end

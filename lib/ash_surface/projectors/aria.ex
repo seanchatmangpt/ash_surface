@@ -60,6 +60,27 @@ defmodule AshSurface.Projectors.ARIA do
   Returns `{:ok, contract, meta}` where `meta` carries `:prefix`,
   `:surface_count`, `:group_count`, and `:emitted` (the written filename, or
   `nil` when nothing was written).
+
+  ## Examples
+
+      iex> ir = %AshSurface.IR{ash: %AshSurface.IR.Ash{resource: "Help.Ticket", action: "read", action_type: :read}, presentation: %AshSurface.IR.Presentation{label: "Tickets"}}
+      iex> {:ok, contract, meta} = AshSurface.Projectors.ARIA.project_ir(ir)
+      iex> {meta.prefix, meta.surface_count, meta.group_count, meta.emitted}
+      {"ash_surface_aria", 1, 0, nil}
+      iex> [surface] = contract["surfaces"]
+      iex> {surface["id"], surface["label"], surface["role"], surface["inputs"]}
+      {"Ticket.read", "Tickets", nil, []}
+      iex> contract["tabOrder"]
+      ["Ticket.read"]
+
+      Facts are read, never inferred: no role or group is guessed, and a live
+      hint appears on OBSERVE-boundary surfaces only (delegated politeness,
+      defaulting to "polite"):
+
+      iex> observe = %AshSurface.IR{ash: %AshSurface.IR.Ash{resource: Help.Sensor, action: :watch, policies: [%{"authorityBoundary" => "OBSERVE"}]}}
+      iex> {:ok, contract, _meta} = AshSurface.Projectors.ARIA.project_ir(observe, prefix: "sensor_aria")
+      iex> hd(contract["surfaces"])["live"]
+      "polite"
   """
   @spec project_ir(IR.t() | [IR.t()], keyword()) :: {:ok, map(), map()}
   def project_ir(ir, opts \\ []) do

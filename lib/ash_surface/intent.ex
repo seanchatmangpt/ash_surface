@@ -46,6 +46,21 @@ defmodule AshSurface.Intent do
   `intent_id` is a pure function of `(surface_action_id, input, subject_ref)`:
   the sha256 hex of their canonical JSON encoding. `opts` may override
   `:created_at` for replay/determinism; the override never changes the id.
+
+  ## Examples
+
+      iex> intent = AshSurface.Intent.create("Ticket#read", %{"id" => 1}, "ir:abc123", created_at: ~U[2026-09-17 06:30:00Z])
+      iex> {intent.surface_action_id, intent.input, intent.subject_ref, intent.created_at}
+      {"Ticket#read", %{"id" => 1}, "ir:abc123", ~U[2026-09-17 06:30:00Z]}
+      iex> intent.intent_id
+      "79f3ebbf01481d37a1451cb64c98a8af5df0b1cd0f5efb3cc6029fa71998b5a2"
+
+      Time is not identity: a different `:created_at` replays the same id.
+
+      iex> a = AshSurface.Intent.create("Ticket#read", %{"id" => 1}, "ir:abc123", created_at: ~U[2026-09-17 06:30:00Z])
+      iex> b = AshSurface.Intent.create("Ticket#read", %{"id" => 1}, "ir:abc123", created_at: ~U[2020-01-01 00:00:00Z])
+      iex> {a.intent_id == b.intent_id, a.intent_id}
+      {true, "79f3ebbf01481d37a1451cb64c98a8af5df0b1cd0f5efb3cc6029fa71998b5a2"}
   """
   @spec create(String.t(), map(), String.t(), keyword()) :: t()
   def create(surface_action_id, input, subject_ref, opts \\ []) do
