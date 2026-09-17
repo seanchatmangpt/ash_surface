@@ -1,5 +1,5 @@
 # chicago-props-codec-042: property-based codec/digest laws
-status: IN_PROGRESS
+status: OPEN
 created: 2026-09-17T06:30:00Z
 ## Mission
 Add StreamData property tests: (1) canonical key-order invariance: shuffled-key maps -> identical CanonicalJSON bytes + digest; (2) value sensitivity; (3) five-section IR round-trip identity over bounded generators (realistic ash/semantic/capability/presentation/schema shapes). Subject: canonical_json.ex + ir/codec.ex.
@@ -12,3 +12,4 @@ Add StreamData property tests: (1) canonical key-order invariance: shuffled-key 
 - 3 properties, bounded gens, seeded runs stable; falsifier: inject order-dependence into encode -> property RED; gates 0.
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 | dispatched by coordinator (chicago wave)
+2026-09-17T06:49:55Z | REAPED: cluster death at ~30min (sustained-load grind; 5 simultaneous); branch preserved — successor reviews git log first

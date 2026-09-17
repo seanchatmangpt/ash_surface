@@ -1,5 +1,5 @@
 # chicago-replay-state-028: replay state table over real receipts
-status: IN_PROGRESS
+status: OPEN
 created: 2026-09-17T06:30:00Z
 ## Mission
 F1 landed Event.from_receipt/2 + typed refusals. Deepen Chicago-style: a state table over REAL runtime receipts minted via the node runtime over live HTTP (consumer_fixture pattern), each replayed TWICE through Event.from_receipt asserting identical structs, wire forms, and digests; perturbation rows (tampered digest, missing timestamp, foreign subject) assert the exact typed refusal. Subject: lib/ash_surface/event.ex + ir/event_projection.ex.
@@ -12,3 +12,4 @@ F1 landed Event.from_receipt/2 + typed refusals. Deepen Chicago-style: a state t
 - >=8 state rows incl. 3 refusal rows; falsifier: perturb one receipt field -> refusal flips/changes (RED proof executed); gates 0.
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g28 + exp/chicago-replay-state-28 | dispatched by coordinator (chicago wave)
+2026-09-17T06:49:55Z | REAPED: cluster death at ~30min (sustained-load grind; 5 simultaneous); branch preserved — successor reviews git log first
