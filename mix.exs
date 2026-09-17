@@ -59,22 +59,18 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
-      # Property-based tests (chicago-props-codec-042). No `only:` restriction
+      # Property-based tests (042 + 043 union; deduped at 051 merge). No `only:` restriction
       # is admissible: ash_a2a (all-env dep) requires stream_data in every env,
       # and ash already pulls it non-optionally. It never enters the boot path
       # (not in extra_applications) and the analysis/generator machinery never
       # ships in release artifacts built from this app.
-      {:stream_data, "~> 1.0"},
+      {:stream_data, "~> 1.4", runtime: false},
       # igniter: no `only:` restriction — ash_a2a (all-env dep) requires it
       # beyond dev/test; runtime: false keeps it out of the boot path.
       {:igniter, "~> 0.7", runtime: false},
       # Static success-typing analysis (gapfix-dialyzer-010). Dev-only: the
       # analysis tool never ships and never enters the boot path.
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      # Property-based testing (chicago-props-transport-043). No `only:`
-      # restriction — ash_a2a (all-env dep) requires it beyond dev/test;
-      # runtime: false keeps it out of the boot path.
-      {:stream_data, "~> 1.4", runtime: false},
       # ash_r2rml pinned to git HEAD (7d958a8) overriding ash_a2a's hex
       # "~> 26.8" requirement — git version 26.9.12 satisfies it.
       {:ash_r2rml,
