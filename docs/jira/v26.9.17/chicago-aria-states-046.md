@@ -1,5 +1,5 @@
 # chicago-aria-states-046: ARIA projector state table
-status: IN_PROGRESS
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 State table: complete type->role mapping, live regions OBSERVE-only, DO-politeness absent, delegated-lookup null fail-closed (F5) pinned as data; emitted JSON fields asserted. Subject: lib/ash_surface/projectors/aria.ex.
@@ -16,3 +16,4 @@ State table: complete type->role mapping, live regions OBSERVE-only, DO-politene
 2026-09-17T07:59:35Z | IN_PROGRESS | successor re-dispatch (cohort 3 of 4; window confirmed by cohorts 1-2 completing 6/6; branch preserved — review git log first)
 2026-09-17T08:02:50Z | REAPED: compound evidence — 102min silence (past max observed runtime), 0 active agent processes matched to this worktree, 0 commit(s) preserved — successor reviews first
 2026-09-17T08:09:08Z | IN_PROGRESS | successor re-dispatch (final cohort 4; branch preserved — review git log first; 045's lesson: long-runners are alive)
+2026-09-17T08:14:56Z | DONE | ~/ash-surface-wt/g46 + exp/chicago-aria-states-46 @ 09e4326 (+be261ef base-format repair, separate commit; predecessor's uncommitted moduledoc start folded in) | 16-row @state_table as data: complete type->role over all 5 Ash types (role verbatim-or-nil, never inferred; integrity test), OBSERVE-only live (default polite, case-normalized, off admitted), DO-politeness absent pinned, F5 null-boundary fail-closed pinned (2 rows delegating a politeness the projector must drop), per-row real project_ir/2 + on-disk .json field asserts (tmp_dir = only injected seam); falsifier EXECUTED: live_hint else-branch %{} -> %{"live" => "assertive"} → mix test aria_projector_test.exs exit 2, 21/36, 15 RED (all DO rows, F5 rows, CONSTRUCT row, both integrity tests) → restore (subject diff 0 lines) → exit 0, 36/36 | gates: compile --warnings-as-errors 0; mix test 0 (861 = 842 base + 19 new); format --check-formatted 0 (2 files drifted at base, mechanical repair be261ef, stash-roundtrip-verified); npm skipped (no JS) | remaining: none
