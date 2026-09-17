@@ -42,7 +42,19 @@ defmodule AshSurface.CodecPropsTest do
   alias AshSurface.IR.Codec
   alias AshSurface.IR
 
-  @section_keys ~w(actions identity profile resources transports)
+  # build_section atomizes field names against existing atoms; the section
+  # struct modules load lazily, so force-load them before generated sections
+  # reach the codec (034 law: atomization is binary_to_existing_atom).
+  setup do
+    Enum.each(
+      [IR.Ash, IR.Semantic, IR.Capability, IR.Presentation, IR.Schema],
+      &Code.ensure_loaded!/1
+    )
+
+    :ok
+  end
+
+  @section_keys ~w(ash capability presentation schema semantic)
   @max_runs 100
 
   # ────────────────────────────────────────────────────────────────────────
@@ -217,23 +229,65 @@ defmodule AshSurface.CodecPropsTest do
   # order varies, content stays realistic. from_map/1 must admit any order.
   defp ir_sections do
     gen all(
-          identity <- maybe(identity_section()),
-          resources <- maybe(resources_section()),
-          actions <- maybe(actions_section()),
-          profile <- maybe(profile_section()),
-          transports <- maybe(transports_section()),
+          ash <-
+            maybe(section(["action", "action_type", "inputs", "outputs", "policies", "resource"])),
+          semantic <-
+            maybe(
+              section(["capability_iri", "ontology", "predicates", "shape_id", "subject_iri"])
+            ),
+          capability <-
+            maybe(
+              section([
+                "authority_required",
+                "capability_id",
+                "consequence_class",
+                "receipt_required"
+              ])
+            ),
+          presentation <- maybe(section(["format", "group", "label", "order", "widget"])),
+          schema <- maybe(section(["aria", "input", "output", "zod"])),
           rotation <- integer(0..4)
         ) do
       sections = [
-        {"actions", actions},
-        {"identity", identity},
-        {"profile", profile},
-        {"resources", resources},
-        {"transports", transports}
+        {"ash", ash},
+        {"semantic", semantic},
+        {"capability", capability},
+        {"presentation", presentation},
+        {"schema", schema}
       ]
 
       Enum.drop(sections, rotation) ++ Enum.take(sections, rotation)
     end
+  end
+
+  # One admitted-canon section generator: every codec-declared field drawn from
+  # the bounded JSON value generator (fields may be any JSON term; the codec
+  # stages them nil-honestly and ignores unknowns).
+  defp section(fields) do
+    gen all(values <- list_of(json_iso(2), length: length(fields))) do
+      fields |> Enum.zip(values) |> Map.new()
+    end
+  end
+
+  # JSON-isomorphic terms only (string keys): the codec's require_section_shapes
+  # refuses atom-keyed maps as non-staging shapes (034 law).
+  defp json_iso(0), do: json_scalar()
+
+  defp json_iso(depth) do
+    frequency([
+      {5, json_scalar()},
+      {2, list_of(json_iso(depth - 1), max_length: 3)},
+      {2,
+       map(
+         list_of(
+           {map(integer(1..500), fn n ->
+              "k" <> String.pad_leading(Integer.to_string(n), 3, "0")
+            end), json_iso(depth - 1)},
+           max_length: 4
+         ),
+         &Map.new/1
+       )}
+    ])
   end
 
   # ────────────────────────────────────────────────────────────────────────
@@ -334,7 +388,7 @@ defmodule AshSurface.CodecPropsTest do
       assert {:ok, ^ir} = Codec.from_map(Jason.decode!(json))
 
       # The projection is the canonical sorted five-key map, digest-free.
-      assert Map.keys(Codec.to_map(ir)) == @section_keys
+      assert Map.keys(Codec.to_map(ir)) == Enum.sort(@section_keys ++ ["version"])
       refute Map.has_key?(Codec.to_map(ir), "digest")
     end
   end
