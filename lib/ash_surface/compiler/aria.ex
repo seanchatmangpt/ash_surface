@@ -1,10 +1,12 @@
-# [Corrected by gapfix-docs-truth-013: the local-canonical-declarations note
-# that stood here is discharged — the promotions happened and the two local
-# declarations were dropped without changing one byte of
-# `AshSurface.Compiler.Aria`: `AshSurface.Compiler.IR` is canonical in
-# lib/ash_surface/compiler/ir.ex, and the Section behaviour in
-# lib/ash_surface/compiler.ex. Note lib/ash_surface/section.ex is the distinct
-# `AshSurface.Section` behaviour (v29), not the compiler Section.]
+# Claim-vs-code correction (gapfix-test-surface-015): this header previously
+# claimed `AshSurface.Compiler.IR` and `AshSurface.Compiler.Section` were
+# "declared in this file" pending promotion. Neither ever was: this file
+# declares only `AshSurface.Compiler.Aria`. The canonical IR slices live in
+# lib/ash_surface/compiler/ir.ex and the Section behaviour in
+# lib/ash_surface/compiler.ex (v50 integration reconciliation) — the stale
+# claim is retracted, not migrated. Note lib/ash_surface/section.ex is the
+# distinct `AshSurface.Section` behaviour (v29), not the compiler Section
+# (correction detail per gapfix-docs-truth-013).
 
 defmodule AshSurface.Compiler.Aria do
   @moduledoc """

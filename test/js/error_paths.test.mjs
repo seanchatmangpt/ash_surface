@@ -130,6 +130,26 @@ test("refuses unknown transport adapter keys", () => {
   );
 });
 
+// gapfix-test-surface-015: the inspect/1 UNKNOWN_ACTION throw was the only
+// unexercised typed throw of the runtime's twelve. These rows close it, with
+// the null-resolving get/1 contrast that names why both exist.
+test("inspect of an unknown action id throws UNKNOWN_ACTION naming the id", () => {
+  const client = createClient({ contract: contract([action()]), transports: {} });
+  assert.throws(
+    () => client.inspect("todos:Todo:missing"),
+    (error) =>
+      error instanceof SurfaceRuntimeError &&
+      error.code === "UNKNOWN_ACTION" &&
+      error.message === "unknown action: todos:Todo:missing",
+  );
+});
+
+test("get of the same unknown action id resolves null instead of throwing", () => {
+  const client = createClient({ contract: contract([action()]), transports: {} });
+  assert.equal(client.get("todos:Todo:missing"), null);
+  assert.equal(client.get("todos:Todo:create").id, "todos:Todo:create");
+});
+
 // ---------------------------------------------------------------------------
 // Dispatch: missing / unavailable adapters must produce typed pre-dispatch
 // errors (never a hang, never a silent success).

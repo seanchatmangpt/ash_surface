@@ -73,7 +73,17 @@ defmodule AshSurface.Compiler do
     schema: AshSurface.Compiler.Section.Schema
   ]
 
-  @doc "Compiles an admitted source with the default section bindings."
+  @doc """
+  Compiles an admitted source with the default section bindings.
+
+  The default bindings name the orchestrator-facing `AshSurface.Compiler.Section.*`
+  adapters, which live on their sibling branches and have not landed here yet;
+  per the fail-closed law below, their absence surfaces as a typed refusal,
+  never a silent skip:
+
+      iex> AshSurface.Compiler.compile(%Ash.Info.Manifest{entrypoints: []})
+      {:error, {:invalid_section_module, :ash, AshSurface.Compiler.Section.Ash}}
+  """
   @spec compile(Manifest.t() | atom()) :: {:ok, [IR.t()]} | {:error, term()}
   def compile(source), do: compile(source, [])
 
@@ -85,6 +95,19 @@ defmodule AshSurface.Compiler do
     * `:sections` — keyword list binding section keys to modules
       implementing `AshSurface.Compiler.Section`. Replaces the defaults
       wholesale; the keyword order is the invocation order.
+
+  ## Examples
+
+      An empty `:sections` list is refused — the IR is whole, never nil-filled:
+
+          iex> AshSurface.Compiler.compile(%Ash.Info.Manifest{entrypoints: []}, sections: [])
+          {:error, :no_sections}
+
+      A partial binding names the missing keys in declared order:
+
+          iex> sections = [ash: AshSurface.Compiler.Presentation]
+          iex> AshSurface.Compiler.compile(%Ash.Info.Manifest{entrypoints: []}, sections: sections)
+          {:error, {:missing_section_keys, [:semantic, :capability, :presentation, :schema]}}
   """
   @spec compile(Manifest.t() | atom(), keyword()) :: {:ok, [IR.t()]} | {:error, term()}
   def compile(source, opts) do

@@ -85,6 +85,14 @@ export const ashSurfaceContractSchema = z
     ashManifestSchemaVersion: z.string().min(1),
     generatorIdentity: z.string().optional(),
     manifestDigest: z.string().optional(),
+    // Delegated IR-era envelope extensions (gapfix-test-surface-015 ledger):
+    // ontologyDigest / applicationReleaseIdentity have no live producer in
+    // the Elixir surface pipeline (AshSurface.contract/2 never emits them);
+    // their witnessed producer is upstream generation (the frozen F5 fixture
+    // in digest_cross_language_v2.test.mjs). Kept as typed optional rows —
+    // present values are validated, absent values stay absent (never
+    // defaulted), and emitting them locally would fabricate delegated
+    // provenance.
     ontologyDigest: z.string().optional(),
     marketplaceIdentity: z.string().optional(),
     applicationReleaseIdentity: z.string().optional(),

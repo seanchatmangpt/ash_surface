@@ -1,12 +1,21 @@
 # Semantic section of the ash_surface compiler.
 #
-# [Corrected by gapfix-docs-truth-013: this header said the file "currently
-# declares, locally" the `AshSurface.Compiler.Section` behaviour and
-# `IR.Semantic`, to move "when those files land". They landed:
-# `lib/ash_surface/compiler/ir.ex` carries the `IR.Semantic` slice verbatim,
-# and the Section behaviour is canonical in `lib/ash_surface/compiler.ex`
-# (`lib/ash_surface/compiler/section.ex` never existed). This file's local
-# duplicates were dropped at integration; only the Semantic builder remains.]
+# Claim-vs-code correction (gapfix-test-surface-015): this header previously
+# claimed to declare, locally, `AshSurface.Compiler.Section` — "the behaviour
+# every compiler section implements" — and the canonical IR shapes. Both
+# claims were stale and are RETRACTED. The Section behaviour lives in
+# lib/ash_surface/compiler.ex (lib/ash_surface/compiler/section.ex never
+# existed — correction detail per gapfix-docs-truth-013) and the canonical IR
+# slices in lib/ash_surface/compiler/ir.ex (v50 integration reconciliation);
+# neither is declared here; this file's local duplicates were dropped at
+# integration. Moreover no compiler section builder declares the behaviour:
+# the sibling builders (ash, semantic, capability, presentation, schema) each
+# carry their own subject contract over real upstream state (resource/action
+# pairs, discovery maps, an arity-1 capability read), and
+# test/ash_surface/compiler/capability_section_test.exs pins that absence
+# (no @behaviour, build/1 only). Declaring the behaviour here would be a
+# false claim; the orchestrator-facing adapters compiler.ex describes are the
+# modules that will implement it.
 
 defmodule AshSurface.Compiler.Semantic do
   @moduledoc """
@@ -39,6 +48,7 @@ defmodule AshSurface.Compiler.Semantic do
   # identity is delegated fact, never re-derived locally.
   @node_shape ~r/<(?<shape>[^>]+)> a sh:NodeShape ;\n\s+sh:targetClass <(?<target>[^>]+)>/
 
+  @spec build(atom(), atom()) :: AshSurface.Compiler.IR.Semantic.t() | nil
   def build(resource, action) when is_atom(resource) and is_atom(action) do
     case R2RMLInfo.mapping(resource) do
       %Mapping.Resource{} = mapping -> project(mapping)

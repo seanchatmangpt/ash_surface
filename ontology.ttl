@@ -410,3 +410,38 @@ surf:UnsupportedLedgerRow32 a surf:UnsupportedRow ;
     surf:unsupportedElement "telemetry-gate script template + ontology-enforcedBy linter emission" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow33 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/projectors/live_view.ex + lib/ash_surface/formatter.ex + lib/ash_surface/compiler/{schema,semantic,ash}.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "spec emission over existing publics" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow34 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface.ex + lib/ash_surface/compiler.ex + test/ash_surface/doctest_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "doctest-example emission for boundary modules" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow35 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/semantic.ex + compiler/schema.ex + compiler/aria.ex (headers + moduledoc) + schema.ex Boundary construction site" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "header-truth/dead-code-ledger emission over the compiler family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow36 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/compiler/boundary_ledger_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "tripwire-test emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow37 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/js/contract_schema.test.mjs + test/js/error_paths.test.mjs + priv/static/ash_surface_runtime.mjs (schema-site ledger comment)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "runtime-boundary test-table + delegated-extension provenance facts in the runtime family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
