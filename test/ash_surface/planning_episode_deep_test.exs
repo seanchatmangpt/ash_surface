@@ -4,7 +4,10 @@ defmodule AshSurface.PlanningEpisodeDeepTest do
 
   Covers: episode lifecycle standings, admission boundaries (planning != DO),
   zod schema parity with the JS `planningEpisodeSchema`, rejection of malformed
-  episodes, and serialization stability (golden frozen fields).
+  episodes, serialization stability (golden frozen fields), and the canonical
+  digest law (chicago-episode-digest-036): `digest/1` is the SHA-256 of the
+  sorted-key JSON encoding of the wire record minus the derived `episodeId`,
+  and `episode_id` is its `"ep_"` 16-hex prefix.
   """
   use ExUnit.Case, async: true
   alias AshSurface.PlanningEpisode
@@ -257,6 +260,216 @@ defmodule AshSurface.PlanningEpisodeDeepTest do
     test "episode_id shape is a stable 16-hex-char lowercase digest" do
       ep = PlanningEpisode.create("obs_shape", base_opts())
       assert ep.episode_id =~ @episode_id_format
+    end
+  end
+
+  describe "canonical digest law (chicago-episode-digest-036)" do
+    @golden_digest "f9c0365f24b5e1260969cfc6a601975b2348581739f3d09804f9a629043433a0"
+    @golden_episode_id "ep_f9c0365f24b5e126"
+
+    # The same fixture record is pinned byte-for-byte by the JS twin in
+    # test/js/planning_episode.test.mjs — the two @golden values must change
+    # in the same change as the JS constants, never independently.
+    defp golden_opts do
+      [
+        planner_identity: "ash_pplan:fond_hddl_solver",
+        policy_identity: "zoe:policy:strong_cyclic",
+        policy_standing: :VALID_STRONG_CYCLIC,
+        task_network_ref: "tn_golden_01",
+        candidate_actions: [
+          %{"action" => "select_intercessor", "candidate" => "person_01", "score" => 0.75},
+          %{"action" => "select_driver", "candidate" => "person_02", "meta" => %{"k" => [1, 2]}}
+        ],
+        authority_ceiling: :CONSTRUCT
+      ]
+    end
+
+    test "digest is the canonical record hash: sha256 of sorted-key JSON over to_map minus episodeId" do
+      ep = PlanningEpisode.create("obs_formula", base_opts())
+
+      record = Map.delete(PlanningEpisode.to_map(ep), "episodeId")
+      expected = AshSurface.CanonicalJSON.sha256_hex(record)
+
+      assert PlanningEpisode.digest(ep) == expected
+      assert PlanningEpisode.digest(ep) =~ ~r/\A[0-9a-f]{64}\z/
+      # The content-address law: episode_id is the "ep_" prefix of the digest.
+      assert ep.episode_id == "ep_" <> binary_part(PlanningEpisode.digest(ep), 0, 16)
+    end
+
+    test "golden digest + episode_id are frozen for the pinned fixture (cross-language twin)" do
+      ep = PlanningEpisode.create("obs_golden_ws", golden_opts())
+
+      assert PlanningEpisode.digest(ep) == @golden_digest
+      assert ep.episode_id == @golden_episode_id
+    end
+
+    test "digest is order-invariant: a >32-key candidate map rebuilt in a different construction order keeps the identical episode" do
+      # Beyond 32 keys a map's iteration order is unspecified on pre-OTP-28
+      # VMs: only the canonical (key-sorted) encoding makes identity
+      # construction-history proof. Raw JSON bytes would leave identity at the
+      # mercy of that order (and of JS object insertion order on the twin).
+      forward = Map.new(1..40, fn i -> {"attr_#{i}", i} end)
+      backward = forward |> Map.to_list() |> Enum.reverse() |> Map.new()
+      assert forward == backward
+
+      a =
+        PlanningEpisode.create(
+          "obs_hamt",
+          Keyword.put(base_opts(), :candidate_actions, [%{"weights" => forward}])
+        )
+
+      b =
+        PlanningEpisode.create(
+          "obs_hamt",
+          Keyword.put(base_opts(), :candidate_actions, [%{"weights" => backward}])
+        )
+
+      assert PlanningEpisode.digest(a) == PlanningEpisode.digest(b)
+      assert a.episode_id == b.episode_id
+
+      # Canonical-BYTE pin on the >32-key subject: the digest must equal the
+      # hash of the SORTED encoding, not merely equal itself across instances.
+      # HAMT iteration is hash-based (never key-sorted), so raw unsorted
+      # Jason.encode! produces different bytes here — this row is the tripwire
+      # that fires if the subject ever regresses from CanonicalJSON to raw
+      # Jason (the executed falsifier of chicago-episode-digest-036).
+      hamt_record = Map.delete(PlanningEpisode.to_map(a), "episodeId")
+      assert PlanningEpisode.digest(a) == AshSurface.CanonicalJSON.sha256_hex(hamt_record)
+
+      # Hazard witness: this VM genuinely iterates the 40-key HAMT in
+      # non-sorted order, so raw bytes differ from canonical bytes. If a future
+      # VM ever iterates large maps key-sorted, this refute (not the law) must
+      # change.
+      refute Jason.encode!(hamt_record) == AshSurface.CanonicalJSON.encode(hamt_record)
+    end
+
+    test "digest is order-invariant across nested record key insertion order (wire-level)" do
+      cand_a = %{"action" => "select_driver", "meta" => %{"rank" => 2, "tier" => "gold"}}
+      cand_b = %{"meta" => %{"tier" => "gold", "rank" => 2}, "action" => "select_driver"}
+      assert cand_a == cand_b
+
+      a =
+        PlanningEpisode.create(
+          "obs_nested",
+          Keyword.put(base_opts(), :candidate_actions, [cand_a])
+        )
+
+      b =
+        PlanningEpisode.create(
+          "obs_nested",
+          Keyword.put(base_opts(), :candidate_actions, [cand_b])
+        )
+
+      assert PlanningEpisode.digest(a) == PlanningEpisode.digest(b)
+      assert a.episode_id == b.episode_id
+    end
+
+    test "digest is value-sensitive: every record dimension participates" do
+      base =
+        PlanningEpisode.create(
+          "obs_sensitive",
+          Keyword.merge(base_opts(),
+            task_network_ref: "tn_s",
+            candidate_actions: [%{"action" => "select_driver"}],
+            policy_standing: :VALID_STRONG_CYCLIC,
+            authority_ceiling: :CONSTRUCT
+          )
+        )
+
+      baseline = PlanningEpisode.digest(base)
+
+      perturbations = [
+        {"world_state_ref",
+         PlanningEpisode.create(
+           "obs_other",
+           Keyword.merge(base_opts(),
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"task_network_ref",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             task_network_ref: "tn_t",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"planner_identity",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             planner_identity: "beam4pm:fond",
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"policy_identity",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             policy_identity: "zoe:policy:strong",
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"policy_standing",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :REFUSED,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"candidate_actions",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_intercessor"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :CONSTRUCT
+           )
+         )},
+        {"authority_ceiling",
+         PlanningEpisode.create(
+           "obs_sensitive",
+           Keyword.merge(base_opts(),
+             task_network_ref: "tn_s",
+             candidate_actions: [%{"action" => "select_driver"}],
+             policy_standing: :VALID_STRONG_CYCLIC,
+             authority_ceiling: :SELECT
+           )
+         )}
+      ]
+
+      assert length(perturbations) == 7
+
+      for {dimension, episode} <- perturbations do
+        refute PlanningEpisode.digest(episode) == baseline,
+               "digest must distinguish #{dimension}"
+      end
+    end
+
+    test "digest is a pure function of the record: repeated derivation is stable" do
+      ep = PlanningEpisode.create("obs_pure", golden_opts())
+
+      digests = for _ <- 1..7, do: PlanningEpisode.digest(ep)
+      assert Enum.uniq(digests) == [PlanningEpisode.digest(ep)]
+
+      replay = PlanningEpisode.create("obs_pure", golden_opts())
+      assert replay.episode_id == ep.episode_id
+      assert PlanningEpisode.digest(replay) == PlanningEpisode.digest(ep)
     end
   end
 
