@@ -137,3 +137,44 @@ surf:IntentEdge a surf:LawEdge ;
     surf:edgeTo "candidate" ;
     surf:edgeDoc "Human intent terminates at candidate actions whose authority ceiling is strictly SELECT or CONSTRUCT; there is no direct human-to-DO edge. PlanningEpisode authority_ceiling can never be :DO." ;
     surf:enforcedBy "test/ash_surface/planning_episode_test.exs" .
+
+## v26.9.17 law rows (gapfix-ontology-promo-017): the 並 capacity family.
+## Promoted from operating prose (延: every concept keeps a repo-side
+## enforcement anchor). Mirror-reference: the canonical 並 fact belongs to
+## dfcm-agent-pack; admitting it there is an operator cut. Capacity is a
+## per-(model_tier, agent_weight) measurement — other tiers carry their own
+## measured ceilings and are NOT expressed by these rows.
+
+surf:CapacityTierLaw a surf:LawRow ;
+    surf:lawOrder 5 ;
+    surf:lawName "CapacityTierLaw" ;
+    surf:lawDoc "並 capacity = f(model_tier, agent_weight), measured never assumed; re-measured on every tier change. Dispatch telemetry lands in capacity-ride/log.ndjson as one JSON object per observation (ts, tier, weight, target_n, rider)." ;
+    surf:capacityTelemetry "capacity-ride/log.ndjson" ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:FlashHeavyweightCeiling a surf:LawRow ;
+    surf:lawOrder 6 ;
+    surf:lawName "FlashHeavyweightCeiling" ;
+    surf:lawDoc "Flash-tier heavyweight agents run at most 16 in flight (measured 2026-09-17). A non-rider dispatch observation with target_n above 16 is a capacity violation." ;
+    surf:capacityTier "flash" ;
+    surf:capacityWeight "heavyweight" ;
+    surf:capacityCeiling 16 ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:RiderSetpointLaw a surf:LawRow ;
+    surf:lawOrder 7 ;
+    surf:lawName "RiderSetpointLaw" ;
+    surf:lawDoc "A rider-supplied target_n is the operator setpoint: it overrides tier ceilings, and the capacity gate skips rider rows (rider true) instead of judging them." ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:StormProtocol a surf:LawRow ;
+    surf:lawOrder 8 ;
+    surf:lawName "StormProtocol" ;
+    surf:lawDoc "Above 30 concurrent dispatches the rate refuser answers [1302]. On [1302]: stop, drain the window (minutes), resume at half pace; a repeat refusal halves the pace again. Saturation is reached by top-up (replacement launches on completion), never by bulk burst. Row-preservation anchor: ontology_enforced_by_test." ;
+    surf:enforcedBy "test/ash_surface/ontology_enforced_by_test.exs" .
