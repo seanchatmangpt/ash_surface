@@ -264,7 +264,7 @@ The v26.9.16 wave is admitted on per-section branches and converges at integrati
 | Capability section conformed to build/2; `Compiler.Ash` rival retired (`AshTruth` = one canon); normalize carries `custom` + type kind | `exp/gapfix-adapters-001` | `lib/ash_surface/compiler/capability.ex`, `lib/ash_surface/compiler/ash_truth.ex`, `lib/ash_surface/compiler.ex` |
 
 Already on base: `lib/ash_surface.ex`, `lib/ash_surface/projector/expo.ex`,
-`priv/static/ash_surface_runtime.mjs`, `lib/ash_surface/{event,observation,planning_episode,transport,health,formatter}.ex`,
+`priv/static/ash_surface_runtime.mjs`, `lib/ash_surface/{event,observation,planning_episode,transport,health}.ex`,
 `lib/ash_surface/resource/validator.ex`.
 
 ## 8. Gates

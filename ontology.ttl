@@ -480,3 +480,9 @@ surf:UnsupportedLedgerRow45 a surf:UnsupportedRow ;
     surf:unsupportedElement "verification battery suite-census emission (golden suite manifest + measured floor pin) in the zero-config-proof family" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow46 a surf:UnsupportedRow ;
+    surf:ledgerPath "ib/ash_surface/formatter.ex (RETIRED 2026-09-17, chicago-formatter-retire-033)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "Spark.Formatter plugin wiring template for a real surface DSL extension" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
