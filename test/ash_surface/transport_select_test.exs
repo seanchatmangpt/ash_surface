@@ -206,6 +206,234 @@ defmodule AshSurface.TransportSelectTest do
     end
   end
 
+  describe "declared dimension facts (v26.9.17 F6, the selection frontier)" do
+    # Delegated per-transport facts in the admitted vocabulary:
+    # cost/latency lower is better, privacy higher is better.
+    @channel_is_cheap %{http: %{cost: :high}, phoenix_channel: %{cost: :low}}
+    @axis_tradeoff %{
+      http: %{cost: :low, latency: :high},
+      phoenix_channel: %{cost: :high, latency: :low}
+    }
+
+    test "absent facts are typed :undelegated and the preference law runs unchanged" do
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:phoenix_channel],
+                 preferred: :http,
+                 facts: %{}
+               )
+
+      assert decision.dimensions == :undelegated
+      assert decision.selected == :phoenix_channel
+      assert decision.reason == :preferred_unavailable
+      # No silent pruning: with no declared dimensions every available
+      # alternative is trivially non-dominated.
+      assert decision.frontier == [:phoenix_channel]
+    end
+
+    test "the undelegated frontier mirrors the whole available set in declared order" do
+      assert {:ok, decision} =
+               Transport.select([:phoenix_channel, :http], [:http, :phoenix_channel])
+
+      assert decision.dimensions == :undelegated
+      assert decision.frontier == [:phoenix_channel, :http]
+    end
+
+    test "a preference that stays on the frontier still wins under declared facts" do
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 preferred: :phoenix_channel,
+                 facts: @axis_tradeoff
+               )
+
+      assert decision.dimensions == :declared
+      assert decision.selected == :phoenix_channel
+      assert decision.reason == :preferred_available
+      # Both alternatives are non-dominated: http is cheaper, channel faster.
+      assert decision.frontier == [:http, :phoenix_channel]
+    end
+
+    test "a dominated preference is overridden by the declared calculus" do
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 preferred: :http,
+                 facts: @channel_is_cheap
+               )
+
+      assert decision.dimensions == :declared
+      assert decision.selected == :phoenix_channel
+      assert decision.reason == :dimension_weighed
+      # http loses on the only declared axis, so the frontier prunes it.
+      assert decision.frontier == [:phoenix_channel]
+    end
+
+    test "weighing priority is cost, then latency, then privacy" do
+      # Cost decides first.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{
+                   http: %{cost: :low, latency: :high, privacy: :low},
+                   phoenix_channel: %{cost: :medium, latency: :low, privacy: :high}
+                 }
+               )
+
+      assert decision.selected == :http
+      assert decision.frontier == [:http, :phoenix_channel]
+
+      # Cost ties, latency decides.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{
+                   http: %{cost: :low, latency: :high},
+                   phoenix_channel: %{cost: :low, latency: :low}
+                 }
+               )
+
+      assert decision.selected == :phoenix_channel
+
+      # Cost and latency tie, privacy decides (higher is better).
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{
+                   http: %{cost: :low, latency: :low, privacy: :medium},
+                   phoenix_channel: %{cost: :low, latency: :low, privacy: :high}
+                 }
+               )
+
+      assert decision.selected == :phoenix_channel
+    end
+
+    test "a full tie on comparable axes keeps a frontier preference; folding falls to declared order" do
+      facts = %{http: %{cost: :low}, phoenix_channel: %{cost: :low}}
+
+      # Both tie on the only declared axis, so both are non-dominated and the
+      # available preference still wins.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: facts
+               )
+
+      assert decision.selected == :http
+      assert decision.reason == :preferred_available
+      assert decision.frontier == [:http, :phoenix_channel]
+
+      # With the preference unavailable, the frontier fold is typed as
+      # weighed and falls to declared order.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:phoenix_channel],
+                 preferred: :http,
+                 facts: facts
+               )
+
+      assert decision.selected == :phoenix_channel
+      assert decision.reason == :dimension_weighed
+    end
+
+    test "an axis is comparable only where both alternatives declare it" do
+      # Only privacy is comparable; http declares it higher, so http wins
+      # despite declaring nothing else.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{http: %{privacy: :high}, phoenix_channel: %{privacy: :low}}
+               )
+
+      assert decision.selected == :http
+
+      # Disjoint declarations: no comparable axis at all — both stay on the
+      # frontier and declared order decides.
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{http: %{cost: :high}, phoenix_channel: %{latency: :high}}
+               )
+
+      assert decision.selected == :http
+      assert decision.frontier == [:http, :phoenix_channel]
+    end
+
+    test "facts are admitted from the contract profile shape via facts_from_profile/1" do
+      profile = %{
+        "transportFacts" => %{
+          "http" => %{"cost" => "high"},
+          "phoenix_channel" => %{"cost" => "low"}
+        }
+      }
+
+      assert {:ok, facts} = Transport.facts_from_profile(profile)
+      assert facts == @channel_is_cheap
+
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 preferred: :http,
+                 facts: facts
+               )
+
+      assert decision.selected == :phoenix_channel
+      assert decision.reason == :dimension_weighed
+    end
+
+    test "an absent transportFacts key is {:ok, %{}} — not delegated, never defaulted" do
+      assert {:ok, %{}} = Transport.facts_from_profile(%{})
+      assert {:ok, %{}} = Transport.facts_from_profile(%{"transport" => "auto"})
+      assert {:ok, %{}} = Transport.facts_from_profile(%{"transportFacts" => nil})
+    end
+
+    test "nil-valued facts are dropped as not delegated" do
+      assert {:ok, decision} =
+               Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel],
+                 facts: %{http: %{cost: nil}, phoenix_channel: %{cost: :low}}
+               )
+
+      # The only surviving declared fact is channel's cost, and http declares
+      # no comparable axis — nothing dominates, preference law decides.
+      assert decision.dimensions == :declared
+      assert decision.selected == :http
+      assert decision.reason == :preferred_available
+      assert decision.frontier == [:http, :phoenix_channel]
+    end
+
+    test "malformed facts are typed refusals" do
+      assert {:error, :facts_must_be_a_map} =
+               Transport.select([:http], [:http], facts: :http)
+
+      assert {:error, {:unknown_transport, [:grpc]}} =
+               Transport.select([:http], [:http], facts: %{grpc: %{cost: :low}})
+
+      assert {:error, {:unknown_dimension, {:http, :bandwidth}}} =
+               Transport.select([:http], [:http], facts: %{http: %{bandwidth: :low}})
+
+      assert {:error, {:unknown_dimension_class, {:http, :cost, :extreme}}} =
+               Transport.select([:http], [:http], facts: %{http: %{cost: :extreme}})
+
+      assert {:error, {:unknown_dimension_class, {:http, :cost, "Low"}}} =
+               Transport.select([:http], [:http], facts: %{"http" => %{"cost" => "Low"}})
+
+      assert {:error, :transport_facts_must_be_a_map} =
+               Transport.select([:http], [:http], facts: %{http: [:low]})
+
+      assert {:error, :profile_must_be_a_map} = Transport.facts_from_profile(:http)
+    end
+
+    test "the transport-set fences keep precedence over fact admission" do
+      assert {:error, {:unadmitted_transport, [:phoenix_channel]}} =
+               Transport.select([:http], [:http, :phoenix_channel],
+                 facts: %{http: %{cost: :bogus}}
+               )
+
+      assert {:error, {:unknown_transport, :grpc}} =
+               Transport.select([:http], [:http],
+                 preferred: :grpc,
+                 facts: %{http: %{cost: :bogus}}
+               )
+    end
+
+    test "total unavailability is refused identically under declared facts" do
+      assert {:error, {:unsupported_transport, %{preferred: :http, available: []}}} =
+               Transport.select([:http, :phoenix_channel], [],
+                 preferred: :http,
+                 facts: @channel_is_cheap
+               )
+    end
+  end
+
   describe "selection over real action/transport metadata" do
     test "a channel-only LiveView action selects :phoenix_channel from its metadata" do
       action = %{

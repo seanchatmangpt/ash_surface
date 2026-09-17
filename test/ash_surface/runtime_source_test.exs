@@ -18,7 +18,11 @@ defmodule AshSurface.RuntimeSourceTest do
   # gapfix-bump-mech-007 at integration (018): re-frozen after the 26.9.17
   # carrier bump and the 015 comment union — the schema-site comment is still
   # comment-only; the version marker moved through the bump mechanism.
-  @golden_runtime_sha256 "37d5c1c91f9e23743c31e0830c2381d954783af42bad244d68e3b7923964fcc2"
+  # finish-select-025: re-frozen after the F6 selection-frontier twin — the
+  # runtime's selectTransport gained delegated dimension facts (transportFacts
+  # admission, frontier, dimension_weighed reason); no Zod default moved, so
+  # contract-digest goldens are untouched.
+  @golden_runtime_sha256 "1c3bdcf6ecbf2519b0b63d9b30c612f8c8a07931f438bce4a85f444850e59781"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

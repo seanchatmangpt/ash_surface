@@ -138,6 +138,29 @@ surf:IntentEdge a surf:LawEdge ;
     surf:edgeDoc "Human intent terminates at candidate actions whose authority ceiling is strictly SELECT or CONSTRUCT; there is no direct human-to-DO edge. PlanningEpisode authority_ceiling can never be :DO." ;
     surf:enforcedBy "test/ash_surface/planning_episode_test.exs" .
 
+## v26.9.17 law row (finish-select-025): the selection dimension family.
+## Pre-dispatch transport selection weighs delegated dimension facts —
+## cost/latency/privacy classes carried in the action profile's
+## "transportFacts" map. nil = not delegated: undelegated dimensions are
+## typed (:undelegated) and the admitted-alternatives frontier exposes every
+## non-dominated alternative; selection stays deterministic (cost, then
+## latency, then privacy; lower is better for cost and latency, higher for
+## privacy; full ties fall to declared order). The facts are carried truth,
+## never runtime grants.
+
+surf:SelectionEdge a surf:LawEdge ;
+    surf:lawOrder 9 ;
+    surf:edgeKind "selection" ;
+    surf:edgeDoc "Transport Decision inputs admit delegated per-transport dimension facts (cost/latency/privacy class) from the action profile's transportFacts map; absent-fact behavior is typed (undelegated, frontier mirrors availability, preference law unchanged), declared facts weigh a deterministic non-dominated frontier. Twin calculus: lib/ash_surface/transport.ex and priv/static/ash_surface_runtime.mjs." ;
+    surf:dimensionFact "cost" ,
+        "latency" ,
+        "privacy" ;
+    surf:dimensionClass "low" ,
+        "medium" ,
+        "high" ;
+    surf:enforcedBy "test/ash_surface/transport_select_test.exs" ,
+        "test/js/transport_law.test.mjs" .
+
 ## v26.9.17 law rows (gapfix-ontology-promo-017): the 並 capacity family.
 ## Promoted from operating prose (延: every concept keeps a repo-side
 ## enforcement anchor). Mirror-reference: the canonical 並 fact belongs to
@@ -437,5 +460,11 @@ surf:UnsupportedLedgerRow42 a surf:UnsupportedRow ;
     surf:ledgerPath "est/ash_surface/projector_ir_determinism_test.exs + lib/ash_surface/ir/event_projection.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "test re-point emission over the IR/projector family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
+    surf:ledgerPath "ib/ash_surface/transport.ex + priv/static/ash_surface_runtime.mjs + test/ash_surface/transport_select_test.exs + test/js/transport_law.test.mjs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

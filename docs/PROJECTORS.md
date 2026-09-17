@@ -202,7 +202,11 @@ new surface speaks the IR in ~60 lines. Steps, then the module verbatim:
 2. Read only admitted truth: identity (`id`/`resource`/`action`) is re-used,
    never re-minted; delegated facts (`authorityBoundary`, `doAuthority`,
    `receiptRequired`, `semanticId`) are read-or-`nil` — emitting a default is
-   fabrication; presentation reads `label/group/order/widget/format` only.
+   fabrication; `profile.transportFacts` carries the delegated selection
+   dimension classes (`cost`/`latency`/`privacy`, each `low|medium|high`, per
+   transport — `nil`/absent = not delegated, weighed as declared by
+   `AshSurface.Transport` and its JS twin, never defaulted); presentation
+   reads `label/group/order/widget/format` only.
 3. Render artifacts with one pure function per artifact; sort by action id
    (byte-determinism); write only when `:target_dir` is given; always return
    `{:ok, artifacts, manifest}`.

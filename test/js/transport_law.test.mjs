@@ -230,3 +230,137 @@ test("no adapter at all is a typed pre-dispatch refusal, not a dispatch", async 
     },
   );
 });
+
+// ---------------------------------------------------------------------------
+// Declared dimension facts (v26.9.17 F6, the selection frontier) — the JS
+// twin of test/ash_surface/transport_select_test.exs. Delegated facts ride
+// the action profile ("transportFacts": cost/latency lower is better,
+// privacy higher is better); absent = not delegated, typed "undelegated".
+// ---------------------------------------------------------------------------
+
+function factsContract(transportFacts) {
+  const contract = lawContract();
+  contract.surface.actions[0].profile = transportFacts ? { transportFacts } : {};
+  return contract;
+}
+
+test("absent dimension facts are typed undelegated and the frontier mirrors availability", () => {
+  const client = createClient({
+    contract: factsContract(null),
+    transports: { http: fakeTransport().adapter },
+    prefer: "phoenix_channel",
+  });
+
+  const decision = client.inspect("todos:Todo:create").decision;
+  assert.equal(decision.dimensions, "undelegated");
+  assert.equal(decision.reason, "preferred_unavailable");
+  assert.equal(decision.selected, "http");
+  // No silent pruning: with no declared dimensions every available
+  // alternative is trivially non-dominated.
+  assert.deepEqual(decision.frontier, ["http"]);
+});
+
+test("declared facts expose the frontier and keep a non-dominated preference", () => {
+  const client = createClient({
+    contract: factsContract({
+      http: { cost: "low", latency: "high" },
+      phoenix_channel: { cost: "high", latency: "low" },
+    }),
+    transports: { http: fakeTransport().adapter, phoenix_channel: fakeTransport().adapter },
+    prefer: "http",
+  });
+
+  const decision = client.inspect("todos:Todo:create").decision;
+  assert.equal(decision.dimensions, "declared");
+  assert.equal(decision.selected, "http");
+  assert.equal(decision.reason, "preferred_available");
+  // Both alternatives are non-dominated: http is cheaper, channel faster.
+  assert.deepEqual(decision.frontier, ["http", "phoenix_channel"]);
+});
+
+test("a dominated preference is overridden (dimension_weighed) and the receipt carries the calculus", async () => {
+  const channel = fakeTransport();
+  const client = createClient({
+    contract: factsContract({
+      http: { cost: "high" },
+      phoenix_channel: { cost: "low" },
+    }),
+    transports: { http: fakeTransport().adapter, phoenix_channel: channel.adapter },
+    prefer: "http",
+  });
+
+  const decision = client.inspect("todos:Todo:create").decision;
+  assert.equal(decision.dimensions, "declared");
+  assert.equal(decision.selected, "phoenix_channel");
+  assert.equal(decision.reason, "dimension_weighed");
+  // http loses on the only declared axis, so the frontier prunes it.
+  assert.deepEqual(decision.frontier, ["phoenix_channel"]);
+
+  const { receipt } = await client.get("todos:Todo:create").invokeWithReceipt({ title: "x" });
+  assert.equal(receipt.selected, "phoenix_channel");
+  assert.equal(receipt.reason, "dimension_weighed");
+  assert.equal(receipt.dimensions, "declared");
+  assert.deepEqual(receipt.frontier, ["phoenix_channel"]);
+  assert.deepEqual(receipt.transportReceipt.frontier, ["phoenix_channel"]);
+  assert.equal(receipt.transportReceipt.dimensions, "declared");
+});
+
+test("null fact values are not delegated and never dominate", async () => {
+  const client = createClient({
+    contract: factsContract({
+      http: { cost: null },
+      phoenix_channel: { cost: "low" },
+    }),
+    transports: { http: fakeTransport().adapter, phoenix_channel: fakeTransport().adapter },
+  });
+
+  const decision = client.inspect("todos:Todo:create").decision;
+  assert.equal(decision.dimensions, "declared");
+  // http declares no comparable axis, so nothing dominates it and the
+  // default preference stays on the frontier.
+  assert.equal(decision.selected, "http");
+  assert.equal(decision.reason, "preferred_available");
+  assert.deepEqual(decision.frontier, ["http", "phoenix_channel"]);
+});
+
+test("unknown dimension classes and names are typed pre-dispatch refusals, not dispatches", async () => {
+  const http = fakeTransport();
+
+  const badClass = createClient({
+    contract: factsContract({ http: { cost: "Low" } }),
+    transports: { http: http.adapter },
+  });
+
+  assert.throws(
+    () => badClass.inspect("todos:Todo:create"),
+    (error) => error instanceof SurfaceRuntimeError && error.code === "UNKNOWN_DIMENSION_CLASS",
+  );
+
+  await assert.rejects(
+    () => badClass.get("todos:Todo:create").invoke({ title: "x" }),
+    (error) => error.code === "UNKNOWN_DIMENSION_CLASS",
+  );
+
+  const badDimension = createClient({
+    contract: factsContract({ http: { bandwidth: "low" } }),
+    transports: { http: fakeTransport().adapter },
+  });
+
+  assert.throws(
+    () => badDimension.inspect("todos:Todo:create"),
+    (error) => error instanceof SurfaceRuntimeError && error.code === "UNKNOWN_DIMENSION",
+  );
+
+  const badTransport = createClient({
+    contract: factsContract({ grpc: { cost: "low" } }),
+    transports: { http: fakeTransport().adapter },
+  });
+
+  assert.throws(
+    () => badTransport.inspect("todos:Todo:create"),
+    (error) => error instanceof SurfaceRuntimeError && error.code === "UNKNOWN_TRANSPORT",
+  );
+
+  // No adapter was ever touched: the refusal is pre-dispatch.
+  assert.equal(http.calls.invoke, 0);
+});

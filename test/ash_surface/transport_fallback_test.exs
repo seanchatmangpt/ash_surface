@@ -188,7 +188,11 @@ defmodule AshSurface.TransportFallbackTest do
             name not in [:module_info, :__info__],
             do: {name, arity}
 
+      # finish-select-025 admits facts_from_profile/1: a pure delegated-fact
+      # reader (profile map -> normalized facts for select/3's :facts opt).
+      # It takes no Decision — the no-re-selection law above holds.
       assert Enum.sort(public) == [
+               facts_from_profile: 1,
                fallback_allowed?: 1,
                mark_dispatched: 1,
                select: 2,
