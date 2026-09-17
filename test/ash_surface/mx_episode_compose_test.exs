@@ -119,7 +119,12 @@ defmodule AshSurface.MXEpisodeComposeTest do
     assert authorized["marketplace_identity"] == "ggen-marketplace:v26.9.17"
 
     actuate = Enum.find(transitions, &(&1["step"] == "actuate"))
-    assert actuate == %{"step" => "actuate", "outcome" => "pass", "consequence_id" => @consequence_id}
+
+    assert actuate == %{
+             "step" => "actuate",
+             "outcome" => "pass",
+             "consequence_id" => @consequence_id
+           }
 
     emit = Enum.find(transitions, &(&1["step"] == "emit_event"))
     assert emit["event_id"] == loop.event.event_id
@@ -198,7 +203,9 @@ defmodule AshSurface.MXEpisodeComposeTest do
 
     drifted = Map.put(mx, "pattern_version", "v25.9.12")
     assert {:error, {"CALVER_MISMATCH", _}} = MXEpisode.verify(drifted)
-    assert {:error, {:calver_mismatch, "pattern_version", "v25.9.12"}} = MXEpisode.validate(drifted)
+
+    assert {:error, {:calver_mismatch, "pattern_version", "v25.9.12"}} =
+             MXEpisode.validate(drifted)
 
     bad_standing = Map.put(mx, "resulting_standing", "PROBABLY_FINE")
     assert {:error, {"INVALID_STANDING", _}} = MXEpisode.verify(bad_standing)
@@ -228,7 +235,10 @@ defmodule AshSurface.MXEpisodeComposeTest do
     payload = %{
       "actionId" => "AshSurface.Fixtures.VolunteerMilestone#record",
       "dispatchState" => "completed",
-      "input" => %{"member_id" => "member_mx_compose_01", "milestone_id" => "milestone_mx_compose_01"},
+      "input" => %{
+        "member_id" => "member_mx_compose_01",
+        "milestone_id" => "milestone_mx_compose_01"
+      },
       "outcome" => "SUCCESS",
       "consequence" => %{"id" => @consequence_id, "status" => "completed"}
     }
@@ -254,6 +264,11 @@ defmodule AshSurface.MXEpisodeComposeTest do
 
   # Minimal Surface-shaped stand-in solely to drive the digest law refusal.
   defp fake_surface(digest) do
-    struct(AshSurface.Surface, manifest: %Ash.Info.Manifest{entrypoints: []}, contract: %{}, digest: digest, action_ids: [])
+    struct(AshSurface.Surface,
+      manifest: %Ash.Info.Manifest{entrypoints: []},
+      contract: %{},
+      digest: digest,
+      action_ids: []
+    )
   end
 end
