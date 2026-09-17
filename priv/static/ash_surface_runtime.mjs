@@ -11,6 +11,12 @@ import { z } from "zod";
 export const SURFACE_RUNTIME_VERSION = "26.9.17";
 const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
+// v26.9.17 F6 selection-frontier vocabulary: delegated per-transport dimension
+// facts (cost/latency lower is better; privacy higher is better). Twin of
+// lib/ash_surface/transport.ex (@dimensions / @dimension_classes).
+const KNOWN_DIMENSIONS = Object.freeze(["cost", "latency", "privacy"]);
+const KNOWN_DIMENSION_CLASSES = Object.freeze(["low", "medium", "high"]);
+const DIMENSION_PRIORITY = Object.freeze(["cost", "latency", "privacy"]);
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 
@@ -149,9 +155,11 @@ export const ashSurfaceContractSchema = z
  * @property {string[]} available
  * @property {"http"|"phoenix_channel"} selected
  * @property {"http"|"phoenix_channel"} preferred
- * @property {"preferred_available"|"preferred_unavailable"} reason
+ * @property {"preferred_available"|"preferred_unavailable"|"dimension_weighed"} reason
  * @property {"pre_dispatch_only"} fallback
  * @property {"not_dispatched"|"completed"|"unknown_after_dispatch"} dispatchState
+ * @property {"undelegated"|"declared"} dimensions Typed presence of delegated dimension facts.
+ * @property {Array<"http"|"phoenix_channel">} frontier Non-dominated available transports, declared order.
  */
 
 export class SurfaceRuntimeError extends Error {
@@ -314,7 +322,13 @@ function parseContract(contract) {
 function inspectAction(action, contract, transports, prefer) {
   const declared = declaredTransports(action);
   const available = availableTransports(action, contract, transports, declared);
-  const decision = selectTransport(action.id, declared, available, prefer);
+  const decision = selectTransport(
+    action.id,
+    declared,
+    available,
+    prefer,
+    factsFromProfile(action),
+  );
 
   return Object.freeze({
     id: action.id,
@@ -352,7 +366,13 @@ async function invokeWithReceipt(
 
   const declared = declaredTransports(action);
   const available = availableTransports(action, contract, transports, declared);
-  const decision = selectTransport(action.id, declared, available, prefer);
+  const decision = selectTransport(
+    action.id,
+    declared,
+    available,
+    prefer,
+    factsFromProfile(action),
+  );
   const adapter = transports[decision.selected];
 
   const commandId = options.commandId || `cmd_${Math.random().toString(36).substring(2, 11)}`;
@@ -407,6 +427,8 @@ function buildMXReceipt(decision, action, commandId, dispatchState, result) {
     dispatchState,
     declared: [...decision.declared],
     available: [...decision.available],
+    dimensions: decision.dimensions,
+    frontier: [...(decision.frontier || [])],
   });
 
   return Object.freeze({
@@ -449,12 +471,136 @@ function availableTransports(action, contract, transports, declared) {
   });
 }
 
-function selectTransport(actionId, declared, available, preferred) {
-  const selected = available.includes(preferred)
-    ? preferred
-    : declared.find((candidate) => available.includes(candidate));
+/**
+ * Reads the delegated transport dimension facts out of an action's profile
+ * (the contract's `surface.actions[].profile` shape). An absent or null
+ * "transportFacts" key normalizes to an empty facts map — not delegated,
+ * never defaulted. Unknown transports, dimensions, or classes are typed
+ * pre-dispatch refusals, never silent drops.
+ */
+function factsFromProfile(action) {
+  const raw = action.profile?.transportFacts;
 
-  if (!selected) {
+  if (raw === undefined || raw === null) return {};
+  assertPlainObject(raw, "transportFacts");
+
+  const facts = {};
+
+  for (const [transport, dimensions] of Object.entries(raw)) {
+    if (!KNOWN_TRANSPORTS.includes(transport)) {
+      throw new SurfaceRuntimeError(
+        "UNKNOWN_TRANSPORT",
+        `unknown transport fact key: ${transport}`,
+      );
+    }
+
+    assertPlainObject(dimensions, `transportFacts.${transport}`);
+
+    const admitted = {};
+
+    for (const [dimension, value] of Object.entries(dimensions)) {
+      if (value === undefined || value === null) continue; // nil = not delegated
+      if (!KNOWN_DIMENSIONS.includes(dimension)) {
+        throw new SurfaceRuntimeError(
+          "UNKNOWN_DIMENSION",
+          `unknown dimension fact ${dimension} for ${transport}`,
+        );
+      }
+      if (!KNOWN_DIMENSION_CLASSES.includes(value)) {
+        throw new SurfaceRuntimeError(
+          "UNKNOWN_DIMENSION_CLASS",
+          `unknown ${dimension} class ${String(value)} for ${transport}`,
+        );
+      }
+      admitted[dimension] = value;
+    }
+
+    facts[transport] = admitted;
+  }
+
+  return facts;
+}
+
+function assertPlainObject(value, label) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new SurfaceRuntimeError(
+      "TRANSPORT_FACTS_MUST_BE_A_MAP",
+      `${label} must be a plain object`,
+    );
+  }
+}
+
+function dimensionFact(facts, transport, dimension) {
+  return facts[transport]?.[dimension] ?? null;
+}
+
+// Lower is better for cost and latency; higher is better for privacy.
+const DIMENSION_RANK = Object.freeze({ low: 0, medium: 1, high: 2 });
+
+function dimensionBetter(dimension, a, b) {
+  return dimension === "privacy"
+    ? DIMENSION_RANK[a] > DIMENSION_RANK[b]
+    : DIMENSION_RANK[a] < DIMENSION_RANK[b];
+}
+
+// :better | :worse | :equal | :incomparable — an axis is comparable only
+// where both transports declare a class.
+function compareDimension(dimension, a, b, facts) {
+  const classA = dimensionFact(facts, a, dimension);
+  const classB = dimensionFact(facts, b, dimension);
+
+  if (classA === null || classB === null) return "incomparable";
+  if (classA === classB) return "equal";
+  return dimensionBetter(dimension, classA, classB) ? "better" : "worse";
+}
+
+// a dominates b iff a is at least as good on every comparable axis and
+// strictly better on at least one.
+function dominates(a, b, facts) {
+  let better = false;
+
+  for (const dimension of DIMENSION_PRIORITY) {
+    const verdict = compareDimension(dimension, a, b, facts);
+    if (verdict === "worse") return false;
+    if (verdict === "better") better = true;
+  }
+
+  return better;
+}
+
+// The admitted-alternatives frontier: every available transport (in declared
+// order) that no other available transport dominates.
+function transportFrontier(declared, available, facts) {
+  const ordered = declared.filter((transport) => available.includes(transport));
+
+  return ordered.filter(
+    (transport) =>
+      !ordered.some((other) => other !== transport && dominates(other, transport, facts)),
+  );
+}
+
+// Deterministic frontier winner: compared pairwise in declared order, the
+// first comparable axis with differing classes decides; a full tie falls to
+// declared order.
+function frontierBest(frontier, declared, facts) {
+  return frontier.reduce((champion, candidate) => {
+    for (const dimension of DIMENSION_PRIORITY) {
+      const verdict = compareDimension(dimension, candidate, champion, facts);
+      if (verdict === "better") return candidate;
+      if (verdict === "worse") return champion;
+    }
+
+    return declared.indexOf(candidate) <= declared.indexOf(champion) ? candidate : champion;
+  });
+}
+
+function selectTransport(actionId, declared, available, preferred, facts = {}) {
+  const declaredDimensions = Object.values(facts).some(
+    (dimensions) => Object.keys(dimensions).length > 0,
+  );
+  const dimensions = declaredDimensions ? "declared" : "undelegated";
+
+  if (available.length === 0) {
     throw new SurfaceRuntimeError(
       "UNSUPPORTED_TRANSPORT",
       `no admitted transport implementation is available for ${actionId}`,
@@ -468,21 +614,43 @@ function selectTransport(actionId, declared, available, preferred) {
           reason: "no_available_transport",
           fallback: "pre_dispatch_only",
           dispatchState: "not_dispatched",
+          dimensions,
+          frontier: [],
         },
       },
     );
   }
 
-  return {
+  const frontier = transportFrontier(declared, available, facts);
+  const decision = (selected, reason) => ({
     actionId,
     declared: [...declared],
     available: [...available],
     selected,
     preferred,
-    reason: selected === preferred ? "preferred_available" : "preferred_unavailable",
+    reason,
     fallback: "pre_dispatch_only",
     dispatchState: "not_dispatched",
-  };
+    dimensions,
+    frontier: [...frontier],
+  });
+
+  if (declaredDimensions) {
+    if (available.includes(preferred) && frontier.includes(preferred)) {
+      return decision(preferred, "preferred_available");
+    }
+
+    return decision(frontierBest(frontier, declared, facts), "dimension_weighed");
+  }
+
+  const selected = available.includes(preferred)
+    ? preferred
+    : declared.find((candidate) => available.includes(candidate));
+
+  return decision(
+    selected,
+    selected === preferred ? "preferred_available" : "preferred_unavailable",
+  );
 }
 
 function assertPreferred(prefer) {

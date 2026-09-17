@@ -73,7 +73,10 @@ pieces is in §7.
                                         v
                                    COMMAND BUS
              commandId mint + transport selection PRE-DISPATCH only
-             (declared -> available -> selected; AshSurface.Transport
+             (declared -> available -> frontier -> selected; delegated
+             cost/latency/privacy class facts ride the action profile and
+             weigh the admitted alternatives, nil = not delegated ->
+             preference law; AshSurface.Transport
              lib/ash_surface/transport.ex); idempotent replay by commandId.
                                         |
                                         v
@@ -109,7 +112,7 @@ pieces is in §7.
 | IR codec | JSON-isomorphic serialization + content addressing | `lib/ash_surface/ir/codec.ex` |
 | Projectors | receive verified `AshSurface.Surface`; never rediscover Spark internals | `lib/ash_surface.ex` (`AshSurface.Projector` behaviour) |
 | Expo (reference) | manufactures schemas/actions/events/receipts/client `.mjs` | `lib/ash_surface/projector/expo.ex` |
-| JS runtime | `pi_JS = JavaScript + JSDoc + Zod`, never TypeScript; transport is a facet, not identity | `priv/static/ash_surface_runtime.mjs` |
+| JS runtime | `pi_JS = JavaScript + JSDoc + Zod`, never TypeScript; transport is a facet, not identity; selection weighs delegated cost/latency/privacy facts and exposes the non-dominated frontier (twin of `AshSurface.Transport`) | `priv/static/ash_surface_runtime.mjs` |
 | Observation | OBSERVE-only, zero DO authority | `lib/ash_surface/observation.ex` |
 | Planning | `AshSurface != Planner`; ceiling SELECT/CONSTRUCT | `lib/ash_surface/planning_episode.ex` |
 | Event | OBSERVE-boundary stream of receipts and state | `lib/ash_surface/event.ex` |
@@ -212,6 +215,10 @@ is `lib/ash_surface/projector/expo.ex` against the `AshSurface.Projector` behavi
 #      doAuthority / receiptRequired     DELEGATED-OR-NIL — a null MUST be
 #                                        emitted as null; defaulting = fabrication
 #      profile.presentation              label/group/order/widget/format only
+#      profile.transportFacts            delegated cost/latency/privacy classes
+#                                        (low|medium|high) per transport; nil =
+#                                        not delegated (Transport weighs what
+#                                        is declared, never defaults)
 #
 # 3. Emit artifacts (one pure render fn per artifact, string in -> string out):
 #      "#{prefix}.schemas.mjs"  => render_schemas(actions)   # Zod boundaries
