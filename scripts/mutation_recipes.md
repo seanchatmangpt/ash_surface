@@ -121,3 +121,5 @@ subjects even on failure.
 * Changing a golden family legitimately (e.g. a version bump) goes through
   `scripts/bump_version.sh`, which re-freezes these same constants; this file
   is only the falsifier.
+
+<!-- ci_falsifier runner: scripts/ci_falsifier.sh executes the bounded subset; see chicago-ci-falsifier-049 -->
