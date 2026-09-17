@@ -29,6 +29,16 @@
 #   ARTIFACT_SHA — test/js/ir_projector_deep.test.mjs FROZEN_SHA256: hash of
 #       the frozen projector artifact, re-derived through the real
 #       Projectors.JS.project_ir/2 over the mirrored fixture IR.
+#   ARIA_GOLDEN — test/ash_surface/projectors/aria_projector_test.exs
+#       @golden_json + golden_contract/0 "version": the projector CalVer
+#       consequence, re-derived through the real Projectors.ARIA pipeline
+#       over the mirrored fixture IR (self-proven byte-for-byte at the old
+#       header first).
+#
+# Projector CalVer law: every @calver header under lib/ash_surface/projectors/
+# must equal mix.exs @version. A stale header carries a value != OLD, so the
+# OLD-substring drift scan cannot see it; the dedicated projector-CalVer scan
+# below fails closed on any divergence instead.
 #
 # Usage:
 #   bash scripts/bump_version.sh --check <new-version>   # print the plan only
@@ -65,6 +75,7 @@ test/js/e2e_hermetic.test.mjs
 test/js/zoela_mx_consumer_fixture.test.mjs
 test/js/receipts_primitives.test.mjs
 lib/ash_surface/projectors/js.ex
+lib/ash_surface/projectors/aria.ex
 test/ash_surface/ir_codec_test.exs
 test/ash_surface/ir_struct_test.exs
 test/ash_surface/projectors/live_view_test.exs
@@ -80,15 +91,43 @@ GOLDEN_JS="test/js/digest_cross_language.test.mjs"
 GOLDEN_JS_V2="test/js/digest_cross_language_v2.test.mjs"
 GOLDEN_IR_CODEC="test/ash_surface/ir_codec_test.exs"
 GOLDEN_ARTIFACT="test/js/ir_projector_deep.test.mjs"
+GOLDEN_ARIA="test/ash_surface/projectors/aria_projector_test.exs"
 
 GATE_LIST="mix compile --warnings-as-errors|mix format --check-formatted|mix test|npm test"
 
 usage() {
-  sed -n '2,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 die() { echo "BUMP_FAIL: $*" >&2; exit 1; }
 count_of() { grep -oF -- "$2" "$1" | wc -l | tr -d ' '; }
+
+# Projector CalVer law (fail-closed): every @calver header under
+# lib/ash_surface/projectors/ must equal the mix.exs @version. A stale header
+# carries a value != OLD, so the OLD-substring drift scan cannot see it; this
+# scan reads the headers directly and refuses on any divergence.
+projector_calver_law() {
+  local ver bad f v
+  ver="$(perl -ne 'print $1 if /^\s*\@version\s+"([^"]+)"/' mix.exs)"
+  [ -n "$ver" ] || die "no @version found in mix.exs"
+  bad=""
+  for f in lib/ash_surface/projectors/*.ex; do
+    [ -f "$f" ] || continue
+    while IFS= read -r v; do
+      [ -n "$v" ] || continue
+      if [ "$v" != "$ver" ]; then
+        bad="${bad}  $f: @calver \"$v\" != @version \"$ver\"
+"
+      fi
+    done < <(grep -oE '@calver[[:space:]]+"[^"]+"' "$f" | sed -E 's/@calver[[:space:]]+"([^"]+)"/\1/' | sort -u)
+  done
+  if [ -n "$bad" ]; then
+    echo "BUMP_FAIL: projector CalVer drift — every projector @calver must equal mix.exs @version:" >&2
+    printf '%s' "$bad" >&2
+    echo "Sync the header(s) through this mechanism (TEXT_FILES owns the rewrite); refusing to bump." >&2
+    exit 1
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Args: [--check] <new-version>
@@ -123,7 +162,7 @@ scan_old() {
     -- "$OLD" . 2>/dev/null | sed 's{^\./{{' | sort -u
 }
 
-DRIFT="$(comm -23 <(scan_old) <(printf '%s%s\n%s\n%s\n%s\n%s\n%s\n' "$TEXT_FILES" "$GOLDEN_RUNTIME" "$GOLDEN_DIGEST" "$GOLDEN_JS" "$GOLDEN_JS_V2" "$GOLDEN_IR_CODEC" "$GOLDEN_ARTIFACT" | sort -u))"
+DRIFT="$(comm -23 <(scan_old) <(printf '%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$TEXT_FILES" "$GOLDEN_RUNTIME" "$GOLDEN_DIGEST" "$GOLDEN_JS" "$GOLDEN_JS_V2" "$GOLDEN_IR_CODEC" "$GOLDEN_ARTIFACT" "$GOLDEN_ARIA" | sort -u))"
 if [ -n "$DRIFT" ]; then
   echo "BUMP_FAIL: unhandled drift — '$OLD' appears outside the handled set:" >&2
   printf '  %s\n' $DRIFT >&2
@@ -137,6 +176,10 @@ for f in $TEXT_FILES; do
   [ -f "$f" ] || die "handled file missing: $f"
   [ "$(count_of "$f" "$OLD")" -ge 1 ] || die "handled file $f contains no '$OLD' (shape drift; update this script)"
 done
+
+# Pre-flight projector CalVer law: a projector header diverging from @version
+# refuses the bump here, before anything is rewritten.
+projector_calver_law
 
 # ---------------------------------------------------------------------------
 # Generator: recomputes the three computed-golden families through the REAL
@@ -321,6 +364,67 @@ defmodule BumpGen do
       )
     ]
   end
+
+  # Mirror of test/ash_surface/projectors/aria_projector_test.exs
+  # fixture_irs/0 — the ARIA golden preimage. Self-proof: Projectors.ARIA
+  # over this mirror must reproduce @golden_json byte-for-byte, else the bump
+  # refuses (update this mirror in the same change as the test fixtures).
+  def aria_fixture_irs do
+    alias AshSurface.IR
+
+    [
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Todo",
+          action: :list,
+          action_type: :read,
+          policies: [%{"authorityBoundary" => "OBSERVE"}]
+        },
+        presentation: %IR.Presentation{label: "List todos", group: "reading", order: 1},
+        schema: %IR.Schema{
+          aria: %{
+            "inputs" => %{
+              "status" => %{"role" => "combobox", "required" => false, "describedby" => "status-help"}
+            }
+          }
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Todo",
+          action: :create,
+          action_type: :create,
+          policies: [%{"authorityBoundary" => "DO"}]
+        },
+        presentation: %IR.Presentation{label: "Create todo", group: "writing", order: 2},
+        schema: %IR.Schema{
+          aria: %{
+            "live" => "assertive",
+            "inputs" => [
+              %{name: "title", role: "textbox", required: true, describedby: "title-help"},
+              %{"name" => "due_on", "role" => "date", "required" => false}
+            ]
+          }
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Member",
+          action: :profile,
+          action_type: :read,
+          policies: [%{:authorityBoundary => "CONSTRUCT"}]
+        },
+        presentation: %IR.Presentation{label: "Member profile", group: "reading"},
+        schema: %IR.Schema{
+          aria: %{:role => "region", "archived" => %{role: "checkbox", describedby: "archived-help"}}
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{resource: "Note", action: :touch, action_type: :update, policies: []},
+        presentation: %IR.Presentation{label: "Touch note"}
+      )
+    ]
+  end
 end
 
 [old_v, new_v] = System.argv()
@@ -426,6 +530,50 @@ BumpGen.proof!(fn -> art_occurrences == 1 end, "projector artifact carries #{art
 new_art_sha = BumpGen.sha256(String.replace(artifact_code, old_v, new_v))
 BumpGen.proof!(fn -> new_art_sha != art_pin end, "artifact sha did not change across the bump")
 IO.puts("BUMPGEN\tARTIFACT_SHA\tfrozen_artifact\t#{art_pin}\t#{new_art_sha}")
+
+# --- 6. ARIA_GOLDEN: the projector CalVer consequence re-derived through ---
+# the real Projectors.ARIA pipeline over the mirrored fixture IR. The header
+# is read from the projector source (NOT assumed == old_v): the golden is a
+# consequence of the header, whatever it currently carries.
+aria_src = File.read!("lib/ash_surface/projectors/aria.ex")
+aria_test_src = File.read!("test/ash_surface/projectors/aria_projector_test.exs")
+
+[aria_header] = Regex.run(~r/@calver\s+"([^"]+)"/, aria_src, capture: :all_but_first)
+
+[golden_json_raw] = Regex.run(~r/@golden_json "(.*)"/, aria_test_src, capture: :all_but_first)
+golden_json = Regex.replace(~r/\\(["\\])/, golden_json_raw, "\\1")
+
+{:ok, aria_contract, _} = AshSurface.Projectors.ARIA.project_ir(BumpGen.aria_fixture_irs())
+
+# Self-proof A: the golden is a consequence of the projector header.
+BumpGen.proof!(fn -> Jason.decode!(golden_json)["version"] == aria_header end,
+  "aria golden version != projector @calver header #{aria_header}"
+)
+
+# Self-proof B: the real pipeline over the mirrored fixtures reproduces the
+# frozen golden bytes exactly.
+BumpGen.proof!(
+  fn -> AshSurface.Projectors.ARIA.to_json(aria_contract) == golden_json end,
+  "aria_projector_test @golden_json does not match the real Projectors.ARIA output over the mirrored fixture IR"
+)
+
+# Self-proof C: the test file carries exactly two occurrences of the header
+# (one inside @golden_json, one in golden_contract/0), so the single
+# version-string replacement below rewrites both goldens and nothing else.
+aria_occ = aria_test_src |> String.split(aria_header) |> length() |> Kernel.-(1)
+
+BumpGen.proof!(fn -> aria_occ == 2 end,
+  "aria_projector_test carries #{aria_occ} occurrence(s) of #{aria_header}, expected exactly 2 (the JSON + map golden version)"
+)
+
+# Defense in depth with the shell pre-flight: at bump time the header must
+# already equal the old version; a stale header never reaches this line.
+BumpGen.proof!(fn -> aria_header == old_v end,
+  "projector @calver #{aria_header} != old version #{old_v} (projector-CalVer pre-flight should have refused)"
+)
+
+BumpGen.proof!(fn -> aria_header != new_v end, "aria golden version did not change across the bump")
+IO.puts("BUMPGEN\tARIA_GOLDEN\taria_golden_version\t#{aria_header}\t#{new_v}")
 GENERATOR_EOF
 
 set +e
@@ -456,6 +604,7 @@ expect_kind JS_DIGEST_V2 3
 expect_kind JS_T26_REF 3
 expect_kind IR_DIGEST 5
 expect_kind ARTIFACT_SHA 1
+expect_kind ARIA_GOLDEN 1
 
 # ---------------------------------------------------------------------------
 # Plan assembly: every old hex must be the exact, unique pin in its file.
@@ -472,12 +621,18 @@ while IFS=$'\t' read -r tag kind name old_hex new_hex; do
     JS_DIGEST_V2|JS_T26_REF) file="$GOLDEN_JS_V2" ;;
     IR_DIGEST)              file="$GOLDEN_IR_CODEC" ;;
     ARTIFACT_SHA)           file="$GOLDEN_ARTIFACT" ;;
+    ARIA_GOLDEN)            file="$GOLDEN_ARIA" ;;
     *) die "unknown golden kind from generator: $kind" ;;
   esac
   # ARTIFACT_SHA is a paired citation: the hash appears in the test file's
   # header comment AND the FROZEN_SHA256 const; both must move together
   # (the apply pass below rewrites globally, which is exactly right here).
-  expected_count=$([ "$kind" = "ARTIFACT_SHA" ] && echo 2 || echo 1)
+  # ARIA_GOLDEN is likewise a paired citation: the version appears in
+  # @golden_json AND golden_contract/0 (self-proven count of 2 above).
+  case "$kind" in
+    ARTIFACT_SHA|ARIA_GOLDEN) expected_count=2 ;;
+    *)                        expected_count=1 ;;
+  esac
   [ "$(count_of "$file" "$old_hex")" -eq "$expected_count" ] \
     || die "golden $name: expected exactly $expected_count occurrence(s) of $old_hex in $file"
   PLAN_LINES="${PLAN_LINES}$(printf '  %-44s %-18s %s.. -> %s..' "$file" "$name" "${old_hex:0:12}" "${new_hex:0:12}")
@@ -530,6 +685,7 @@ fi
 for f in $TEXT_FILES; do
   grep -qF -- "$NEW" "$f" || die "post-apply: '$NEW' missing from $f"
 done
+projector_calver_law
 while IFS=$'\t' read -r file old_hex new_hex name; do
   [ -n "$file" ] || continue
   grep -qF -- "$new_hex" "$file" || die "post-apply: new golden for $name missing from $file"

@@ -15,7 +15,7 @@ defmodule AshSurface.Projectors.AriaProjectorTest do
   alias AshSurface.IR
   alias AshSurface.Projectors.ARIA
 
-  @golden_json "{\"contract\":\"aria\",\"groups\":[{\"id\":\"reading\",\"label\":\"reading\",\"members\":[\"Member.profile\",\"Todo.list\"],\"role\":\"group\"},{\"id\":\"writing\",\"label\":\"writing\",\"members\":[\"Todo.create\"],\"role\":\"group\"}],\"surfaces\":[{\"action\":\"profile\",\"group\":\"reading\",\"id\":\"Member.profile\",\"inputs\":[{\"aria-describedby\":\"archived-help\",\"name\":\"archived\",\"required\":false,\"role\":\"checkbox\",\"tabIndex\":1}],\"label\":\"Member profile\",\"resource\":\"Member\",\"role\":\"region\"},{\"action\":\"touch\",\"group\":null,\"id\":\"Note.touch\",\"inputs\":[],\"label\":\"Touch note\",\"resource\":\"Note\",\"role\":null},{\"action\":\"create\",\"group\":\"writing\",\"id\":\"Todo.create\",\"inputs\":[{\"aria-describedby\":\"title-help\",\"name\":\"title\",\"required\":true,\"role\":\"textbox\",\"tabIndex\":1},{\"aria-describedby\":null,\"name\":\"due_on\",\"required\":false,\"role\":\"date\",\"tabIndex\":2}],\"label\":\"Create todo\",\"resource\":\"Todo\",\"role\":null},{\"action\":\"list\",\"group\":\"reading\",\"id\":\"Todo.list\",\"inputs\":[{\"aria-describedby\":\"status-help\",\"name\":\"status\",\"required\":false,\"role\":\"combobox\",\"tabIndex\":1}],\"label\":\"List todos\",\"live\":\"polite\",\"resource\":\"Todo\",\"role\":null}],\"tabOrder\":[\"Todo.list\",\"Todo.create\",\"Member.profile\",\"Note.touch\"],\"version\":\"26.9.15\"}"
+  @golden_json "{\"contract\":\"aria\",\"groups\":[{\"id\":\"reading\",\"label\":\"reading\",\"members\":[\"Member.profile\",\"Todo.list\"],\"role\":\"group\"},{\"id\":\"writing\",\"label\":\"writing\",\"members\":[\"Todo.create\"],\"role\":\"group\"}],\"surfaces\":[{\"action\":\"profile\",\"group\":\"reading\",\"id\":\"Member.profile\",\"inputs\":[{\"aria-describedby\":\"archived-help\",\"name\":\"archived\",\"required\":false,\"role\":\"checkbox\",\"tabIndex\":1}],\"label\":\"Member profile\",\"resource\":\"Member\",\"role\":\"region\"},{\"action\":\"touch\",\"group\":null,\"id\":\"Note.touch\",\"inputs\":[],\"label\":\"Touch note\",\"resource\":\"Note\",\"role\":null},{\"action\":\"create\",\"group\":\"writing\",\"id\":\"Todo.create\",\"inputs\":[{\"aria-describedby\":\"title-help\",\"name\":\"title\",\"required\":true,\"role\":\"textbox\",\"tabIndex\":1},{\"aria-describedby\":null,\"name\":\"due_on\",\"required\":false,\"role\":\"date\",\"tabIndex\":2}],\"label\":\"Create todo\",\"resource\":\"Todo\",\"role\":null},{\"action\":\"list\",\"group\":\"reading\",\"id\":\"Todo.list\",\"inputs\":[{\"aria-describedby\":\"status-help\",\"name\":\"status\",\"required\":false,\"role\":\"combobox\",\"tabIndex\":1}],\"label\":\"List todos\",\"live\":\"polite\",\"resource\":\"Todo\",\"role\":null}],\"tabOrder\":[\"Todo.list\",\"Todo.create\",\"Member.profile\",\"Note.touch\"],\"version\":\"26.9.16\"}"
 
   # ---------------------------------------------------------------------------
   # Fixture IRs: an OBSERVE read with a name-keyed inputs map, a DO write
@@ -106,7 +106,7 @@ defmodule AshSurface.Projectors.AriaProjectorTest do
   defp golden_contract do
     %{
       "contract" => "aria",
-      "version" => "26.9.15",
+      "version" => "26.9.16",
       "surfaces" => [
         %{
           "id" => "Member.profile",
