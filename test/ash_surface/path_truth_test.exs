@@ -57,6 +57,8 @@ defmodule AshSurface.PathTruthTest do
      "Expo projector emitted artifact name — written to a scratch target dir, not a repo file"},
     {:glob_or_template, ~r/[\*<>]/,
      "glob/template shape — cited as a pattern, not a concrete file"},
+    {:retired_ref, ~r|^lib/ash_surface/formatter\.ex$|,
+     "retired module (chicago-formatter-retire-033) — TESTING.md cites the deletion with [RETIRED] provenance; the living guard is formatter_registration_canary_test.exs"},
     {:ir_field_list, ~r/^label\/group\/order\/widget\/format$/,
      "IR.Presentation field list, not a filesystem path"}
   ]
