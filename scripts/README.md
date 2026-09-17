@@ -43,6 +43,20 @@ Scratch output goes to `_build/bump_version_generator.exs` (gitignored), never
 the source tree. Exit codes: `0` verified, `1` drift/self-proof/gate failure,
 `2` usage.
 
+## mutation_recipes.sh — the Chicago falsifier (ticket chicago-golden-mutation-041)
+
+`bash scripts/mutation_recipes.sh` proves the three golden guards **can fail**:
+for each family (runtime SHA, contract digest, IR codec golden) it mutates the
+real subject — whitespace injection into the shipped `.mjs`, the
+`generatorIdentity` field rename in `lib/ash_surface.ex`, the `presentation`
+key rename in the codec's `to_map/1` — shows the guard RED, restores, and shows
+it GREEN. Recipes and executed receipts live in
+[mutation_recipes.md](mutation_recipes.md). **Not wired to default CI**; run by
+hand when touching a golden family. Fail-closed semantics: refuses a dirty
+subject, fails if any mutation leaves its guard green (dead guard), restores
+all subjects via EXIT trap, and prints `MUTATION_RECIPES_OK` only when every
+RED was red and every GREEN green.
+
 ## zero_config_check.sh — the fresh-clone proof
 
 `bash scripts/zero_config_check.sh` proves the **zero-config** property of this
