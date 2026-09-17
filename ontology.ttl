@@ -452,3 +452,17 @@ surf:UnsupportedLedgerRow38 a surf:UnsupportedRow ;
     surf:unsupportedElement "bump-mechanism classification facts (citation table, per-file evidence, IR-golden regen family) in the pack's version-bump family" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow39 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/mx_episode.ex + priv/verifier/verify_closure_episode.py" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "mx-episode compose/validate module template + verifier vendoring emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow40 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/mx_episode_compose_test.exs + test/ash_surface/mx_closed_loop_episode_test.exs + test/ash_surface/mx_closed_loop_deep_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "episode round-trip test-table emission + verifier re-point emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
