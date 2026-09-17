@@ -474,3 +474,9 @@ surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
     surf:unsupportedElement "JS runtime template family emission in ash-extension-pack (runtime ontology facts -> executable .mjs template projection); paydown: the pack grows the family and emits this file from the ontology's runtime facts, golden re-frozen at cutover, ledger row + UNSUPPORTED row retired together" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow45 a surf:UnsupportedRow ;
+    surf:ledgerPath "cripts/zero_config_v2.sh + scripts/chicago_census.txt" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "verification battery suite-census emission (golden suite manifest + measured floor pin) in the zero-config-proof family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

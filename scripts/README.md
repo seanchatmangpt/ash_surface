@@ -124,9 +124,28 @@ no-false-OK failure semantics:
    definition in the clone's `mix.exs`; re-runs `mix test.all` (`mix test`
    then `npm test`) under literal `env -i` with only the allowlist
    surviving. If the alias is absent the step is skipped with exit 0.
+3. **chicago suite census** (ticket `chicago-zeroconfig-census-048`) — two
+   fail-closed steps over the pinned golden census
+   `scripts/chicago_census.txt` (one `# floor: <N>` line plus one suite
+   path per line):
+   - **file set** (runs before deps are fetched, so a stripped clone dies
+     in seconds) — every listed suite must exist in the clone. A missing
+     census, an absent/duplicated/malformed floor line, an empty list, a
+     path that escapes the clone, or any missing suite file fails the
+     battery.
+   - **mix test count floor** (runs right after `mix test`, whose output
+     it captures) — the clone's `mix test` count must be >= the pinned
+     floor, so removing or gutting suites fails even when every remaining
+     suite still passes. The summary parser understands the ExUnit >= 1.19
+     `Result: N passed (…)` / `Result: X/Y passed` lines and the classic
+     `N tests, M failures` line; an unparsable summary fails closed.
+   When suites change, re-pin the census (additions) and re-measure the
+   floor (any change): `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs'
+   | LC_ALL=C sort`, then set `# floor:` to the fresh `mix test` count.
 
-Battery order: env-read guard, `mix deps.get`, `npm install --no-audit`
-(before `mix test`, per v1's bootstrap-order discovery), `mix test`,
-`npm test`, `mix test.zero`. Every step prints `EXIT[<label>]=<code>`
+Battery order: env-read guard, chicago census (file set), `mix deps.get`,
+`npm install --no-audit` (before `mix test`, per v1's bootstrap-order
+discovery), `mix test`, chicago census (count floor), `npm test`,
+`mix test.zero`. Every step prints `EXIT[<label>]=<code>`
 before the next one starts, so a run log records **every exit code**;
 the final line is `ZERO_CONFIG_OK` only when all of them were 0.
