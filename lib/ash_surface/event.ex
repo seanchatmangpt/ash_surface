@@ -6,6 +6,9 @@ defmodule AshSurface.Event do
   across Phoenix Channels or WebSocket connections with explicit `authority_boundary: :OBSERVE`.
   """
 
+  alias AshSurface.CanonicalJSON
+  alias AshSurface.IR.EventProjection
+
   @enforce_keys [:event_id, :sequence, :subject_ref, :event_type, :state_digest]
   defstruct [
     :event_id,
@@ -41,8 +44,13 @@ defmodule AshSurface.Event do
     evidence_ref = Keyword.get(opts, :evidence_ref)
     receipt_ref = Keyword.get(opts, :receipt_ref)
 
+    # Canonical (key-sorted) JSON: event identity is invariant under payload
+    # map construction history, flatmap or >32-key HAMT alike.
     digest =
-      :crypto.hash(:sha256, "#{subject_ref}:#{sequence}:#{event_type}:#{Jason.encode!(payload)}")
+      :crypto.hash(
+        :sha256,
+        "#{subject_ref}:#{sequence}:#{event_type}:#{CanonicalJSON.encode(payload)}"
+      )
       |> Base.encode16(case: :lower)
 
     event_id = "ev_#{binary_part(digest, 0, 16)}"
@@ -76,5 +84,23 @@ defmodule AshSurface.Event do
       "occurredAt" => DateTime.to_iso8601(ev.occurred_at),
       "authorityBoundary" => "OBSERVE"
     }
+  end
+
+  @doc """
+  The production route for runtime receipts onto the observation stream.
+
+  Every runtime-produced consequence receipt (the JSON receipt emitted by the
+  consumer runtime) is back-projected through
+  `AshSurface.IR.EventProjection.from_receipt/2` — the one lawful path from a
+  receipt to an `AshSurface.Event`. There is no other admitted route; callers
+  must never hand-roll an event from receipt sections.
+
+  Returns `{:ok, event}` on success, or `{:error, refusal}` typed by the
+  projection (e.g. a receipt carrying no parseable timestamp refuses instead
+  of inventing one — replay equality is preserved by construction).
+  """
+  @spec from_receipt(map(), map() | nil) :: {:ok, t()} | {:error, EventProjection.refusal()}
+  def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
+    EventProjection.from_receipt(receipt, ir_action)
   end
 end

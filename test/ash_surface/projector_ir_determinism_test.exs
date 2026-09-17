@@ -77,24 +77,13 @@ defmodule AshSurface.ProjectorIRDeterminism.IR do
 
   # Canonical JSON with recursively sorted keys: identical bytes for any two
   # structurally equal maps, independent of map construction history (flatmap
-  # or >32-key HAMT).
-  def to_canonical_json(map) when is_map(map) do
-    pairs =
-      map
-      |> Enum.map(fn {key, value} -> {to_string(key), value} end)
-      |> Enum.sort_by(fn {key, _value} -> key end)
+  # or >32-key HAMT). finish-replay-020 promoted this encoder into lib; the
+  # double now delegates so the suite pins the lib-owned law, not a local copy.
+  def to_canonical_json(map) when is_map(map), do: AshSurface.CanonicalJSON.encode(map)
 
-    "{" <>
-      Enum.map_join(pairs, ",", fn {key, value} ->
-        Jason.encode!(key) <> ":" <> to_canonical_json(value)
-      end) <> "}"
-  end
+  def to_canonical_json(list) when is_list(list), do: AshSurface.CanonicalJSON.encode(list)
 
-  def to_canonical_json(list) when is_list(list) do
-    "[" <> Enum.map_join(list, ",", &to_canonical_json/1) <> "]"
-  end
-
-  def to_canonical_json(scalar), do: Jason.encode!(scalar)
+  def to_canonical_json(scalar), do: AshSurface.CanonicalJSON.encode(scalar)
 
   defp canonical(term) when is_map(term) do
     term

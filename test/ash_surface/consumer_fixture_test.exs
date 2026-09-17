@@ -122,26 +122,88 @@ defmodule AshSurface.ConsumerFixtureTest do
       "timestamp" => receipt["timestamp"]
     }
 
-    expected_hash =
-      :crypto.hash(:sha256, canonical_json(receipt_payload))
-      |> Base.encode16(case: :lower)
+    expected_hash = AshSurface.CanonicalJSON.sha256_hex(receipt_payload)
 
     assert receipt["receiptHash"] == expected_hash
   end
 
-  defp canonical_json(val) when is_map(val) do
-    inner =
-      val
-      |> Enum.sort_by(fn {k, _} -> to_string(k) end)
-      |> Enum.map(fn {k, v} -> "#{Jason.encode!(to_string(k))}:#{canonical_json(v)}" end)
-      |> Enum.join(",")
+  test "runtime receipt back-projection replays to the identical observation event",
+       %{port: port} do
+    # 1-3. Same manufacturing pass as the e2e receipt test: manifest -> surface
+    # -> cross-language contract, this time to feed the REAL node-runtime
+    # receipt through the production back-projection route (finish-replay-020).
+    assert {:ok, manifest} =
+             Manifest.generate(
+               otp_app: :ash_surface,
+               action_entrypoints: [
+                 {VolunteerMilestone, :record},
+                 {VolunteerMilestone, :read}
+               ]
+             )
 
-    "{" <> inner <> "}"
+    profile = %{
+      audience: :public,
+      actions: %{
+        "AshSurface.Fixtures.VolunteerMilestone#record" => %{
+          consumer: :mobile,
+          transport: :http
+        }
+      }
+    }
+
+    assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
+
+    contract_path = Path.join(@tmp_dir, "replay_contract.json")
+    receipt_path = Path.join(@tmp_dir, "replay_receipt.json")
+    File.write!(contract_path, Jason.encode!(surface.contract))
+
+    # 4. Mint a real receipt through the node runtime over the wire.
+    {output, exit_code} =
+      System.cmd("node", [
+        "test/js/consumer_e2e_runner.mjs",
+        contract_path,
+        to_string(port),
+        receipt_path
+      ])
+
+    assert exit_code == 0, "Node runner failed with exit code #{exit_code}: #{output}"
+
+    assert {:ok, receipt} = Jason.decode(File.read!(receipt_path))
+
+    ir_action = %{
+      "resource" => "AshSurface.Fixtures.VolunteerMilestone",
+      "action" => "record"
+    }
+
+    # 5. Production route: the receipt reaches the observation stream ONLY
+    # through the back-projection, and replaying it yields the identical event.
+    assert {:ok, event} = AshSurface.Event.from_receipt(receipt, ir_action)
+    assert {:ok, replayed} = AshSurface.Event.from_receipt(receipt, ir_action)
+
+    assert replayed == event
+
+    assert AshSurface.Event.to_map(replayed) == AshSurface.Event.to_map(event)
+
+    # 6. The projection invents nothing: every section is carried verbatim.
+    assert event.receipt_ref == receipt["receiptHash"]
+    assert event.payload == receipt["consequence"]
+
+    assert {:ok, ts, 0} = DateTime.from_iso8601(receipt["timestamp"])
+    assert event.occurred_at == ts
+
+    # 7. Replay equality survives a different serialization order of the same
+    # receipt content: identity is canonical, never map-order derived.
+    permuted =
+      Map.update!(receipt, "consequence", fn c ->
+        c |> Map.to_list() |> Enum.reverse() |> Map.new()
+      end)
+
+    assert {:ok, permuted_event} = AshSurface.Event.from_receipt(permuted, ir_action)
+    assert permuted_event == event
+
+    # 8. Cross-language digest law: the lib canonical encoder re-derives the
+    # JS-minted receiptHash over the same sorted-key bytes.
+    assert AshSurface.CanonicalJSON.sha256_hex(Map.drop(receipt, ["receiptHash"])) ==
+             receipt["receiptHash"]
   end
-
-  defp canonical_json(val) when is_list(val) do
-    "[" <> Enum.map_join(val, ",", &canonical_json/1) <> "]"
-  end
-
-  defp canonical_json(val), do: Jason.encode!(val)
 end
