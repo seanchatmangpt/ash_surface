@@ -73,6 +73,56 @@ defmodule AshSurface.Transport do
     ]
   end
 
+  @doc """
+  Pure pre-dispatch selection: picks one transport from the `:available` set
+  over the `:declared` order and returns `{:ok, %Decision{}}`.
+
+  Options:
+
+    * `:preferred` — the declared preference (default `:http`);
+    * `:action_id` — carried verbatim onto the decision;
+    * `:facts` — delegated dimension facts (see `facts_from_profile/1`).
+
+  Without delegated facts the historical law decides: an available preference
+  wins (`:preferred_available`), otherwise the first declared transport that
+  is available (`:preferred_unavailable`). With delegated facts the decision
+  is weighed on the declared axes, and a preference only wins when it is
+  non-dominated (`:preferred_available`), never a dominated alternative.
+
+  Typed refusals — never silent repairs — for unknown transports, availability
+  outside the declared set, an unknown preference, or malformed facts.
+
+  ## Examples
+
+      iex> {:ok, decision} = AshSurface.Transport.select([:http, :phoenix_channel], [:phoenix_channel], preferred: :http, action_id: "Ticket#read")
+      iex> {decision.selected, decision.reason, decision.dimensions, decision.action_id}
+      {:phoenix_channel, :preferred_unavailable, :undelegated, "Ticket#read"}
+
+      The undelegated frontier mirrors the available set — no silent pruning:
+
+      iex> {:ok, decision} = AshSurface.Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel], preferred: :http)
+      iex> {decision.selected, decision.reason, decision.dimensions, decision.frontier}
+      {:http, :preferred_available, :undelegated, [:http, :phoenix_channel]}
+
+      Declared facts weigh the decision; preference never picks a dominated
+      alternative (`http` strictly better on cost, equal on latency):
+
+      iex> facts = %{http: %{cost: :low, latency: :low}, phoenix_channel: %{cost: :high, latency: :low}}
+      iex> {:ok, decision} = AshSurface.Transport.select([:http, :phoenix_channel], [:http, :phoenix_channel], preferred: :phoenix_channel, facts: facts)
+      iex> {decision.selected, decision.reason, decision.dimensions, decision.frontier}
+      {:http, :dimension_weighed, :declared, [:http]}
+
+      Refusals are typed:
+
+      iex> AshSurface.Transport.select([:http], [:smoke_signal])
+      {:error, {:unknown_transport, [:smoke_signal]}}
+
+      iex> AshSurface.Transport.select([:http], [:http, :phoenix_channel])
+      {:error, {:unadmitted_transport, [:phoenix_channel]}}
+
+      iex> AshSurface.Transport.select([:http], [:http], preferred: :carrier_pigeon)
+      {:error, {:unknown_transport, :carrier_pigeon}}
+  """
   @spec select([atom()], [atom()], keyword()) :: {:ok, Decision.t()} | {:error, term()}
   def select(declared, available, opts \\ []) do
     preferred = Keyword.get(opts, :preferred, :http)
@@ -108,6 +158,27 @@ defmodule AshSurface.Transport do
   An absent or null `"transportFacts"` key is `{:ok, %{}}`: not delegated,
   never defaulted. Malformed shapes and unknown names or classes are typed
   refusals, never silent drops.
+
+  ## Examples
+
+      iex> AshSurface.Transport.facts_from_profile(%{"transportFacts" => %{"http" => %{"cost" => "low", "privacy" => "high"}}})
+      {:ok, %{http: %{cost: :low, privacy: :high}}}
+
+      Absent (or null) facts are "not delegated", not empty authority:
+
+      iex> AshSurface.Transport.facts_from_profile(%{})
+      {:ok, %{}}
+
+      iex> AshSurface.Transport.facts_from_profile(%{"transportFacts" => nil})
+      {:ok, %{}}
+
+      Unknown vocabulary is a typed refusal:
+
+      iex> AshSurface.Transport.facts_from_profile(%{"transportFacts" => %{"http" => %{"cost" => "free"}}})
+      {:error, {:unknown_dimension_class, {:http, :cost, "free"}}}
+
+      iex> AshSurface.Transport.facts_from_profile("http")
+      {:error, :profile_must_be_a_map}
   """
   @spec facts_from_profile(term()) :: {:ok, map()} | {:error, term()}
   def facts_from_profile(profile) when is_map(profile) do

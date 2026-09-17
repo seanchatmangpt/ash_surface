@@ -89,6 +89,46 @@ defmodule AshSurface.MXEpisode do
   `subject_ref` equals the observation's `exact_subject`, and the surface
   digest is the 64-hex content address. Anything else is refused — never
   silently composed.
+
+  ## Examples
+
+      iex> observation = AshSurface.Observation.create("sp:ticket:42", %{"status" => "open"})
+      iex> planning = AshSurface.PlanningEpisode.create("ws:42", planner_identity: "ash_pplan", policy_identity: "pol:1")
+      iex> event = AshSurface.Event.create(observation.exact_subject, 1, "state.changed")
+      iex> surface = %AshSurface.Surface{manifest: %{}, contract: %{}, action_ids: [],
+      ...> digest: :crypto.hash(:sha256, "surface-bytes") |> Base.encode16(case: :lower)}
+      iex> {:ok, episode} = AshSurface.MXEpisode.compose(%{
+      ...> observation: observation,
+      ...> planning_episode: planning,
+      ...> event: event,
+      ...> surface: surface,
+      ...> receipt_hash: String.duplicate("7", 64),
+      ...> subject_repo: "zoela_phx",
+      ...> subject_head: "9a1b2c",
+      ...> consequence_id: "t1",
+      ...> episode_id: "MXEpisode/2026-09-17/000042"})
+      iex> {episode["episode_id"], episode["resulting_standing"], episode["cost_score"]}
+      {"MXEpisode/2026-09-17/000042", "ALIVE", 1.0}
+      iex> Enum.map(episode["observed_transitions"], & &1["step"])
+      ["observe", "project_candidates", "authorize_candidate", "actuate", "emit_event"]
+      iex> [observe, _, authorize, actuate, emit] = episode["observed_transitions"]
+      iex> {observe["state_digest"] == observation.state_digest, authorize["surface_digest"] == surface.digest, actuate["consequence_id"], emit["subject_ref"]}
+      {true, true, "t1", "sp:ticket:42"}
+
+      Missing parts are refused, never silently composed:
+
+      iex> AshSurface.MXEpisode.compose(%{"observation" => "not-a-struct"})
+      {:error, {:missing_compose_fields, [:planning_episode, :event, :surface, :receipt_hash, :subject_repo, :subject_head, :consequence_id]}}
+
+      An event unbound to the observation's exact subject violates the loop's
+      binding law (each example is self-contained):
+
+      iex> observation = AshSurface.Observation.create("sp:ticket:42", %{"status" => "open"})
+      iex> unbound = AshSurface.Event.create("sp:other", 1, "state.changed")
+      iex> surface = %AshSurface.Surface{manifest: %{}, contract: %{}, action_ids: [], digest: String.duplicate("a", 64)}
+      iex> planning = AshSurface.PlanningEpisode.create("ws:42", planner_identity: "ash_pplan", policy_identity: "pol:1")
+      iex> AshSurface.MXEpisode.compose(%{observation: observation, planning_episode: planning, event: unbound, surface: surface, receipt_hash: "r", subject_repo: "r", subject_head: "h", consequence_id: "c"})
+      {:error, {:subject_binding_violation, "sp:other"}}
   """
   @spec compose(term()) :: {:ok, episode()} | {:error, term()}
   def compose(input)

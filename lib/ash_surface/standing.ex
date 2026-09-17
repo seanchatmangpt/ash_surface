@@ -79,6 +79,24 @@ defmodule AshSurface.Standing do
   @doc """
   Returns true when `standing` is an admitted REFUSED-class standing
   (`:REFUSED` or `:"REFUSED_*"`). Base members are not refusals.
+
+  ## Examples
+
+      iex> AshSurface.Standing.refused?(:REFUSED_NO_AUTHORITY)
+      true
+
+      iex> AshSurface.Standing.refused?(:REFUSED)
+      true
+
+      Base members are valid standings but never refusals:
+
+      iex> AshSurface.Standing.refused?(:ALIVE)
+      false
+
+      `:UNKNOWN` is not a standing at all, refusal or otherwise:
+
+      iex> AshSurface.Standing.refused?(:UNKNOWN)
+      false
   """
   @spec refused?(term()) :: boolean()
   def refused?(standing), do: valid?(standing) and standing not in @base_standings
