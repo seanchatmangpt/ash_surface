@@ -7,3 +7,9 @@
 - fleet meta tonight: burst 20 accepted zero-refusal at dispatch; storm at 21 in-flight (3 kills, target 21->17, recovered); the reap-guard (compound evidence) prevented further false reaps after run-3's four.
 - 比: gapfix code ~100% agent-manufactured; coordinator hand-writes = ticket/ledger/receipt prose + merge-conflict resolutions (two of which regressed and were repaired/reverted — the ledger/ontology semantic-merge class is now agent-only per precedent).
 - operator did NOT write: the backlog, the merges, the repairs, the map, the synthesis, the F-tickets, any gate run.
+
+## 2026-09-17T04:15Z — F-WAVE COMPLETE
+- F1-F6+F8 MERGED (7 of 8): replay canonical law (817/0 stepping to 842/0), intent KNOWN-ness gate, standing vocabulary + constructor validation + zod enum, MXEpisode.compose/1 + vendored verifier, tripwire twins (2nd real escape caught), declared selection calculus + JS twin, determinism suite at canonical modules. Final landed: mix 842/0 (837+5 doctests), npm 258/0.
+- F7 honestly BLOCKED on operator cut: pack-side admission prepared+verified on ggen-marketplace feat/ash-extension-pack-license-file @832e2c1c2 (byte-identity md5 1a18525b, gates 7/7); after merge+push, re-dispatch retires ledger pair 31 (first monotonic paydown).
+- Merge precedents added: sibling row-39 ID collisions resolve by deterministic rebuild (3rd-4th minter); runtime golden unions re-freeze from the MERGED file; conflict-region unions need region-independence verification (event.ex closure lesson).
+- Fleet tonight: 30+ heavyweight agents across gapfix + vision + F-waves; 3 [1302] storms, all recovered; zero unrecovered casualties.
