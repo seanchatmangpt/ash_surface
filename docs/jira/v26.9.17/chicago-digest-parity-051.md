@@ -1,5 +1,5 @@
 # chicago-digest-parity-051: cross-language digest parity tables
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 One parity suite covering EVERY digest-bearing contract (contract, event, observation, episode [after 036], receipt [after 038], IR): JS twin recomputes each from canonical JSON; table per contract. Subject: test/js/digest_cross_language*.test.mjs + elixir fixtures.
@@ -13,3 +13,4 @@ One parity suite covering EVERY digest-bearing contract (contract, event, observ
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g51 + exp/chicago-digest-parity-51 | dispatched by coordinator (chicago wave)
 2026-09-17T06:49:55Z | REAPED: cluster death at ~30min (sustained-load grind; 5 simultaneous); branch preserved — successor reviews git log first
+2026-09-17T08:09:08Z | IN_PROGRESS | successor re-dispatch (final cohort 4; branch preserved — review git log first; 045's lesson: long-runners are alive)
