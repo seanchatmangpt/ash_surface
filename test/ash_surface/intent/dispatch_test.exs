@@ -10,6 +10,12 @@ defmodule AshSurface.Intent.DispatchTest do
       refusals (e.g. `{:error, :REFUSED_NO_AUTHORITY}`) propagate untouched.
     - The adapter mints refusals only fail-closed: invalid candidates are
       refused before the bus is touched; a non-conforming bus is refused typed.
+    - KNOWN-ness pre-bus (F2): with the admitted action set injected in the
+      context (`:admitted_action_ids`, the verified surface's action ids), an
+      `action_id` outside the set is refused `{:error, :REFUSED_UNKNOWN_ACTION}`
+      before the bus is consulted — the Elixir mirror of the generated JS
+      `REFUSED_UNKNOWN_ACTION`. The set is injected, never looked up; without
+      it there is no verdict and no gate.
 
   Each test is a falsification attempt through the public surface of
   `AshSurface.Intent.Dispatch`; the AST falsifier at the bottom proves over
@@ -167,7 +173,84 @@ defmodule AshSurface.Intent.DispatchTest do
   end
 
   # --------------------------------------------------------------------------
-  # Falsifier 5: the export surface.
+  # Falsifier 5: KNOWN-ness pre-bus (F2, finish-classify-021).
+  # LAW: when the context carries the injected admitted action set, an
+  # :action_id outside the set is refused typed `{:error, :REFUSED_UNKNOWN_ACTION}`
+  # BEFORE the bus is consulted — the Elixir mirror of the generated JS
+  # `dispatchIntent` refusal. The set rides injection at the same hand-off as
+  # the bus, never a lookup; absent key means no verdict is available.
+  # --------------------------------------------------------------------------
+
+  @admitted_set ["user.create", "ledger.close"]
+
+  test "refuses an out-of-set action_id typed before touching the bus" do
+    candidate = %{action_id: "Nope#missing", params: %{}}
+
+    assert Dispatch.submit(candidate, RecordingBus, %{admitted_action_ids: @admitted_set}) ==
+             {:error, :REFUSED_UNKNOWN_ACTION}
+
+    assert [] = calls()
+  end
+
+  test "every id of the injected admitted set still reaches the bus unchanged" do
+    for id <- @admitted_set do
+      assert {:ok, _receipt} =
+               Dispatch.submit(%{action_id: id}, RecordingBus, %{
+                 admitted_action_ids: @admitted_set
+               })
+    end
+
+    assert [
+             {%Envelope{action_id: "user.create"}, %{admitted_action_ids: @admitted_set}},
+             {%Envelope{action_id: "ledger.close"}, %{admitted_action_ids: @admitted_set}}
+           ] = calls()
+  end
+
+  test "the KNOWN-ness gate fires before the bus-conformance check" do
+    # NotABus would draw :REFUSED_NO_COMMAND_BUS if the gate ran after bus
+    # validation; the unknown-action refusal proves the candidate is judged
+    # first, before any bus consulting.
+    assert Dispatch.submit(%{action_id: "Nope#missing"}, NotABus, %{
+             admitted_action_ids: @admitted_set
+           }) == {:error, :REFUSED_UNKNOWN_ACTION}
+  end
+
+  test "an empty injected admitted set admits nothing" do
+    assert Dispatch.submit(%{action_id: "user.create"}, RecordingBus, %{
+             admitted_action_ids: []
+           }) == {:error, :REFUSED_UNKNOWN_ACTION}
+
+    assert [] = calls()
+  end
+
+  test "a present-but-malformed admitted set is refused typed, never read as no-gate" do
+    for bad <- ["user.create", %{"user.create" => true}, [:user_create], nil] do
+      assert Dispatch.submit(%{action_id: "user.create"}, RecordingBus, %{
+               admitted_action_ids: bad
+             }) ==
+               {:error, {:invalid_context, :admitted_action_ids_must_be_a_list_of_strings}}
+    end
+
+    assert [] = calls()
+  end
+
+  test "without an injected set the gate stays out of the way (admitted set unchanged)" do
+    # Falsifiers 1-4 pin the pre-F2 behavior with no gate key in context. This
+    # tripwire additionally forbids the gate from ever growing a lookup
+    # fallback (global registry, application env): injection or nothing.
+    assert {:ok, _} = Dispatch.submit(%{action_id: "any.thing"}, RecordingBus, %{})
+
+    assert {:ok, _} =
+             Dispatch.submit(%{action_id: "any.thing"}, RecordingBus, %{actor: :operator})
+
+    assert [
+             {%Envelope{action_id: "any.thing"}, %{}},
+             {%Envelope{action_id: "any.thing"}, %{actor: :operator}}
+           ] = calls()
+  end
+
+  # --------------------------------------------------------------------------
+  # Falsifier 6: the export surface.
   # LAW: this module is delegation only; it must never grow an execute,
   # dispatch, retry, or receipt function.
   # --------------------------------------------------------------------------
@@ -178,7 +261,7 @@ defmodule AshSurface.Intent.DispatchTest do
   end
 
   # --------------------------------------------------------------------------
-  # Falsifier 6: no direct Ash action calls in intent modules.
+  # Falsifier 7: no direct Ash action calls in intent modules.
   # LAW: ash_surface never executes anything itself. Proven over source: the
   # quoted AST of every module under lib/ash_surface/intent/ contains no call
   # of an Ash action function on the Ash module.

@@ -54,7 +54,13 @@ defmodule AshSurface.Intent.Dispatch do
 
   The only refusals minted here are fail-closed input refusals: an invalid
   candidate is refused before the bus is ever touched, and a bus that does not
-  conform to `AshSurface.Intent.CommandBus` is refused typed.
+  conform to `AshSurface.Intent.CommandBus` is refused typed. KNOWN-ness is one
+  of those input refusals: when the caller's context carries the injected
+  admitted action set (`:admitted_action_ids`, the verified surface's
+  `AshSurface.Surface.action_ids`), an `:action_id` outside that set is refused
+  typed as `{:error, :REFUSED_UNKNOWN_ACTION}` BEFORE the bus hand-off — the
+  Elixir mirror of the generated JS `dispatchIntent` `REFUSED_UNKNOWN_ACTION`
+  gate over its frozen `ACTIONS` registry.
   """
 
   alias AshSurface.Intent.Envelope
@@ -65,10 +71,21 @@ defmodule AshSurface.Intent.Dispatch do
   `candidate_map` must be a map carrying a non-empty string `:action_id`;
   every other key rides the intent payload verbatim. `context` (for example
   actor/tenant/authority material) is handed to the bus unchanged.
+
+  KNOWN-ness (pre-bus): when `context` carries `:admitted_action_ids` — a list
+  of admitted action id strings, injected exactly like the bus (never looked
+  up), normally the verified surface's `AshSurface.Surface.action_ids` — an
+  `:action_id` outside that set is refused `{:error, :REFUSED_UNKNOWN_ACTION}`
+  before the bus is consulted, mirroring the generated JS `REFUSED_UNKNOWN_ACTION`.
+  An empty list admits nothing. A present-but-malformed set is refused typed
+  (`{:error, {:invalid_context, :admitted_action_ids_must_be_a_list_of_strings}}`),
+  never silently treated as "no gate". Without the key the gate stays out of
+  the way: no injected set, no KNOWN-ness verdict.
   """
   @spec submit(map(), module(), map()) :: {:ok, term()} | {:error, term()}
   def submit(candidate_map, command_bus, context) do
     with :ok <- validate_candidate(candidate_map),
+         :ok <- validate_knownness(candidate_map, context),
          :ok <- validate_bus(command_bus) do
       intent = %Envelope{
         action_id: candidate_map.action_id,
@@ -95,6 +112,30 @@ defmodule AshSurface.Intent.Dispatch do
   end
 
   defp validate_candidate(_), do: {:error, {:invalid_candidate, :candidate_must_be_a_map}}
+
+  # F2 KNOWN-ness gate (finish-classify-021): the Elixir mirror of the generated
+  # JS `dispatchIntent` refusing `REFUSED_UNKNOWN_ACTION` over its frozen
+  # `ACTIONS` registry. Injection, not lookup: the admitted set rides `context`
+  # at the same hand-off as the bus, exactly as the JS set is baked into the
+  # generated artifact the caller owns. Absent key = no verdict available, the
+  # gate stays out of the way; present key = fail-closed verdict.
+  defp validate_knownness(candidate_map, context) do
+    case Map.fetch(context, :admitted_action_ids) do
+      :error -> :ok
+      {:ok, ids} -> admitted_ids_gate(Map.get(candidate_map, :action_id), ids)
+    end
+  end
+
+  defp admitted_ids_gate(action_id, ids) when is_list(ids) and is_binary(action_id) do
+    if Enum.all?(ids, &is_binary/1) do
+      if action_id in ids, do: :ok, else: {:error, :REFUSED_UNKNOWN_ACTION}
+    else
+      {:error, {:invalid_context, :admitted_action_ids_must_be_a_list_of_strings}}
+    end
+  end
+
+  defp admitted_ids_gate(_, _),
+    do: {:error, {:invalid_context, :admitted_action_ids_must_be_a_list_of_strings}}
 
   defp validate_bus(command_bus)
        when is_atom(command_bus) and command_bus != nil do

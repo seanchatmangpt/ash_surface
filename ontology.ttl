@@ -452,3 +452,9 @@ surf:UnsupportedLedgerRow38 a surf:UnsupportedRow ;
     surf:unsupportedElement "bump-mechanism classification facts (citation table, per-file evidence, IR-golden regen family) in the pack's version-bump family" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow39 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/intent/dispatch.ex + test/ash_surface/intent/dispatch_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "intent-dispatch KNOWN-ness gate fact (injected admitted-action-set law + REFUSED_UNKNOWN_ACTION token) in the pack's intent-dispatch family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
