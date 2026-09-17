@@ -1,19 +1,13 @@
 # finish-tripwires-024: F5 — close the two authority-tripwire holes
-<<<<<<< HEAD
 status: IN_PROGRESS
-=======
 status: DONE
->>>>>>> exp/finish-tripwires-024
 created: 2026-09-17T04:30:00Z
 ## Mission
 Per _SYNTHESIS.md F5 (+ mappers 04/14): add ?-suffixed gate names to no_local_do @gate_fun_names (catches voice_kiosk.ex:62 local authority_required?/1); golden/regex gate over rendered expo artifacts forbidding the "OBSERVE" string fallback on the delegated lookup path (expo.ex:118).
 ## Acceptance
 - both guards fire on injected violations (falsifiers executed in receipt); restored green; mix test 0.
 ## History
-<<<<<<< HEAD
 2026-09-17T03:10:00Z | IN_PROGRESS | ~/ash-surface-wt/g24 + exp/finish-tripwires-024 | dispatched by rider (F-wave, target_n=11)
-=======
-2026-09-17T03:10:00Z | IN_PROGRESS | ~/ash-surface-wt/g24 + exp/finish-tripwires-024 | dispatched by rider (F-wave, target_n=11) [record carried verbatim from checkout copy; this worktree copy had an empty History at session start]
 2026-09-17T03:33:44Z | DONE | exp/finish-tripwires-024 @ 3df2791 (3df2791f35a85c1c8dbb625c553e52da56712d1f) | premise verified in source (both holes real); hole 1: no_local_do @gate_fun_names += :gate_authority?/:authority_required? + owner exemption dual-spelling — guard fired on BOTH real sites (compiler/capability.ex defp authority_required?/1, projector/voice_kiosk.ex:62 defp authority_required?/1) and on an injected defp authority_required?/1 in lib/ash_surface/event.ex; remediated by honest renames, zero new exemptions (voice_kiosk -> authority_capability_admitted?/1, reads delegated profile "authority_required" capability marker, behavior pinned by voice_kiosk_test; compiler -> command_bus_authority_requirement/1, cites AshA2A.CommandBus admission law; IR fact + emitted section unchanged) | hole 2: expo getAuthorityBoundary unknown-id arm : "OBSERVE" -> : null (fail closed; v26.9.16 absent==not-delegated==null extended to the absent action) + TRIPWIRE over the RENDERED {prefix}.actions.mjs (anchor-exists, body isolated by regex, OBSERVE literal forbidden anywhere in the lookup body, delegated read action.authorityBoundary + null arm pinned) — fired on the unfixed emitter and on a re-injected : "OBSERVE" fallback, restored green after each (4 falsifiers total, all executed, all receipted) | gates: mix compile --warnings-as-errors 0; mix test 0 (795 passed = 790 tests + 5 doctests); npm test 0 (245 pass / 0 fail); npm run check 0; mix format --check-formatted 0 | remaining: none (failed edge: _SYNTHESIS.md + mappers 04/14 absent from repo — ticket text taken as canonical, both named holes verified in source before work; second real site compiler/capability.ex was NOT named in the mission, discovered by running the strengthened guard, receipted in commit 3df2791 body)
->>>>>>> exp/finish-tripwires-024
 2026-09-17T03:35:48Z | MERGED 0cd8928  (rider): --no-ff exp/finish-tripwires-024 (F5); guard caught 2nd real site; 4 falsifiers; landed mix above
+
