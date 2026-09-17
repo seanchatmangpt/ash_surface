@@ -13,8 +13,12 @@ defmodule AshSurface.IR.EventProjection do
 
   ## Canonical IR action shape
 
-  `lib/ash_surface/ir.ex` does not exist yet, so the canonical IR action shape
-  is declared locally here until that owner module is admitted. Atom and
+  [Corrected by gapfix-docs-truth-013: the note below said
+  "`lib/ash_surface/ir.ex` does not exist yet" — it has since been admitted
+  (`AshSurface.IR`, the five-section struct carrier). The declared action
+  shape intentionally stays local regardless: it is the JSON-decoded receipt
+  shape, not the `%AshSurface.IR{}` struct, so there is no owner module for it
+  to move into.] Atom and
   string keys are both accepted (receipts arrive JSON-decoded):
 
       %{

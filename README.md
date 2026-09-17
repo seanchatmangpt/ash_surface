@@ -55,7 +55,7 @@ Two invariants hold at this boundary:
 1. **AshSurface determines nothing about existence, meaning, or DO.** It mints no resources, actions, or types; it decides no authority; it never actuates. Existence and meaning come from Ash; consequence requires the authority and receipts the capability laws already demand.
 2. **AshSurface projects admitted semantics for human interaction.** Everything a human sees, invokes, or edits on a surface is a projection of semantics Ash has already admitted — never a parallel model, never a widening.
 
-Canonical elaboration lives in the sibling documents: [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layer/boundary structure, and [`PROJECTORS.md`](PROJECTORS.md) for the projector contract (`AshSurface.Projector`) and its lawful targets.
+Canonical elaboration lives in the sibling documents: [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layer/boundary structure, and [`PROJECTORS.md`](docs/PROJECTORS.md) for the projector contract (`AshSurface.Projector`) and its lawful targets.
 
 ## Elixir contract
 

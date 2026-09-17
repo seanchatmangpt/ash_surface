@@ -1,9 +1,22 @@
 # V_WAVE — the v26.9.16 surface-IR wave ledger (50 rows)
 
-Integration row: `exp/v50` (worktree `/Users/sac/ash-surface-wt/v50`, base `282f3ca`).
+Integration row: `exp/v50` (worktree `/Users/sac/ash-surface-wt/v50`, base `282f3ca`;
+that worktree was removed after the `--no-ff` landing — the landed tree, not the
+vanished path, is the authority; noted by gapfix-docs-truth-013).
 This table is the wave's standing ledger: one row per branch, standing recorded as
 expected (`UNKNOWN` until integration) and, where integration ran in-session, the
 actual standing observed at merge time.
+
+> **Superseded-cell banner (gapfix-docs-truth-013).** The per-row interim cells
+> below — "(not landed)", "(no delta)", "(moving head; no delta)" for v03, v04,
+> v07, v11–v15, v17–v21, v22–v26, v27–v49 — are pass-time records **superseded
+> by the "Final standings" addendum at the bottom of this file**, which is the
+> authoritative standing for every row (all ALIVE per its table, including
+> v23's mix.exs precedence and the v25/v40 late-merge corrections). Read a
+> row's expected cell as history; read the addendum as law. The `Projector.IR`
+> bullet in "Canonical interfaces" below ("Not landed at integration time") is
+> likewise superseded: v16 landed at final integration and its behaviour is
+> canonical at `lib/ash_surface/projector/ir.ex`.
 
 Canonical interfaces (wave law, all rows measured against them):
 

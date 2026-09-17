@@ -5,9 +5,13 @@ defmodule AshSurface.Projector.IR do
 
   ## Canonical IR shape (declared locally)
 
-  No upstream IR owner exists yet, so this module is the declaration point for
-  the canonical node shape. An IR is a plain map with a `:kind` namespace and
-  an Ash fact section under `:ash`:
+  [Corrected by gapfix-docs-truth-013: "no upstream IR owner exists yet" is
+  superseded — `lib/ash_surface/ir.ex` (`AshSurface.IR`, five-section struct
+  carrier) is admitted. This module remains the declaration point for the
+  *node-map* shape below: a `:kind`-tagged plain map is a different,
+  documented subject from the `%AshSurface.IR{}` struct, so the declaration
+  stays here rather than moving.] An IR node is a plain map with a `:kind`
+  namespace and an Ash fact section under `:ash`:
 
       %{
         kind: "ash_surface.surface",

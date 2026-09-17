@@ -1,8 +1,10 @@
-# LOCAL CANONICAL DECLARATIONS — `AshSurface.Compiler.IR` and
-# `AshSurface.Compiler.Section` are declared in this file (per file discipline)
-# until they are promoted to `lib/ash_surface/compiler/ir.ex` and `section.ex`.
-# When the canonical modules land, these two local declarations must be dropped
-# without changing one byte of `AshSurface.Compiler.Aria`.
+# [Corrected by gapfix-docs-truth-013: the local-canonical-declarations note
+# that stood here is discharged — the promotions happened and the two local
+# declarations were dropped without changing one byte of
+# `AshSurface.Compiler.Aria`: `AshSurface.Compiler.IR` is canonical in
+# lib/ash_surface/compiler/ir.ex, and the Section behaviour in
+# lib/ash_surface/compiler.ex. Note lib/ash_surface/section.ex is the distinct
+# `AshSurface.Section` behaviour (v29), not the compiler Section.]
 
 defmodule AshSurface.Compiler.Aria do
   @moduledoc """

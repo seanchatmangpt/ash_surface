@@ -2,9 +2,12 @@ defmodule AshSurface.Compiler.IR.Capability do
   @moduledoc """
   Canonical IR shape for one capability entry of the capability section.
 
-  Local canonical declaration (no `ir.ex` exists yet at this worktree); once
-  a shared `AshSurface.Compiler.IR` module lands it owns this shape and this
-  declaration moves there unchanged.
+  [Corrected by gapfix-docs-truth-013: the planned move is superseded — no
+  `ir.ex` existed at writing, but `lib/ash_surface/compiler/ir.ex` has since
+  landed and its header ratifies the opposite of this note:
+  `AshSurface.Compiler.IR.Capability` stays declared in this owning section
+  file, because nested-named module declarations compose with the parent
+  without conflict.]
 
   Every field is delegated truth, never `ash_surface` invention:
 

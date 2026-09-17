@@ -53,6 +53,22 @@ export `project/2` is refused with `{:error, {:unsupported_projector, projector}
   re-extracted (never re-derived; Ash ships no manifest deserializer and none
   is invented).
 
+**Adoption reality (corrected gapfix-docs-truth-013).** The `project_ir/2`
+callback is declared here, but in-tree the behaviour is adopted only by a
+test fixture (`test/ash_surface/projector/ir_projector_test.exs`). The shipped
+projectors — `AshSurface.Projectors.JS`, `AshSurface.Projectors.ARIA`,
+`AshSurface.Projectors.LiveView`, `AshSurface.Projector.VoiceKiosk` — export
+`project_ir/2` without declaring the behaviour; dispatch is duck-typed on
+`function_exported?(projector, :project_ir, 2)`
+(`lib/ash_surface/projector/ir.ex:161`), and
+`lib/ash_surface/projectors/live_view.ex:28–31` records the honest reason (the
+v16 behaviour folds kind-tagged node maps; these projectors fold
+`%AshSurface.IR{}` structs — a different, documented subject contract). The
+legacy `AshSurface.Projector` behaviour (§1.1) *is* declared by
+`Projector.VoiceKiosk` and `Projector.Expo`. Earlier revisions of this
+document implied the behaviour was the shipped adoption path; that was not
+true at this tree.
+
 ## 2. The IR the projectors speak — five sections
 
 `%AshSurface.IR{}` (`lib/ash_surface/ir.ex`, landed `exp/v01`, five-section
@@ -71,7 +87,11 @@ Plus envelope fields `version` and `digest`
 (`canonical_term -> term_to_binary -> SHA-256 -> lower hex`).
 
 The flat entry reader target projectors render through is
-`AshSurface.Projector.IR` (`lib/ash_surface/projector/ir.ex`, `exp/v18` form):
+`AshSurface.Projector.IREntry` (`lib/ash_surface/projector/ir_entry.ex`;
+corrected gapfix-docs-truth-013 — an earlier revision named
+`AshSurface.Projector.IR`/`lib/ash_surface/projector/ir.ex` here, but the
+reader was renamed at v50 final integration, commit `4aacae5`, because the v16
+behaviour module owns the `Projector.IR` name):
 `entries/1` normalizes one IR or a list into id-sorted entries with
 `id` (naming fact `resource.action`, last module segment), `action_type`,
 `authority_boundary`, `receipt_required`, `capability_iri`, `label`, `zod`.
@@ -98,6 +118,8 @@ Four projection lanes leave the IR (`pi_LiveView`, `pi_JS`, `pi_ARIA`,
 | `pi_LiveView` (structure) | `AshSurface.Compiler.Presentation` | `lib/ash_surface/compiler/presentation.ex` | `exp/v06`, carried `exp/v50` | `build/2` presentation reader | `label/group/order/widget/format` at `IR.Presentation` |
 | `pi_voice` | `AshSurface.Projector.VoiceKiosk` | `lib/ash_surface/projector/voice_kiosk.ex` | `exp/v20` (`41a5a48`), carried `exp/v50` | legacy `project/2` + `project_ir/2` | `{prefix}.voice.json` sorted voice intents |
 | reference (landed) | `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | base `282f3ca` | legacy `project/2` | `{prefix}.schemas/.actions/.events/.receipts/.mjs/.tanstack.mjs` |
+| `pi_LiveView` (projection) | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | landed at v50 final integration (feat `2b93c85`) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch; see §1.2 adoption note) | ash_admin-style structure map: navigation/table/forms/relationships + intent-only action controls |
+| `pi_ARIA` (projection) | `AshSurface.Projectors.ARIA` | `lib/ash_surface/projectors/aria.ex` | landed at v50 final integration (feat `8827f41`, `exp/v19` line) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch) | ARIA contract map (+ optional `.json` emission) from delegated `IR.Schema.aria`/`IR.Presentation` facts |
 
 Notes per lane:
 
@@ -124,16 +146,26 @@ Notes per lane:
   only), live regions for OBSERVE surfaces ONLY (DO consequences never
   announce passively; politeness is law, not configuration), id stability
   across re-projections. Rendering belongs to consumers (AshSDUI / live_vue /
-  Expo), never to this module.
-- **live_view structure.** No projector module is shipped: the structure facet
-  is the presentation section. `build/2` reads ash_admin-style overrides from
-  the action's `custom.ash_surface` envelope under `"presentation"` (atom or
-  string envelope keys tolerated for in-memory vs round-tripped manifests).
-  Defaults when absent: humanized action name, `group`/`format` `nil`,
-  `order` 0, `widget "default"`. The widget vocabulary is closed and admitted
-  (`default text textarea toggle select number date`); anything else is a
-  typed `unknown_widget_presentation` rejection. Server-rendered LiveView
-  itself is consumer territory (AshPhoenix authoritative).
+  Expo), never to this module. The registered consumer of these contracts on
+  this tree is the `AshSurface.Projectors.ARIA` projector (registry row
+  above), which reads the delegated facts and emits the contract map —
+  registered by gapfix-docs-truth-013 alongside the LiveView module.
+- **live_view structure.** [Corrected gapfix-docs-truth-013: an earlier
+  revision said "no projector module is shipped" — falsified by the v50
+  landing.] The projection module `AshSurface.Projectors.LiveView` folds
+  `%AshSurface.IR{}` structs into deterministic navigation/table/form/
+  relationship structure maps with intent-only action controls; it honestly
+  does not declare the `Projector.IR` behaviour (struct subject, not
+  kind-tagged node maps — `live_view.ex:28–31`). The structure facet's source
+  *data* is still the presentation section: `build/2` reads ash_admin-style
+  overrides from the action's `custom.ash_surface` envelope under
+  `"presentation"` (atom or string envelope keys tolerated for in-memory vs
+  round-tripped manifests). Defaults when absent: humanized action name,
+  `group`/`format` `nil`, `order` 0, `widget "default"`. The widget vocabulary
+  is closed and admitted (`default text textarea toggle select number date`);
+  anything else is a typed `unknown_widget_presentation` rejection.
+  Server-rendered LiveView itself is consumer territory (AshPhoenix
+  authoritative).
 - **voice_kiosk.** The deliberately minimal fifth projector — see §5.
 
 ## 4. The legacy manifest-projector adapter — `from_manifest_projector/1`
@@ -280,12 +312,23 @@ admitted on per-section sibling branches and converges at integration; on this
 branch only `lib/ash_surface.ex` (legacy behaviour + `AshSurface.project/3`)
 and `lib/ash_surface/projector/expo.ex` are present.
 
+[Corrected gapfix-docs-truth-013: the "only … on this branch" list described
+the pre-integration tree and is false on the integrated tree, which carries
+every canonical path in the table below — `projector/ir.ex`,
+`projector/ir_entry.ex`, `projectors/js.ex`, `projectors/aria.ex`,
+`projectors/live_view.ex`, `projector/voice_kiosk.ex`,
+`compiler/presentation.ex`, `compiler/aria.ex`, `ir/codec.ex`. The exp/v22-era
+sentence is kept above as the writing-time record; the table below (with the
+correction markers) is the registry of record.]
+
 | Element | Branch (commit) | Canonical path (post-integration) |
 |---|---|---|
 | Legacy `AshSurface.Projector` behaviour + dispatch | base `282f3ca` | `lib/ash_surface.ex` |
 | `project_ir/2` behaviour + `from_manifest_projector/1` + `project/3` | `exp/v16` (`01545e3`) | `lib/ash_surface/projector/ir.ex` |
 | Five-section `AshSurface.IR` | `exp/v01` -> `exp/v18` | `lib/ash_surface/ir.ex` |
-| Flat-entry reader (`entries/1`, `describe/1`, `do_boundary?/1`) | `exp/v18` (`7d8e705`) | `lib/ash_surface/projector/ir.ex` |
+| Flat-entry reader (`entries/1`, `describe/1`, `do_boundary?/1`) | `exp/v18` (`7d8e705`), renamed `Projector.IREntry` at v50 final integration (`4aacae5`) | `lib/ash_surface/projector/ir_entry.ex` |
+| LiveView projector (`AshSurface.Projectors.LiveView`) | v50 final integration (feat `2b93c85`) | `lib/ash_surface/projectors/live_view.ex` |
+| ARIA projector (`AshSurface.Projectors.ARIA`) | v50 final integration (feat `8827f41`, `exp/v19` line) | `lib/ash_surface/projectors/aria.ex` |
 | js projector (JSDoc + Zod, `project_ir/2`) | `exp/v18` (`7d8e705`) | `lib/ash_surface/projectors/js.ex` |
 | Presentation section (live_view structure facet) | `exp/v06` -> `exp/v50` | `lib/ash_surface/compiler/presentation.ex` |
 | ARIA section (data) + v34 depth | `exp/v08` (`88dc562`), `exp/v34` (`725503e`) | `lib/ash_surface/compiler/aria.ex` |

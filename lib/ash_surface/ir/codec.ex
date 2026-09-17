@@ -4,10 +4,16 @@ defmodule AshSurface.IR.Surface do
   JSON-isomorphic staging form between a verified `AshSurface.Surface`
   contract and target projectors.
 
-  This module declares the IR's canonical shape *locally*, inside the codec's
-  own file, because this change owns only `lib/ash_surface/ir/codec.ex`. When
-  `lib/ash_surface/ir.ex` is admitted it must carry exactly this shape: the
-  same five sections, the same enforce order, `digest/0` last.
+  [Transition note, superseded — corrected by gapfix-docs-truth-013. This
+  shape was first declared locally inside the codec's own file because that
+  change owned only `lib/ash_surface/ir/codec.ex`, with the rule that a later
+  `lib/ash_surface/ir.ex` "must carry exactly this shape". That move completed
+  differently: `lib/ash_surface/ir.ex` was admitted with the wave's
+  five-section struct canon (`ash | semantic | capability | presentation |
+  schema`), and at integration this module was re-pointed as the *permanent*
+  owner of the staging-codec IR, named `AshSurface.IR.Surface` (goldens and
+  digest pins intact). The five map sections below are the codec's own canon;
+  `AshSurface.IR` is a different, documented carrier.]
 
   ## The five sections
 
