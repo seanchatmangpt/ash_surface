@@ -13,3 +13,11 @@
 - F7 honestly BLOCKED on operator cut: pack-side admission prepared+verified on ggen-marketplace feat/ash-extension-pack-license-file @832e2c1c2 (byte-identity md5 1a18525b, gates 7/7); after merge+push, re-dispatch retires ledger pair 31 (first monotonic paydown).
 - Merge precedents added: sibling row-39 ID collisions resolve by deterministic rebuild (3rd-4th minter); runtime golden unions re-freeze from the MERGED file; conflict-region unions need region-independence verification (event.ex closure lesson).
 - Fleet tonight: 30+ heavyweight agents across gapfix + vision + F-waves; 3 [1302] storms, all recovered; zero unrecovered casualties.
+
+## 2026-09-17T09:0xZ — CHICAGO WAVE COMPLETE (25/25 terminal)
+- 24 merged (032,037,047,052,044,031,040,041,043,030,049,038,034,048,033,028,029,035,039,036,045,042,046,051) + 050 BLOCKED-on-operator. Final tree: 981 mix (944 tests + 6 properties + 31 doctests) / 287 npm / format 0 / falsifier job green.
+- Night arc: 25-ticket burst -> 3 [1302] storms (sustained-load class; stagger falsified as mitigation) -> cold-hold -> 4 half-pace cohorts (all completed clean once the window opened) -> 8 post-reap completions (silence != death; 102min was NOT past max runtime). ~50 heavyweight agent-runs total across the wave.
+- 5 cross-ticket union defects caught at merge gates and repaired: path-truth citation (033x035), stream_data dep dupe (042x043), codec-canon retired-struct x3 layers (042/051 fixtures x 034). Every finder was a test landed by this same wave.
+- 4 independent masked-falsifier discoveries (axis-order; sort-drop x2; raw-Jason on OTP28 VM order) — each repaired by making the mutation observable, each now a permanent tripwire.
+- Falsifier infrastructure graduated to CI: bounded mutation job (FALSIFIER_OK; dead-guard meta-proof). Ledger bijection 47=47 green throughout.
+- Operator cuts consolidated: pack admission CHAIN (license-file @832e2c1c2 first, doc-template @314d11021 second) -> re-dispatch 026+050 -> ledger shrinks #1+#2; blob purge 016 pre-push; 91-branch delete; push; reap/stagger CronUpdate.
