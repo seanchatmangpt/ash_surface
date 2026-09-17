@@ -1,5 +1,5 @@
 # chicago-e2e-loop-044: closed-loop e2e extension: state assertions at every stage
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Extend the consumer_fixture e2e: intent -> node runtime dispatch (live HTTP) -> receipt -> Event.from_receipt -> observation -> projector render (one projector) -> on-disk byte assertions; assert END-STATE at each stage (no intermediate-mock bookkeeping). Subject: test/ash_surface/consumer_fixture_test.exs family.
@@ -13,3 +13,4 @@ Extend the consumer_fixture e2e: intent -> node runtime dispatch (live HTTP) -> 
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g44 + exp/chicago-e2e-loop-44 | dispatched by coordinator (chicago wave)
 2026-09-17T06:00:01Z | REAPED: agent rate-killed [1302] (storm window); worktree g44 + branch preserved — successor reviews git log first
+2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts

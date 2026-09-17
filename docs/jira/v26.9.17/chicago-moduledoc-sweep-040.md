@@ -1,5 +1,5 @@
 # chicago-moduledoc-sweep-040: stale-claim comment sweep + tripwire
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Mappers 05/14 residuals: lib/ carries transition/existence claims (pattern: 'does not exist yet', 'until X lands', 'on no branch'). Sweep every hit in lib/ — correct or prove-current; add a lightweight tripwire test grepping lib/ for the stale-claim patterns with an explicit allowlist of proven-current mentions.
@@ -13,3 +13,4 @@ Mappers 05/14 residuals: lib/ carries transition/existence claims (pattern: 'doe
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g40 + exp/chicago-moduledoc-sweep-40 | dispatched by coordinator (chicago wave)
 2026-09-17T05:56:53Z | REAPED: agent rate-killed [1302] (storm window); worktree g40 + branch preserved — successor reviews git log first
+2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts

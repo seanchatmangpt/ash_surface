@@ -1,5 +1,5 @@
 # chicago-golden-mutation-041: mutation-proven golden families
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Chicago core: prove the golden guards CAN fail. For 3 families (runtime SHA, contract digest, IR codec golden): documented mutation recipes (whitespace injection, field rename) executed in-receipt showing the guarding tests RED, restored GREEN; encode recipes as a scripts/mutation_recipes.md + optional fast script (not wired to default CI). Subject: test goldens + recipes doc.
@@ -13,3 +13,4 @@ Chicago core: prove the golden guards CAN fail. For 3 families (runtime SHA, con
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g41 + exp/chicago-golden-mutation-41 | dispatched by coordinator (chicago wave)
 2026-09-17T05:55:59Z | REAPED: agent rate-killed [1302] at 346s; worktree g41 + branch preserved — successor reviews git log first
+2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts

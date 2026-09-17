@@ -1,5 +1,5 @@
 # chicago-zeroconfig-census-048: zero-config v3 seed: suite census step
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 Extend the fresh-clone battery with a census step: the cloned tree must contain the full chicago suite set (file list pinned) with a test-count floor (mix test line-count >= current); fails closed on removed suites. Subject: scripts/zero_config_v2.sh (v3 step) or a sibling script + TESTING.md note.
@@ -13,3 +13,4 @@ Extend the fresh-clone battery with a census step: the cloned tree must contain 
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g48 + exp/chicago-zeroconfig-census-48 | dispatched by coordinator (chicago wave)
 2026-09-17T06:04:53Z | REAPED: agent rate-killed [1302] mid-life (12-14min — sustained-overload class, not launch-spike); worktree g48 + branch preserved — successor reviews git log first
+2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts

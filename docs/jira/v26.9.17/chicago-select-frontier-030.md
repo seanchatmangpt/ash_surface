@@ -1,5 +1,5 @@
 # chicago-select-frontier-030: selection calculus state tables + JS parity
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 F6 landed delegated dimension facts. State tables: preference-dominates-facts; frontier best via cost->latency->privacy with full-tie falling to declared order; absent-facts = legacy law byte-identical; malformed facts typed refusals; JS twin parity rows per table. Subject: lib/ash_surface/transport.ex select/3 + facts_from_profile/1 + runtime.mjs twin.
@@ -13,3 +13,4 @@ F6 landed delegated dimension facts. State tables: preference-dominates-facts; f
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g30 + exp/chicago-select-frontier-30 | dispatched by coordinator (chicago wave)
 2026-09-17T05:55:00Z | REAPED: agent rate-killed [1302] at 296s; worktree g30 + branch preserved — successor reviews git log first
+2026-09-17T06:24:09Z | IN_PROGRESS | successor re-dispatch (predecessor rate-killed; branch preserved — review git log first) | rider, operator cut, staggered cohorts
