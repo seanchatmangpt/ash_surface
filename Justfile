@@ -45,6 +45,10 @@ zero-config:
         exit 1
     fi
 
+# Run the 並 capacity gate (ontology law rows, gapfix-ontology-promo-017)
+capacity-gate:
+    bash scripts/capacity_gate.sh
+
 # Check Elixir formatting and JavaScript syntax
 format-check:
     mix format --check-formatted

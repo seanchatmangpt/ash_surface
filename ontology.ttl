@@ -138,6 +138,47 @@ surf:IntentEdge a surf:LawEdge ;
     surf:edgeDoc "Human intent terminates at candidate actions whose authority ceiling is strictly SELECT or CONSTRUCT; there is no direct human-to-DO edge. PlanningEpisode authority_ceiling can never be :DO." ;
     surf:enforcedBy "test/ash_surface/planning_episode_test.exs" .
 
+## v26.9.17 law rows (gapfix-ontology-promo-017): the 並 capacity family.
+## Promoted from operating prose (延: every concept keeps a repo-side
+## enforcement anchor). Mirror-reference: the canonical 並 fact belongs to
+## dfcm-agent-pack; admitting it there is an operator cut. Capacity is a
+## per-(model_tier, agent_weight) measurement — other tiers carry their own
+## measured ceilings and are NOT expressed by these rows.
+
+surf:CapacityTierLaw a surf:LawRow ;
+    surf:lawOrder 5 ;
+    surf:lawName "CapacityTierLaw" ;
+    surf:lawDoc "並 capacity = f(model_tier, agent_weight), measured never assumed; re-measured on every tier change. Dispatch telemetry lands in capacity-ride/log.ndjson as one JSON object per observation (ts, tier, weight, target_n, rider)." ;
+    surf:capacityTelemetry "capacity-ride/log.ndjson" ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:FlashHeavyweightCeiling a surf:LawRow ;
+    surf:lawOrder 6 ;
+    surf:lawName "FlashHeavyweightCeiling" ;
+    surf:lawDoc "Flash-tier heavyweight agents run at most 16 in flight (measured 2026-09-17). A non-rider dispatch observation with target_n above 16 is a capacity violation." ;
+    surf:capacityTier "flash" ;
+    surf:capacityWeight "heavyweight" ;
+    surf:capacityCeiling 16 ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:RiderSetpointLaw a surf:LawRow ;
+    surf:lawOrder 7 ;
+    surf:lawName "RiderSetpointLaw" ;
+    surf:lawDoc "A rider-supplied target_n is the operator setpoint: it overrides tier ceilings, and the capacity gate skips rider rows (rider true) instead of judging them." ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:StormProtocol a surf:LawRow ;
+    surf:lawOrder 8 ;
+    surf:lawName "StormProtocol" ;
+    surf:lawDoc "Above 30 concurrent dispatches the rate refuser answers [1302]. On [1302]: stop, drain the window (minutes), resume at half pace; a repeat refusal halves the pace again. Saturation is reached by top-up (replacement launches on completion), never by bulk burst. Row-preservation anchor: ontology_enforced_by_test." ;
+    surf:enforcedBy "test/ash_surface/ontology_enforced_by_test.exs" .
+
 ## HANDWRITTEN ledger UNSUPPORTED rows (gapfix-ledger-011).
 ## 帳 law: one UNSUPPORTED(generator, element) row per open HANDWRITTEN.md row.
 ## Generator = intended owner pack `ash-extension-pack (ggen-marketplace)`, the
@@ -152,183 +193,220 @@ surf:UnsupportedLedgerRow01 a surf:UnsupportedRow ;
     surf:unsupportedElement "mix.exs alias/cli template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow02 a surf:UnsupportedRow ;
     surf:ledgerPath "mix.exs" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "mix.exs deps-block template emission with SHA pinning + conflict-driven override/only reconciliation" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow03 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/TESTING_QUICKSTART.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "test-entry doc template" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow04 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/ir.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "ir-section module template + delegated-facts fact in ontology" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow05 a surf:UnsupportedRow ;
     surf:ledgerPath "V_WAVE.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "wave-ledger doc emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow06 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler.ex + compiler/{capability,presentation,aria}.ex + ir/codec.ex + capability_section_test.exs + voice_kiosk_test.exs" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "merge-composition/integration template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow07 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/ZERO_CONFIG_AUDIT.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "audit/receipt doc template" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow08 a surf:UnsupportedRow ;
     surf:ledgerPath "scripts/bump_version.sh" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "bump-mechanism script template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow09 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/ir.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "ir normalization/digest emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow10 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "compiler/section projection emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow11 a surf:UnsupportedRow ;
     surf:ledgerPath "README.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "README section/thesis prose template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow12 a surf:UnsupportedRow ;
     surf:ledgerPath "ARCHITECTURE.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "architecture-doc projection from ontology facts (sections/edges/delegated facts already pack truth)" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow13 a surf:UnsupportedRow ;
     surf:ledgerPath "TESTING.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "test-suite-map doc template emission (supersedes the 2026-09-15 row's `true counts / zero-config v1/v2 battery` claim, falsified by the v-wave merges)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow14 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/MIGRATION_26_9_16.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "migration-doc template emission over V_WAVE.md + owning-branch commit receipts" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow15 a surf:UnsupportedRow ;
     surf:ledgerPath "scripts/zero_config_check.sh + scripts/zero_config_v2.sh (v1 unledgered gap, v2 ledgered at birth; battery: env -i re-exec, local clone, env-read guard vs @zero_env_allowlist, deps/test battery, per-step EXIT lines)" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "verification battery-script template (extend ash-extension-pack or a zero-config-proof pack in ggen-marketplace)" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow16 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/DEP_GRAPH.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "dependency-law doc template (cross-repo mix.exs citation)" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow17 a surf:UnsupportedRow ;
     surf:ledgerPath "scripts/bump_version.sh (TEXT_FILES extension: +docs/DEP_GRAPH.md)" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "bump-mechanism handled-set fact (repo-own version references list) in the pack's version-bump family" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow18 a surf:UnsupportedRow ;
     surf:ledgerPath "scripts/bump_version.sh (v-wave golden families folded in: TEXT_FILES +projectors/js.ex, ir_codec_test, ir_struct_test, live_view_test, digest_cross_language_v2, ir_projector_deep, +docs/DEP_GRAPH.md per the prior row's prescription; new computed families IR_DIGEST x5 via the real IR.Codec from_map/to_map/digest pipeline, JS_DIGEST_V2 x3 with escape-aware contractJson extraction + JS_T26_REF x3 re-pointing the v2 file's T26_DIGESTS negative golden, ARTIFACT_SHA x1 re-derived through the real Projectors.JS over a self-proven mirror of the v18 fixture IR; generator exit-status check + per-kind completeness counts close a found fail-open hole where a mid-run halt with earlier BUMPGEN emissions passed; GATE_LIST += mix compile --warnings-as-errors)" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "bump-mechanism golden-family facts (IR-codec digest family, v2 cross-language digest family, artifact-hash family, t26 negative-pin re-point rule) in the pack's version-bump family" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow19 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/projector/ir.ex + test/ash_surface/projector/ir_projector_test.exs + docs/PROJECTORS.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "projector-boundary typed-refusal fact (mixed-collection foreign-remainder law + error tuple) in the pack's projector family" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow20 a surf:UnsupportedRow ;
     surf:ledgerPath "scripts/README.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "scripts-index doc template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow21 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/schema.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "schema-section module template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow22 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/semantic.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "semantic-section module template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow23 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/ash.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "ash-section module template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow24 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/PROJECTORS.md" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "projector-registry doc template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow25 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/ir.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "canonical IR-slice module template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow26 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/ash_truth.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "per-action truth-section compiler template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow27 a surf:UnsupportedRow ;
     surf:ledgerPath "test/ash_surface/intent_path_test.exs + test/ash_surface/intent_round_trip_test.exs" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "identity-reconciliation/test-re-point emission over the intent family" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow28 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/section/{ash,semantic,capability,presentation,schema}.ex" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "section-adapter template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow29 a surf:UnsupportedRow ;
     surf:ledgerPath "lib/ash_surface/compiler/capability.ex + lib/ash_surface/compiler.ex (normalize: discovered custom envelope + per-input type kind carried once; stale default-bindings moduledoc refreshed) + re-pointed tests (compiler/ash_section_test.exs, compiler/capability_section_test.exs, resource/validator_ir_alignment_test.exs, compiler_discovery_test.exs real-pipeline law, compiler_test.exs input pin)" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "capability-conformance + test-re-point template emission" ;
     surf:ledgerDate "2026-09-16" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow30 a surf:UnsupportedRow ;
     surf:ledgerPath "mix.exs (dialyxir ~> 1.4 dev/test + dialyzer/1 config: plt_add_apps [:ex_unit, :ash_a2a, :ash_r2rml], ignore_warnings, list_unused_filters) + dialyzer.ignore-warnings (justified-suppression ledger, baseline empty) + .github/workflows/dialyzer-coverage.yml (dialyzer job + per-language coverage job) + Justfile dialyzer/coverage recipes + package.json test:coverage script" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "static-analysis gate + coverage-receipt wiring template (dialyzer-config emission, ignore-ledger emission, workflow emission, coverage-command emission)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 surf:UnsupportedLedgerRow31 a surf:UnsupportedRow ;
     surf:ledgerPath "LICENSE" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "package license-file template emission" ;
     surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow32 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/capacity_gate.sh + test/ash_surface/capacity_gate_test.exs + test/ash_surface/ontology_enforced_by_test.exs + Justfile capacity-gate recipe" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "telemetry-gate script template + ontology-enforcedBy linter emission" ;
+    surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
