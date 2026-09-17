@@ -468,3 +468,9 @@ surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
     surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/formatter.ex (RETIRED 2026-09-17, chicago-formatter-retire-033)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "Spark.Formatter plugin wiring template for a real surface DSL extension" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

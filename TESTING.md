@@ -197,7 +197,7 @@ Legend:
 | `lib/ash_surface/planning_episode.ex` | `test/ash_surface/planning_episode_test.exs` **[NEW]**; `test/ash_surface/planning_episode_deep_test.exs` **[DEEP]**; `test/js/planning_episode.test.mjs` **[NEW]** |
 | `lib/ash_surface/projector/expo.ex` (six-file artifact set, schemas/actions/events/receipts emissions, client factory, determinism) | `test/ash_surface/projector/expo_test.exs` **[NEW]**; `test/ash_surface/projector/expo_schemas_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_actions_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_events_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_receipts_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_client_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_determinism_test.exs` **[DEEP]** |
 | Whole closed loop (`Observation` + `PlanningEpisode` + `Event` over the fixture domain) | `test/ash_surface/mx_closed_loop_episode_test.exs` **[NEW]**; `test/ash_surface/mx_closed_loop_deep_test.exs` **[DEEP]** |
-| `lib/ash_surface/formatter.ex` | `test/ash_surface/formatter_test.exs` (DSL delegation law; the formatter gate itself is `mix format --check-formatted`) |
+| `lib/ash_surface/formatter.ex` **[RETIRED]** (chicago-formatter-retire-033: decorative plugin for the never-existing `AshSurface.Resource`; decision ledgered HANDWRITTEN+UNSUPPORTED) | canary against the pattern's return: `test/ash_surface/formatter_registration_canary_test.exs`; the formatting gate itself remains `mix format --check-formatted` |
 | `lib/ash_surface/resource/validator.ex` | `test/ash_surface/resource/validator_test.exs`; `test/ash_surface/resource/validator_adversarial_test.exs` **[DEEP]** |
 | `priv/static/ash_surface_runtime.mjs` (Zod/JSDoc runtime: `createClient`, schemas, `SurfaceRuntimeError`) | `test/js/runtime.test.mjs`; `test/js/zod_boundaries.test.mjs` **[NEW]**; `test/js/error_paths.test.mjs` **[NEW]**; `test/js/namespaces_deep.test.mjs` **[DEEP]**; `test/js/receipts_primitives.test.mjs` **[NEW]**; `test/js/consumer_fixture.test.mjs` **[NEW]**; `test/js/zoela_mx_consumer_fixture.test.mjs` **[NEW]**; `test/js/e2e_hermetic.test.mjs` **[NEW]** |
 | Cross-language manifest -> surface -> JS dispatch -> Ash consequence -> receipt | `test/ash_surface/consumer_fixture_test.exs` **[NEW]** (spawns `test/js/consumer_e2e_runner.mjs` against the loopback server) |
@@ -218,9 +218,8 @@ Elixir:
   (`lib/ash_surface/projector/expo.ex` ->
   `test/ash_surface/projector/expo_test.exs`).
 - `use ExUnit.Case, async: true` unless the test owns processes or scratch
-  dirs (the fixture-server, projector, closed-loop, and formatter tests use
-  `async: false` for exactly that reason — the formatter test also mutates
-  global Spark app env).
+  dirs (the fixture-server, projector, and closed-loop tests use
+  `async: false` for exactly that reason).
 - Helpers live inside your own test module as `defp`s (see `manifest/0` in
   `test/ash_surface_test.exs`, `canonical_json/1` in
   `test/ash_surface/consumer_fixture_test.exs`). The only shared support
