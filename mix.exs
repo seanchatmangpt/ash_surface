@@ -65,6 +65,10 @@ defmodule AshSurface.MixProject do
       # Static success-typing analysis (gapfix-dialyzer-010). Dev-only: the
       # analysis tool never ships and never enters the boot path.
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # Property-based testing (chicago-props-transport-043). No `only:`
+      # restriction — ash_a2a (all-env dep) requires it beyond dev/test;
+      # runtime: false keeps it out of the boot path.
+      {:stream_data, "~> 1.4", runtime: false},
       # ash_r2rml pinned to git HEAD (7d958a8) overriding ash_a2a's hex
       # "~> 26.8" requirement — git version 26.9.12 satisfies it.
       {:ash_r2rml,
