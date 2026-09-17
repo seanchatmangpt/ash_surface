@@ -49,8 +49,6 @@ jobs:
 
   # Fresh-clone proof (zero-config gate law, v1): a pristine local clone of
   # HEAD must build and pass the full battery with zero configuration.
-  # v2 battery (zero_config_v2.sh) is intentionally NOT wired until
-  # gapfix-v2-receipt-008 lands DONE green.
   zero-config:
     runs-on: ubuntu-latest
     steps:
@@ -65,3 +63,40 @@ jobs:
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: bash scripts/zero_config_check.sh
+
+  # Fresh-clone proof (zero-config gate law, v2, ticket gapfix-v2-ci-019):
+  # zero_config_v2.sh re-execs itself under env -i (PATH+HOME only), local
+  # clones HEAD (git never touches the network), and runs the FULL battery:
+  # env-read guard, mix deps.get, npm install, mix test, npm test, and
+  # mix test.zero — every step printing EXIT[label]=code before ZERO_CONFIG_OK.
+  # Same pins as .tool-versions (28.3 / 1.20.3); sibling job so v1 and v2
+  # fail independently. timeout-minutes covers two from-scratch compiles
+  # (test.zero re-runs test.all). Cache: hex archives/packages and the npm
+  # cache live under HOME, survive the hermetic re-exec, and are keyed on
+  # both lockfiles — cache-friendly without weakening the zero-config proof.
+  # Wired after gapfix-v2-receipt-008 landed DONE green (six EXITs 0 +
+  # ZERO_CONFIG_OK @a7a6b40).
+  zero-config-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.mix
+            ~/.hex
+            ~/.npm
+          key: >-
+            zero-config-v2-${{ runner.os }}-${{
+            hashFiles('mix.lock', 'package-lock.json') }}
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: bash scripts/zero_config_v2.sh
