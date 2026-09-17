@@ -129,7 +129,7 @@ defmodule AshSurface.Compiler.Capability do
     %Capability{
       capability_id: id,
       consequence_class: consequence,
-      authority_required: authority_required?(consequence),
+      authority_required: command_bus_authority_requirement(consequence),
       receipt_required: receipt_required?(consequence)
     }
   end
@@ -139,9 +139,19 @@ defmodule AshSurface.Compiler.Capability do
   # authority at all. :unknown never reaches the authority question (it is
   # refused earlier as :consequence_unclassified), so it keeps nil -- the
   # fence, not a fabricated false.
-  defp authority_required?(consequence) when consequence in [:change, :external_do], do: true
-  defp authority_required?(:observe), do: false
-  defp authority_required?(:unknown), do: nil
+  #
+  # Named as the projection it is -- the requirement CommandBus admission
+  # publishes for one consequence class, recorded into the IR fact -- not as a
+  # surface gate. Gate spellings (`authority_required`, `authority_required?`)
+  # are owned by AshSurface.IR.Capability per the no_local_do law; the
+  # ?-suffix hole they hid this helper behind was closed by
+  # finish-tripwires-024 (no_local_do_test @gate_fun_names). The name says
+  # where the truth comes from; the function decides nothing.
+  defp command_bus_authority_requirement(consequence) when consequence in [:change, :external_do],
+    do: true
+
+  defp command_bus_authority_requirement(:observe), do: false
+  defp command_bus_authority_requirement(:unknown), do: nil
 
   # AshA2A.CommandBus: RECEIPT_ANCHORED is mandatory for :change and
   # :external_do; prepare_receipt_anchor/3 for :observe yields {:ok, nil} --

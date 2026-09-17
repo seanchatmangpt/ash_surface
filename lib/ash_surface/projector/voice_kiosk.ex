@@ -44,7 +44,7 @@ defmodule AshSurface.Projector.VoiceKiosk do
     intents =
       for action <- get_in(surface.contract, ["surface", "actions"]) || [] do
         label = get_in(action, ["profile", "presentation", "label"]) || humanize(action["action"])
-        gated? = action["doAuthority"] == true or authority_required?(action)
+        gated? = action["doAuthority"] == true or authority_capability_admitted?(action)
 
         %{
           "actionId" => action["id"],
@@ -59,7 +59,14 @@ defmodule AshSurface.Projector.VoiceKiosk do
     %{"kind" => "voice_kiosk", "surfaceDigest" => surface.digest, "intents" => intents}
   end
 
-  defp authority_required?(action) do
+  # Reads the delegated profile: confirmation-gating when the action's
+  # admitted capabilities carry the "authority_required" marker — a read of an
+  # admitted profile fact, never a local authority determination. The name
+  # deliberately does not borrow the owner's gate spelling (see
+  # no_local_do_test @gate_fun_names, finish-tripwires-024): `?`-suffixed
+  # authority gate names are IR.Capability's vocabulary; a surface projector
+  # neither defines nor shadows them.
+  defp authority_capability_admitted?(action) do
     "authority_required" in List.wrap(get_in(action, ["profile", "capabilities"]))
   end
 

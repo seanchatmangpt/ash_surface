@@ -95,6 +95,13 @@ defmodule AshSurface.Projector.Expo do
     """
   end
 
+  # The delegated boundary lookup emitted below FAILS CLOSED
+  # (finish-tripwires-024): an id that admits no descriptor has no delegated
+  # boundary, so `getAuthorityBoundary` answers null — the v26.9.16 law
+  # (absent == not delegated == null) extended to the absent action. The
+  # former `: "OBSERVE"` fallback fabricated the safest-sounding boundary for
+  # an unknown id on the delegated lookup path; unknown ≠ OBSERVE. Enforced by
+  # ExpoActionsTest's TRIPWIRE over the rendered artifact.
   defp render_actions(actions) do
     actions_json = Jason.encode!(actions, pretty: true)
 
@@ -115,7 +122,7 @@ defmodule AshSurface.Projector.Expo do
 
     export function getAuthorityBoundary(id) {
       const action = getAction(id);
-      return action ? action.authorityBoundary : "OBSERVE";
+      return action ? action.authorityBoundary : null;
     }
     """
   end

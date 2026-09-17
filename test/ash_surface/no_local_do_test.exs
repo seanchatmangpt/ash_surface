@@ -73,6 +73,12 @@ defmodule AshSurface.NoLocalDoTest do
 
   # INVARIANT 4 — capability gating is owned by IR.Capability; these gate
   # names defined anywhere on the surface are local authority determinations.
+  # finish-tripwires-024 closed the ?-suffix hole: the list pinned only the
+  # bare owner name `authority_required`, so a surface file could define the
+  # predicate twin `authority_required?/1` and escape (witnessed near-miss:
+  # Projector.VoiceKiosk defined a local `authority_required?/1` at
+  # voice_kiosk.ex:62). Every bare gate name now also pins its ?-suffixed
+  # twin; `?` is not a spelling escape hatch.
   @gate_fun_names [
     :can_do?,
     :may_do?,
@@ -81,7 +87,9 @@ defmodule AshSurface.NoLocalDoTest do
     :has_do_authority?,
     :capability?,
     :gate_authority,
-    :authority_required
+    :gate_authority?,
+    :authority_required,
+    :authority_required?
   ]
 
   # INVARIANT 2 — process execution of actions: Task.* wholesale, and the
@@ -355,17 +363,20 @@ defmodule AshSurface.NoLocalDoTest do
 
   test "TRIPWIRE capability gating flows only through IR.Capability.authority_required reads" do
     # INVARIANT v26.9.16 (second half): whether it may DO is IR.Capability's
-    # verdict. No surface module may define a gate, or call authority_required
-    # anywhere except IR.Capability. The owner itself
-    # (lib/ash_surface/ir/capability.ex => AshSurface.IR.Capability) is exempt:
-    # it defines; the surface only reads.
+    # verdict. No surface module may define a gate — bare or ?-suffixed
+    # (finish-tripwires-024) — or call authority_required anywhere except
+    # IR.Capability. The owner itself
+    # (lib/ash_surface/ir/capability.ex => AshSurface.IR.Capability) is exempt
+    # for its own gate name in both spellings: it defines; the surface only
+    # reads.
     violations =
       for {path, _source, ast} <- read_sources!(),
           module_name = surface_module(path) do
         gate_defs =
           for {kind, _, [{name, _, _}, _]} = def_node <- function_defs(ast),
               name in @gate_fun_names,
-              not (module_name == AshSurface.IR.Capability and name == :authority_required) do
+              not (module_name == AshSurface.IR.Capability and
+                     name in [:authority_required, :authority_required?]) do
             "#{kind} #{name}/#{arity_of(def_node)}"
           end
 
