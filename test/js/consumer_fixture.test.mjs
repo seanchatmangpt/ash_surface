@@ -158,7 +158,50 @@ test("consumer fixture executes end-to-end against HTTP transport with Zod schem
       .update(canonicalStringify(receiptPayload))
       .digest("hex");
 
+    // receiptHash integrity law (chicago-receipthash-038): the hash is the
+    // lowercase-hex SHA-256 of canonical JSON over the receipt payload's
+    // NAMED content fields — actionId, input, consequence, dispatchState,
+    // selectedTransport, timestamp — never a bare shape check. Independent
+    // recomputation rebuilds the payload from the named fields only, so a
+    // payload that grows or shrinks a field fails here.
+    const expectedPayload = {
+      actionId: actionId,
+      input: input,
+      consequence: result.data,
+      dispatchState: receipt.dispatchState,
+      selectedTransport: receipt.selected,
+      timestamp: receiptPayload.timestamp,
+    };
+    const expectedHash = crypto
+      .createHash("sha256")
+      .update(canonicalStringify(expectedPayload))
+      .digest("hex");
+
+    assert.equal(receiptHash, expectedHash);
     assert.equal(receiptHash.length, 64);
+
+    // Reorder-invariant: key insertion order must never move the hash.
+    const permutedPayload = {
+      timestamp: receiptPayload.timestamp,
+      selectedTransport: receipt.selected,
+      dispatchState: receipt.dispatchState,
+      consequence: result.data,
+      input: input,
+      actionId: actionId,
+    };
+    assert.equal(
+      crypto.createHash("sha256").update(canonicalStringify(permutedPayload)).digest("hex"),
+      receiptHash,
+    );
+
+    // Value-sensitive: any content change must move the hash.
+    const tamperedHash = crypto
+      .createHash("sha256")
+      .update(
+        canonicalStringify({ ...expectedPayload, dispatchState: "unknown_after_dispatch" }),
+      )
+      .digest("hex");
+    assert.notEqual(tamperedHash, receiptHash);
   } finally {
     server.close();
   }
