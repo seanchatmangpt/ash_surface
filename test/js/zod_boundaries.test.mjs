@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createClient,
+  STANDING_VALUES,
   SurfaceRuntimeError,
   surfaceActionSchema,
   observationProjectionSchema,
@@ -173,6 +174,9 @@ rejectionTable("surfaceActionSchema", surfaceActionSchema, fullSurfaceAction, [
   wrong("evidenceRequired as null", "evidenceRequired", null),
   wrong("possibleRefusals as bare string", "possibleRefusals", "REFUSED_NO_AUTHORITY"),
   wrong("possibleRefusals with non-string element", "possibleRefusals", [42]),
+  // F3 refusal guard: every declared refusal must be a "REFUSED_"-prefixed code.
+  wrong("possibleRefusals with off-vocabulary refusal name", "possibleRefusals", ["AUTHORITY_REFUSED"], "invalid_format"),
+  wrong("possibleRefusals with UNKNOWN_AFTER_DISPATCH (dispatch outcome, not a refusal)", "possibleRefusals", ["UNKNOWN_AFTER_DISPATCH"], "invalid_format"),
   wrong("profile as string", "profile", "nope"),
   wrong("profile as array", "profile", []),
 ]);
@@ -220,8 +224,37 @@ rejectionTable("observationProjectionSchema", observationProjectionSchema, fullO
   wrong("facts as array", "facts", ["not", "a", "record"]),
   wrong("evidenceRefs as bare string", "evidenceRefs", "ev:1"),
   wrong("evidenceRefs with non-string element", "evidenceRefs", [1]),
-  wrong("standing as number", "standing", 7),
+  // F3: standing upgraded from free-form z.string() to the canonical enum
+  // union — a wrong-typed value fails the union ("invalid_union"), an
+  // off-vocabulary string fails every branch ("invalid_format").
+  wrong("standing as number", "standing", 7, "invalid_union"),
+  wrong("standing as boolean", "standing", true, "invalid_union"),
+  wrong("standing enum \"DOUGH\" (off-vocabulary)", "standing", "DOUGH", "invalid_format"),
+  wrong("standing \"ALIVEISH\" (not a prefix-exact member)", "standing", "ALIVEISH", "invalid_format"),
+  wrong("standing \"UNKNOWN\" (post-dispatch outcome, never a standing)", "standing", "UNKNOWN", "invalid_format"),
 ]);
+
+// F3: the JS boundary mirrors the single lib-side owner (AshSurface.Standing):
+// the closed STANDING_VALUES enum plus the open "REFUSED_"-prefixed class.
+test("STANDING_VALUES is the frozen canonical standing vocabulary mirror of AshSurface.Standing", () => {
+  assert.deepEqual([...STANDING_VALUES], [
+    "ALIVE",
+    "PARTIAL_ALIVE",
+    "BLOCKED",
+    "BUILD_BROKEN",
+    "UNSUPPORTED",
+    "REFUSED",
+  ]);
+  assert.equal(Object.isFrozen(STANDING_VALUES), true);
+});
+
+test("observationProjectionSchema admits every canonical standing plus the REFUSED_ class", () => {
+  for (const standing of [...STANDING_VALUES, "REFUSED_NO_AUTHORITY", "REFUSED_UNKNOWN_SUBJECT"]) {
+    const result = observationProjectionSchema.safeParse({ ...fullObservation, standing });
+    assert.equal(result.success, true, `standing ${standing} must be admitted: ${result.success ? "" : JSON.stringify(result.error.issues)}`);
+    assert.equal(result.data.standing, standing);
+  }
+});
 
 // --- planningEpisodeSchema ---------------------------------------------------
 

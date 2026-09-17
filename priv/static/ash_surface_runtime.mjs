@@ -14,6 +14,30 @@ const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 
+// F3: one canonical standing vocabulary, owned lib-side by AshSurface.Standing
+// (lib/ash_surface/standing.ex). The five base standings plus bare "REFUSED"
+// are the closed z.enum() core; the open REFUSED class ("REFUSED_"-prefixed
+// refusal standings, e.g. "REFUSED_NO_AUTHORITY") is the regex branch.
+// "UNKNOWN" is deliberately not a standing — it is a post-dispatch outcome.
+export const STANDING_VALUES = Object.freeze([
+  "ALIVE",
+  "PARTIAL_ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED",
+  "REFUSED",
+]);
+
+const standingSchema = z.union([
+  z.enum(STANDING_VALUES),
+  z.string().regex(/^REFUSED_/),
+]);
+
+// F3 refusal guard: every declared possible refusal is a "REFUSED_"-prefixed
+// code (mirrors the Elixir REFUSED_* refusal vocabulary, e.g.
+// "REFUSED_UNKNOWN_ACTION"). Off-vocabulary names are refused at the boundary.
+const refusalCodeSchema = z.string().regex(/^REFUSED_/);
+
 export const surfaceActionSchema = z
   .object({
     id: z.string().min(1),
@@ -32,7 +56,7 @@ export const surfaceActionSchema = z
     doAuthority: z.boolean().nullable().default(null),
     receiptRequired: z.boolean().nullable().default(null),
     evidenceRequired: z.boolean().default(false),
-    possibleRefusals: z.array(z.string()).default([]),
+    possibleRefusals: z.array(refusalCodeSchema).default([]),
     profile: jsonRecordSchema.default({}),
   })
   .passthrough();
@@ -45,7 +69,7 @@ export const observationProjectionSchema = z
     stateDigest: z.string().min(1),
     facts: jsonRecordSchema,
     evidenceRefs: z.array(z.string()).default([]),
-    standing: z.string().default("ALIVE"),
+    standing: standingSchema.default("ALIVE"),
     projectionPurpose: z.string().default("consumer_state_observation"),
     authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
   })
@@ -116,8 +140,14 @@ export const ashSurfaceContractSchema = z
  * @property {boolean|null} doAuthority Delegated; null when not delegated.
  * @property {boolean|null} receiptRequired Delegated; null when not delegated.
  * @property {boolean} evidenceRequired
- * @property {string[]} possibleRefusals
+ * @property {string[]} possibleRefusals "REFUSED_"-prefixed refusal codes (F3 guard).
  * @property {Record<string, unknown>} profile Projection-only metadata.
+ */
+
+/**
+ * @typedef {("ALIVE"|"PARTIAL_ALIVE"|"BLOCKED"|"BUILD_BROKEN"|"UNSUPPORTED"|"REFUSED"|string)} Standing
+ * A canonical standing: one of `STANDING_VALUES` or a "REFUSED_"-prefixed
+ * refusal standing. Mirrors `AshSurface.Standing` (lib/ash_surface/standing.ex).
  */
 
 /**

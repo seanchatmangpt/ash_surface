@@ -18,7 +18,10 @@ defmodule AshSurface.RuntimeSourceTest do
   # gapfix-bump-mech-007 at integration (018): re-frozen after the 26.9.17
   # carrier bump and the 015 comment union — the schema-site comment is still
   # comment-only; the version marker moved through the bump mechanism.
-  @golden_runtime_sha256 "37d5c1c91f9e23743c31e0830c2381d954783af42bad244d68e3b7923964fcc2"
+  # finish-standing-022 (F3): re-frozen after standing moved from a free-form
+  # z.string() to the canonical STANDING_VALUES enum union plus the
+  # "REFUSED_"-prefix refusal guard on possibleRefusals.
+  @golden_runtime_sha256 "79bfdc032943d626b292bba73cd31329724267dde8ccf1898ac9b3f4855b4b23"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

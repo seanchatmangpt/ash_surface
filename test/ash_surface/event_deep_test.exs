@@ -111,6 +111,24 @@ defmodule AshSurface.EventDeepTest do
     end
   end
 
+  describe "subject/type admission boundary (F3 constructor validation)" do
+    test "subject_ref must be a non-empty binary (it is a digest-bound identity input)" do
+      for bad <- ["", :subject, 42, nil, %{}] do
+        assert_raise ArgumentError, ~r/non-empty binary subject_ref/, fn ->
+          Event.create(bad, 1, "need_selected")
+        end
+      end
+    end
+
+    test "event_type must be a non-empty binary (mirrors the zod eventType min(1) row)" do
+      for bad <- ["", :need_selected, 42, nil] do
+        assert_raise ArgumentError, ~r/non-empty binary event_type/, fn ->
+          Event.create("zoe:KingdomNeed#need_7", 1, bad)
+        end
+      end
+    end
+  end
+
   describe "minimal-field validation (enforced keys)" do
     test "constructing the struct without event_id is rejected" do
       assert_raise ArgumentError, ~r/:event_id/, fn ->

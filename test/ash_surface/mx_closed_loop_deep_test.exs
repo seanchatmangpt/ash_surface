@@ -481,9 +481,8 @@ defmodule AshSurface.MXClosedLoopDeepTest do
           receiptRequired: true,
           evidenceRequired: true,
           possibleRefusals: [
-            "AUTHORITY_REFUSED",
-            "EVIDENCE_REQUIRED",
-            "UNKNOWN_AFTER_DISPATCH"
+            "REFUSED_NO_AUTHORITY",
+            "REFUSED_EVIDENCE_REQUIRED"
           ]
         }
       }
