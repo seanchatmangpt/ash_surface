@@ -1,5 +1,5 @@
 # chicago-liveview-states-045: LiveView projector data-state tests
-status: OPEN
+status: DONE
 created: 2026-09-17T06:30:00Z
 ## Mission
 State tests over rendered structure maps as DATA: relationships, windowing, defaults, intent-only controls, delegated-authority gating across >=3 authority profiles; assert content fields (not markup internals). Subject: lib/ash_surface/projectors/live_view.ex.
@@ -11,3 +11,6 @@ State tests over rendered structure maps as DATA: relationships, windowing, defa
 ## Acceptance
 - >=10 state rows across authority profiles; falsifier: an OBSERVE-violating control in a DO-window -> RED; gates 0.
 ## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g45 + exp/chicago-liveview-states-45 | dispatched by coordinator (chicago wave)
+2026-09-17T06:41:30Z | ALIVE | exp/chicago-liveview-states-45@00338e7 (ash-surface-wt/g45; gate repair feeb6b6) | mix compile --warnings-as-errors:0; mix test:0 (848 passed = 843 tests + 5 doctests, incl. 6 new state tests in test/ash_surface/projectors/live_view_states_test.exs); mix format --check-formatted:0 (repaired 2 PRE-EXISTING unformatted test files, feeb6b6, verified red at HEAD before repair); npm test: not run (no JS touched); falsifier EXECUTED: action_control/1 mutated to gated=true -> mix test live_view_states_test.exs RED exit 2 (4/6, "OBSERVE control in DO-window: delegated_operator/Ops.Cluster/Ops.Cluster#index"), restored -> GREEN exit 0 (6/6) | none — DONE; witness: 12-row gate state table over 3 authority profiles (delegated_operator/delegated_agent/public_observer); SUBJECT DEFECT FIXED: presentation.widget==nil fell through is_atom(nil) -> to_string(nil)=="" leaving @type_widgets/dead default for zero-config form fields — one nil clause now reaches default_widget/1 (live_view.ex, commit 00338e7); operator wrote: 0 lines
+2026-09-17T08:03:39Z | ALIVE | exp/chicago-liveview-states-45@00338e7 (ash-surface-wt/g45) | successor re-witness after mid-life death — predecessor receipt NOT inherited, every gate observed this session: mix compile --warnings-as-errors:0; mix test:0 (848 passed = 5 doctests + 843 tests, incl. 6 new state tests); mix format --check-formatted:0; npm test N/A (no JS touched, no assets dir); falsifier RE-EXECUTED this session: action_control/1 mutated to gated=true -> mix test test/ash_surface/projectors/live_view_states_test.exs RED exit 2 (4/6, "OBSERVE control in DO-window: delegated_operator/Ops.Cluster/Ops.Cluster#index"), restored byte-clean (git diff empty) -> GREEN exit 0 (6/6) | none — DONE
