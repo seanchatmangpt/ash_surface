@@ -46,6 +46,10 @@ defmodule AshSurface.Projectors.LiveView do
     "utc_datetime" => "datetime"
   }
 
+  # The projector's public entry (three clauses below): a single IR folds as
+  # a one-element collection, a list folds as given, anything else is refused.
+  @spec project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
+          {:ok, map(), map()} | {:error, term()}
   def project_ir(%AshSurface.IR{} = ir, opts), do: project_ir([ir], opts)
 
   def project_ir(irs, _opts) when is_list(irs) do

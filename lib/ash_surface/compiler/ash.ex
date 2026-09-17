@@ -17,6 +17,7 @@ defmodule AshSurface.Compiler.Ash do
 
   alias AshSurface.IR
 
+  @spec build(term(), term()) :: {:ok, [AshSurface.IR.Ash.t()]} | {:error, [map()]}
   def build(source, _opts \\ []) do
     if ash_resource?(source) do
       {:ok, Enum.map(Ash.Resource.Info.public_actions(source), &section(source, &1))}

@@ -1,9 +1,10 @@
-# Canonical compiler-section behaviour. Declared locally by the schema
-# section until lib/ash_surface/compiler/section.ex lands; when the shared
-# file arrives it replaces this definition byte-for-byte in shape.
-
-# Canonical compiler IR. Declared locally by the schema section until
-# lib/ash_surface/compiler/ir.ex lands; the shape below is canonical.
+# Claim-vs-code correction (gapfix-test-surface-015): this header previously
+# claimed this file declares, locally, the canonical compiler-section
+# behaviour and the canonical compiler IR. Both claims were stale and are
+# RETRACTED: the Section behaviour lives in lib/ash_surface/compiler.ex and
+# the canonical IR slices (including IR.Boundary, this section's output
+# shape) in lib/ash_surface/compiler/ir.ex. This file declares only
+# `AshSurface.Compiler.Schema`.
 
 defmodule AshSurface.Compiler.Schema do
   @moduledoc """
@@ -31,7 +32,9 @@ defmodule AshSurface.Compiler.Schema do
       }
 
   Returns `{:ok, ir, meta}` where `ir` maps each action id to an
-  `AshSurface.Compiler.IR.Schema` and `meta` carries the section counts.
+  `AshSurface.Compiler.IR.Boundary` (claimed as `IR.Schema` before the v50
+  rename — corrected in gapfix-test-surface-015) and `meta` carries the
+  section counts.
   """
 
   # The established zod mapping table. This mirrors
@@ -50,6 +53,10 @@ defmodule AshSurface.Compiler.Schema do
     "array" => "z.array(z.unknown())"
   }
 
+  @spec build(term(), term()) ::
+          {:ok, %{optional(String.t()) => AshSurface.Compiler.IR.Boundary.t()},
+           %{action_count: non_neg_integer(), argument_count: non_neg_integer()}}
+          | {:error, term()}
   def build(discovery, _opts \\ [])
 
   def build(discovery, _opts) when is_map(discovery) do
@@ -112,6 +119,15 @@ defmodule AshSurface.Compiler.Schema do
          :ok <- validate_returns(id, returns) do
       input = Map.new(args, fn arg -> {arg["name"], Map.delete(arg, "name")} end)
 
+      # Dead-code ledger (gapfix-test-surface-015): the Boundary slice is the
+      # canonical v07 shape (compiler/ir.ex), exercised field-complete by
+      # test/ash_surface/compiler/schema_section_test.exs, but it has no
+      # PRODUCTION reader yet — the intended reader is the orchestrator-facing
+      # `AshSurface.Compiler.Section.Schema` adapter (compiler.ex's default
+      # binding) that will mount these slices into compiled IRs. The pending
+      # state is pinned, not silent:
+      # test/ash_surface/compiler/boundary_ledger_test.exs fails when that
+      # adapter lands, forcing this ledger row to be re-pointed.
       slice = %AshSurface.Compiler.IR.Boundary{
         input: input,
         output: returns,

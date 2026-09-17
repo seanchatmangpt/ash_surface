@@ -62,6 +62,20 @@ defmodule AshSurface do
   `:profile` is projection metadata only. Its optional `"actions"` map is keyed by
   `action_id/1`; unknown action ids are refused instead of silently becoming a
   second application model.
+
+  ## Examples
+
+      iex> alias Ash.Info.Manifest
+      iex> manifest = %Manifest{entrypoints: []}
+      iex> {:ok, surface} = AshSurface.from_manifest(manifest, profile: %{"tier" => "gold"})
+      iex> {surface.action_ids, surface.contract["surface"]["profile"], byte_size(surface.digest)}
+      {[], %{"tier" => "gold"}, 64}
+
+      A profile keyed by an unknown action id is refused, never silently kept:
+
+      iex> manifest = %Ash.Info.Manifest{entrypoints: []}
+      iex> AshSurface.from_manifest(manifest, profile: %{"actions" => %{"Nope#x" => %{}}})
+      {:error, {:unknown_action_profile, ["Nope#x"]}}
   """
   @spec from_manifest(Manifest.t(), keyword()) :: {:ok, Surface.t()} | {:error, term()}
   def from_manifest(%Manifest{} = manifest, opts \\ []) do
