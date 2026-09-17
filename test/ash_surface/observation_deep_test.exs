@@ -74,7 +74,7 @@ defmodule AshSurface.ObservationDeepTest do
     end
 
     test "projection keeps the boundary at OBSERVE for every standing" do
-      for standing <- [:ALIVE, :PARTIAL_ALIVE, :REFUSED, :BLOCKED] do
+      for standing <- [:ALIVE, :PARTIAL_ALIVE, :REFUSED_NO_AUTHORITY, :BLOCKED] do
         obs = Observation.create(@subject, @facts, standing: standing)
         assert Observation.to_map(obs)["authorityBoundary"] == "OBSERVE"
       end
@@ -89,7 +89,7 @@ defmodule AshSurface.ObservationDeepTest do
             :BLOCKED,
             :BUILD_BROKEN,
             :UNSUPPORTED,
-            :REFUSED,
+            :REFUSED_NO_AUTHORITY,
             :REFUSED_UNKNOWN_SUBJECT
           ] do
         obs = Observation.create(@subject, @facts, standing: standing)
@@ -99,7 +99,7 @@ defmodule AshSurface.ObservationDeepTest do
     end
 
     test "an unvalidated standing claim is refused, never silently carried" do
-      for bad <- [:BOGUS, :UNKNOWN, "ALIVE", 7, nil] do
+      for bad <- [:BOGUS, :UNKNOWN, :REFUSED, "ALIVE", 7, nil] do
         assert_raise ArgumentError, ~r/invalid standing/, fn ->
           Observation.create(@subject, @facts, standing: bad)
         end
@@ -218,7 +218,7 @@ defmodule AshSurface.ObservationDeepTest do
     end
 
     test "every standing renders as its string form in the projection" do
-      for standing <- [:ALIVE, :PARTIAL_ALIVE, :REFUSED, :BLOCKED] do
+      for standing <- [:ALIVE, :PARTIAL_ALIVE, :REFUSED_NO_AUTHORITY, :BLOCKED] do
         map = Observation.create(@subject, @facts, standing: standing) |> Observation.to_map()
         assert map["standing"] == to_string(standing)
       end
