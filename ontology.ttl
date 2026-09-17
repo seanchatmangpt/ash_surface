@@ -468,3 +468,9 @@ surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
     surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/from_manifest_test.exs + priv/static/ash_surface_runtime.mjs (schema-site comment)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "enforced-absence tripwire rows + delegated-extension provenance note emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

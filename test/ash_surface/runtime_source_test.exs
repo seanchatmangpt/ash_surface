@@ -21,7 +21,10 @@ defmodule AshSurface.RuntimeSourceTest do
   # finish-standing-022 (F3) + finish-select-025 (F6) union re-freeze: standing
   # enum union + REFUSED_-prefix guard AND the selection dimension facts twin;
   # golden recomputed from the merged runtime file (whole-file SHA-256 law).
-  @golden_runtime_sha256 "8373790caa0659073d8010aea16683d472e0e91bd62ba46354e08016585e8e42"
+  # chicago-ontology-producer-039: re-frozen after the schema-site ledger
+  # comment was re-pointed at the 039 enforced-absence tripwire (comment-only
+  # change; no executable byte moved).
+  @golden_runtime_sha256 "01682e422b58a3e28caa4eaf0e66ce2a947500a6a8fd53e1e7a6e1f360c840fe"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

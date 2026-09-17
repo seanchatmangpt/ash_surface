@@ -115,14 +115,22 @@ export const ashSurfaceContractSchema = z
     ashManifestSchemaVersion: z.string().min(1),
     generatorIdentity: z.string().optional(),
     manifestDigest: z.string().optional(),
-    // Delegated IR-era envelope extensions (gapfix-test-surface-015 ledger):
-    // ontologyDigest / applicationReleaseIdentity have no live producer in
+    // Delegated IR-era envelope extensions (gapfix-test-surface-015 ledger;
+    // re-adjudicated by chicago-ontology-producer-039 on the post-F4 tree):
+    // ontologyDigest / applicationReleaseIdentity have NO live producer in
     // the Elixir surface pipeline (AshSurface.contract/2 never emits them);
     // their witnessed producer is upstream generation (the frozen F5 fixture
-    // in digest_cross_language_v2.test.mjs). Kept as typed optional rows —
-    // present values are validated, absent values stay absent (never
-    // defaulted), and emitting them locally would fabricate delegated
-    // provenance.
+    // in digest_cross_language_v2.test.mjs). 039 verdict: the honest-producer
+    // side is refused BY LAW — F4's MXEpisode binds surface.digest and the
+    // subject repo/head at the episode layer from operator-supplied inputs
+    // (no surface input); surface.digest would be circular (it digests the
+    // contract that would carry the field); generator identity already has
+    // its own field, and environment reads would break the frozen digest
+    // goldens. The absence is now ENFORCED: presence of either field in
+    // contract/2 output is RED at the tripwire
+    // test/ash_surface/from_manifest_test.exs. Kept as typed optional rows —
+    // present (upstream-witnessed) values are validated, absent values stay
+    // absent (never defaulted).
     ontologyDigest: z.string().optional(),
     marketplaceIdentity: z.string().optional(),
     applicationReleaseIdentity: z.string().optional(),
