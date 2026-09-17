@@ -55,7 +55,12 @@ defmodule AshSurface.CapacityGateTest do
   end
 
   test "absent telemetry log exits 0 (gate is green at a HEAD without capacity-ride logging)" do
-    missing = Path.join(System.tmp_dir!(), "capacity-gate-no-such-log-#{System.unique_integer([:positive])}")
+    missing =
+      Path.join(
+        System.tmp_dir!(),
+        "capacity-gate-no-such-log-#{System.unique_integer([:positive])}"
+      )
+
     {output, status} = run_gate(missing)
     assert status == 0
     assert output =~ "nothing to falsify"
