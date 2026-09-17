@@ -1,8 +1,10 @@
 # gapfix-dialyzer-010: dialyzer + coverage layers, first receipt
-status: OPEN
+status: DONE
 created: 2026-09-17T05:30:00Z
 ## Mission
 No dialyzer (the committed 65MB crash dump is literally a crashed dialyzer attempt), no coverage either language (mix test --cover ran once, unreceipted). Add dialyxir + a dialyzer step (clean baseline: fix trivial findings, ignore-warnings file for the rest with justification per line); add minimal coverage receipts: mix test --cover once, node --test with coverage flag once; record numbers in History. Wire both into CI (after gapfix-ci-009 or as part of it — coordinate via ticket status).
 ## Acceptance
 - mix dialyzer exits 0 with receipted baseline; coverage numbers recorded both languages; CI runs both or dependency-noted.
 ## History
+2026-09-16T23:38:19Z | IN_PROGRESS | ~/ash-surface-wt/g10 + exp/gapfix-dialyzer-010 | dispatched by rider (run2, target_n=10)
+2026-09-17T00:00:04Z | ALIVE | exp/gapfix-dialyzer-010 @ 9146a0b | mix dialyzer 0 (14 initial findings → 0, ALL fixed at source: 10 unknown_type ir.ex __MODULE__-qualified nested section types; 1 guard_fail + 1 latent twin dead `|| %{}` on map()-typed manifest custom fields ash_surface.ex; 3 unknown_function resolved by plt_add_apps [:ash_a2a, :ash_r2rml], not suppressed; dialyzer.ignore-warnings committed with per-line justification policy, baseline empty, list_unused_filters evicts stale); mix test 0 (725 passed); npm test 0 (217 passed); mix test --cover 0 (91.65% total); node --test --experimental-test-coverage 0 (99.35% line / 95.77% branch / 93.20% funcs; runtime.mjs 100/99.01/96); mix compile --warnings-as-errors 0; mix format --check-formatted 0; actionlint 0; CI wired via new .github/workflows/dialyzer-coverage.yml (dialyzer job + coverage job, mix.lock cache key, pins = .tool-versions; deliberately separate file from ci.yml so gapfix-ci-009's IN_PROGRESS true-up cannot conflict — fold-in left to ci-009); committed 65MB erl_crash.dump (the crashed dialyzer attempt) removed + dumps gitignored; `just dialyzer` / `just coverage` recipes; npm script test:coverage | none — DONE; only follow-up is ci-009 optionally absorbing dialyzer-coverage.yml into ci.yml at merge
