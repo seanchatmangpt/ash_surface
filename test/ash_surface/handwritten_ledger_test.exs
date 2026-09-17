@@ -33,6 +33,15 @@ defmodule AshSurface.HandwrittenLedgerTest do
   @tripwire "test/ash_surface/handwritten_ledger_test.exs"
   @date_format ~r/^\d{4}-\d{2}-\d{2}$/
 
+  # chicago-runtime-ledger-037: the shipped JS runtime is hand-maintained pack
+  # source; its admitted row must name the JS runtime template family as the
+  # owner capability and carry the byte-provenance note pointing at the golden
+  # whole-file SHA-256 law (runtime_source_test.exs), which already pins the
+  # artifact bytes.
+  @runtime_path "priv/static/ash_surface_runtime.mjs"
+  @runtime_capability_prefix "JS runtime template family emission in ash-extension-pack"
+  @runtime_provenance_law "test/ash_surface/runtime_source_test.exs"
+
   test "ledger and ontology UNSUPPORTED rows are in exact bijection" do
     ledger = ledger_rows()
     unsupported = unsupported_rows()
@@ -89,6 +98,34 @@ defmodule AshSurface.HandwrittenLedgerTest do
       assert pair.enforced_by == @tripwire,
              "UNSUPPORTED row for #{pair.path} must name its enforcement anchor"
     end
+  end
+
+  test "the shipped JS runtime carries its admitted ledger row with byte-provenance" do
+    row =
+      ledger_rows()
+      |> Enum.filter(&(&1.path == @runtime_path))
+      |> Enum.find(&String.starts_with?(&1.capability, @runtime_capability_prefix))
+
+    assert row,
+           "帳 law violated: #{@runtime_path} is hand-maintained pack source with no " <>
+             "HANDWRITTEN row naming the JS runtime template family owner capability " <>
+             "(chicago-runtime-ledger-037)"
+
+    assert row.element =~ "SHA-256" and row.element =~ @runtime_provenance_law,
+           "runtime ledger row must carry the byte-provenance note pointing at the " <>
+             "golden whole-file SHA-256 law (#{@runtime_provenance_law})"
+  end
+
+  test "the shipped JS runtime's UNSUPPORTED pair is admitted with the same family naming" do
+    pair =
+      unsupported_rows()
+      |> Enum.filter(&(&1.path == @runtime_path))
+      |> Enum.find(&String.starts_with?(&1.element, @runtime_capability_prefix))
+
+    assert pair,
+           "帳 law violated: no UNSUPPORTED ontology row for #{@runtime_path} naming the " <>
+             "JS runtime template family; ledger row and UNSUPPORTED pair are admitted " <>
+             "together or not at all (chicago-runtime-ledger-037)"
   end
 
   defp ledger_rows do
