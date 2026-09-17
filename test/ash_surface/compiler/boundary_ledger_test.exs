@@ -1,26 +1,29 @@
 defmodule AshSurface.Compiler.BoundaryLedgerTest do
   @moduledoc """
-  The dead-code ledger for `AshSurface.Compiler.IR.Boundary`
-  (gapfix-test-surface-015), as a permanent tripwire.
+  Reader-pinned tripwire for `AshSurface.Compiler.IR.Boundary`
+  (gapfix-test-surface-015; dead-code ledger retired at integration).
 
   Law: the Boundary slice is the canonical v07 shape (compiler/ir.ex) and the
   schema section's output (`AshSurface.Compiler.Schema.build/2` constructs it
   at the ledgered site). It is exercised field-complete by
-  `AshSurface.Compiler.SchemaSectionTest` (zod, input, output, aria) — but it
-  has NO production reader: the intended reader is the orchestrator-facing
+  `AshSurface.Compiler.SchemaSectionTest` (zod, input, output, aria). The
+  intended production reader — the orchestrator-facing
   `AshSurface.Compiler.Section.Schema` adapter (compiler.ex's default
-  binding), which has not landed yet.
+  binding) — has landed (gapfix-adapters-001 at integration) and mounts these
+  slices into compiled IRs.
 
-  These rows pin that pending state so it can never rot silently:
+  The dead-code ledger that pinned the pending state was retired per the
+  original rows' own prescription ("when the adapter lands, retire this
+  ledger and pin the real reader"). Retirement is pinned, not silent:
 
     * if the slice's shape changes owner (no longer built as `IR.Boundary`),
       or
-    * if any module becomes a reader of the Boundary struct,
+    * if the landed reader stops referencing the Boundary struct,
 
-      the rows below fail and force the ledger comment in
-      lib/ash_surface/compiler/schema.ex and this file to be re-pointed at
-      the real reader. Wiring a reader silently — without retiring this
-      ledger — is the failure mode being guarded.
+      the rows below fail and force the comment in
+      lib/ash_surface/compiler/schema.ex and this file to be re-pointed.
+      Losing the reader silently — without re-pointing this tripwire — is the
+      failure mode being guarded.
   """
 
   use ExUnit.Case, async: true
@@ -55,17 +58,13 @@ defmodule AshSurface.Compiler.BoundaryLedgerTest do
     assert %{"actionId" => "Act#go"} = slice.aria
   end
 
-  test "ledger state: no production reader exists yet — the Section.Schema adapter has not landed" do
-    # The intended reader must not exist yet; when it does, retire this row
-    # and re-point the ledger comment at the concrete reader.
-    refute match?({:module, _}, Code.ensure_loaded(AshSurface.Compiler.Section.Schema)),
-           "AshSurface.Compiler.Section.Schema landed — retire the Boundary dead-code " <>
-             "ledger (lib/ash_surface/compiler/schema.ex + this file) and pin the real reader"
+  test "reader pinned: the Section.Schema adapter landed and reads IR.Boundary" do
+    # The intended reader exists (gapfix-adapters-001 at integration) and is
+    # the production reader of the Boundary struct (source-level proof,
+    # mirroring the no-second-discovery proof style of this suite).
+    assert {:module, AshSurface.Compiler.Section.Schema} =
+             Code.ensure_loaded(AshSurface.Compiler.Section.Schema)
 
-    # And the built-but-unread state is real: no module outside the schema
-    # section (its construction site) and the canonical IR declaration
-    # references the Boundary struct (source-level proof, mirroring the
-    # no-second-discovery proof style of this suite).
     referencing =
       for path <- Path.wildcard(@lib_dir <> "/**/*.ex"),
           path not in [@ledgered_schema_source, @canonical_ir_source],
@@ -74,7 +73,8 @@ defmodule AshSurface.Compiler.BoundaryLedgerTest do
         Path.relative_to(path, @lib_dir)
       end
 
-    assert referencing == [],
-           "IR.Boundary gained a reader: #{inspect(referencing)} — retire the dead-code ledger"
+    assert referencing == ["ash_surface/compiler/section/schema.ex"],
+           "IR.Boundary reader changed: #{inspect(referencing)} — re-point the reader pin " <>
+             "(lib/ash_surface/compiler/schema.ex + this file)"
   end
 end

@@ -121,15 +121,16 @@ defmodule AshSurface.Compiler.Schema do
          :ok <- validate_returns(id, returns) do
       input = Map.new(args, fn arg -> {arg["name"], Map.delete(arg, "name")} end)
 
-      # Dead-code ledger (gapfix-test-surface-015): the Boundary slice is the
-      # canonical v07 shape (compiler/ir.ex), exercised field-complete by
-      # test/ash_surface/compiler/schema_section_test.exs, but it has no
-      # PRODUCTION reader yet — the intended reader is the orchestrator-facing
+      # Reader-pinned (retired dead-code ledger, gapfix-test-surface-015):
+      # the Boundary slice is the canonical v07 shape (compiler/ir.ex),
+      # exercised field-complete by
+      # test/ash_surface/compiler/schema_section_test.exs. The intended
+      # production reader has landed: the orchestrator-facing
       # `AshSurface.Compiler.Section.Schema` adapter (compiler.ex's default
-      # binding) that will mount these slices into compiled IRs. The pending
-      # state is pinned, not silent:
-      # test/ash_surface/compiler/boundary_ledger_test.exs fails when that
-      # adapter lands, forcing this ledger row to be re-pointed.
+      # binding) mounts these slices into compiled IRs
+      # (lib/ash_surface/compiler/section/schema.ex). Retirement is pinned,
+      # not silent: test/ash_surface/compiler/boundary_ledger_test.exs fails
+      # if that reader disappears.
       slice = %AshSurface.Compiler.IR.Boundary{
         input: input,
         output: returns,

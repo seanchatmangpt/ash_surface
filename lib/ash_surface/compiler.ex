@@ -77,12 +77,13 @@ defmodule AshSurface.Compiler do
   Compiles an admitted source with the default section bindings.
 
   The default bindings name the orchestrator-facing `AshSurface.Compiler.Section.*`
-  adapters, which live on their sibling branches and have not landed here yet;
-  per the fail-closed law below, their absence surfaces as a typed refusal,
-  never a silent skip:
+  adapters (landed by gapfix-adapters-001; this example was re-pinned at
+  integration — it previously pinned the `{:invalid_section_module, ...}`
+  refusal from the era before they landed). An admitted source with no
+  public actions compiles to the empty IR list, never an error:
 
       iex> AshSurface.Compiler.compile(%Ash.Info.Manifest{entrypoints: []})
-      {:error, {:invalid_section_module, :ash, AshSurface.Compiler.Section.Ash}}
+      {:ok, []}
   """
   @spec compile(Manifest.t() | atom()) :: {:ok, [IR.t()]} | {:error, term()}
   def compile(source), do: compile(source, [])
