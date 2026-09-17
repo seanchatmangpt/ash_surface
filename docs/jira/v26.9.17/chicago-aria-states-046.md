@@ -1,5 +1,5 @@
 # chicago-aria-states-046: ARIA projector state table
-status: OPEN
+status: IN_PROGRESS
 created: 2026-09-17T06:30:00Z
 ## Mission
 State table: complete type->role mapping, live regions OBSERVE-only, DO-politeness absent, delegated-lookup null fail-closed (F5) pinned as data; emitted JSON fields asserted. Subject: lib/ash_surface/projectors/aria.ex.
@@ -13,3 +13,4 @@ State table: complete type->role mapping, live regions OBSERVE-only, DO-politene
 ## History
 2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g46 + exp/chicago-aria-states-46 | dispatched by coordinator (chicago wave)
 2026-09-17T06:40:01Z | REAPED: mid-life sustained-load death (worktree silent 20-29min); branch preserved — successor reviews git log first
+2026-09-17T07:59:35Z | IN_PROGRESS | successor re-dispatch (cohort 3 of 4; window confirmed by cohorts 1-2 completing 6/6; branch preserved — review git log first)
