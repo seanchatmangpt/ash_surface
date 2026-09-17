@@ -59,6 +59,12 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
+      # Property-based tests (chicago-props-codec-042). No `only:` restriction
+      # is admissible: ash_a2a (all-env dep) requires stream_data in every env,
+      # and ash already pulls it non-optionally. It never enters the boot path
+      # (not in extra_applications) and the analysis/generator machinery never
+      # ships in release artifacts built from this app.
+      {:stream_data, "~> 1.0"},
       # igniter: no `only:` restriction — ash_a2a (all-env dep) requires it
       # beyond dev/test; runtime: false keeps it out of the boot path.
       {:igniter, "~> 0.7", runtime: false},
