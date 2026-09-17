@@ -199,7 +199,9 @@ defmodule AshSurface.Projector.ExpoEventsTest do
         action_ids: []
       }
 
-      assert {:ok, _artifacts, _meta} = Expo.project(surface, prefix: @prefix, target_dir: tmp_dir)
+      assert {:ok, _artifacts, _meta} =
+               Expo.project(surface, prefix: @prefix, target_dir: tmp_dir)
+
       events_path = Path.join(tmp_dir, "#{@artifact_key}")
       assert File.exists?(events_path)
 

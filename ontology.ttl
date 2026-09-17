@@ -327,3 +327,10 @@ surf:UnsupportedLedgerRow30 a surf:UnsupportedRow ;
     surf:unsupportedElement "static-analysis gate + coverage-receipt wiring template (dialyzer-config emission, ignore-ledger emission, workflow emission, coverage-command emission)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
+surf:UnsupportedLedgerRow31 a surf:UnsupportedRow ;
+    surf:ledgerPath "LICENSE" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "package license-file template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
