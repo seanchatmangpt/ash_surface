@@ -81,6 +81,32 @@ defmodule AshSurface.ObservationDeepTest do
     end
   end
 
+  describe "standing vocabulary admission (F3: one canonical owner)" do
+    test "the full canonical vocabulary constructs, including the ledger and refusal classes" do
+      for standing <- [
+            :ALIVE,
+            :PARTIAL_ALIVE,
+            :BLOCKED,
+            :BUILD_BROKEN,
+            :UNSUPPORTED,
+            :REFUSED,
+            :REFUSED_UNKNOWN_SUBJECT
+          ] do
+        obs = Observation.create(@subject, @facts, standing: standing)
+        assert obs.standing == standing
+        assert Observation.to_map(obs)["standing"] == to_string(standing)
+      end
+    end
+
+    test "an unvalidated standing claim is refused, never silently carried" do
+      for bad <- [:BOGUS, :UNKNOWN, "ALIVE", 7, nil] do
+        assert_raise ArgumentError, ~r/invalid standing/, fn ->
+          Observation.create(@subject, @facts, standing: bad)
+        end
+      end
+    end
+  end
+
   describe "digest and subject reference consistency" do
     test "digest is deterministic across map ordering and independently recomputable" do
       a = Observation.create(@subject, @facts)

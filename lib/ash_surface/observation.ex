@@ -28,17 +28,23 @@ defmodule AshSurface.Observation do
           state_digest: String.t(),
           facts: map(),
           evidence_refs: [String.t()],
-          standing: :ALIVE | :PARTIAL_ALIVE | :REFUSED | :BLOCKED,
+          standing: AshSurface.Standing.t(),
           projection_purpose: String.t(),
           authority_boundary: :OBSERVE
         }
 
-  @doc "Creates and content-addresses a new ObservationProjection."
+  @doc """
+  Creates and content-addresses a new ObservationProjection.
+
+  The `:standing` option is caller-asserted evidence, so it is runtime-validated
+  against the canonical vocabulary (`AshSurface.Standing`) — an unvalidated
+  standing claim is refused with `ArgumentError`, never silently carried.
+  """
   @spec create(String.t(), map(), keyword()) :: t()
   def create(exact_subject, facts, opts \\ []) do
     observed_at = Keyword.get(opts, :observed_at, DateTime.utc_now())
     evidence_refs = Keyword.get(opts, :evidence_refs, [])
-    standing = Keyword.get(opts, :standing, :ALIVE)
+    standing = AshSurface.Standing.validate!(Keyword.get(opts, :standing, :ALIVE))
     purpose = Keyword.get(opts, :projection_purpose, "consumer_state_observation")
 
     # Canonical (key-sorted) JSON: observation identity is invariant under

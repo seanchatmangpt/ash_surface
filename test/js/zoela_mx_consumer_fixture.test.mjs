@@ -98,7 +98,7 @@ test("ZOELA MX machine-only closed loop: Observation -> Planning candidate -> Ad
             doAuthority: false,
             receiptRequired: true,
             evidenceRequired: true,
-            possibleRefusals: ["AUTHORITY_REFUSED", "OPTION_NOT_FOUND", "EVIDENCE_REQUIRED"],
+            possibleRefusals: ["REFUSED_NO_AUTHORITY", "REFUSED_UNKNOWN_OPTION", "REFUSED_EVIDENCE_REQUIRED"],
             profile: {
               transport: "http",
             },

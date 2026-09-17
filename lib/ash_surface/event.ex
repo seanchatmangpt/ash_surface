@@ -36,9 +36,19 @@ defmodule AshSurface.Event do
           authority_boundary: :OBSERVE
         }
 
-  @doc "Creates a new event projection."
+  @doc """
+  Creates a new event projection.
+
+  `subject_ref` and `event_type` are runtime-validated (F3): both must be
+  non-empty binaries, since both are digest-bound identity inputs and wire
+  fields mirrored by the zod `eventProjectionSchema` (`min(1)`). Anything
+  else is refused with `ArgumentError`, never silently digested.
+  """
   @spec create(String.t(), non_neg_integer(), String.t(), keyword()) :: t()
   def create(subject_ref, sequence, event_type, opts \\ []) do
+    validate_identity_ref(subject_ref, "subject_ref")
+    validate_identity_ref(event_type, "event_type")
+
     payload = Keyword.get(opts, :payload, %{})
     occurred_at = Keyword.get(opts, :occurred_at, DateTime.utc_now())
     evidence_ref = Keyword.get(opts, :evidence_ref)
@@ -102,5 +112,11 @@ defmodule AshSurface.Event do
   @spec from_receipt(map(), map() | nil) :: {:ok, t()} | {:error, EventProjection.refusal()}
   def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
     EventProjection.from_receipt(receipt, ir_action)
+
+ defp validate_identity_ref(ref, _name) when is_binary(ref) and ref != "", do: :ok
+
+  defp validate_identity_ref(ref, name) do
+    raise ArgumentError,
+          "Event.create/4 requires a non-empty binary #{name}, got: #{inspect(ref)}"
   end
 end

@@ -151,6 +151,28 @@ defmodule AshSurface.PlanningEpisodeDeepTest do
       end
     end
 
+    test "every atom outside [:SELECT, :CONSTRUCT] is refused, not just :DO (F3)" do
+      for ceiling <- [:DO, :EXECUTE, :ACTUATE, :OBSERVE, :SELECT_ONLY, "SELECT", nil] do
+        assert_raise ArgumentError, ~r/authority_ceiling/, fn ->
+          PlanningEpisode.create(
+            "obs_ceiling_guard",
+            Keyword.put(base_opts(), :authority_ceiling, ceiling)
+          )
+        end
+      end
+    end
+
+    test "policy_standing outside the lifecycle enum is refused (F3)" do
+      for bad <- [:BOGUS, :ALIVE, :PARTIAL_ALIVE, "VALID_STRONG", nil] do
+        assert_raise ArgumentError, ~r/policy_standing/, fn ->
+          PlanningEpisode.create(
+            "obs_policy_guard",
+            Keyword.put(base_opts(), :policy_standing, bad)
+          )
+        end
+      end
+    end
+
     test "SELECT and CONSTRUCT are the only admitted ceilings and both round-trip" do
       for ceiling <- [:SELECT, :CONSTRUCT] do
         ep =
