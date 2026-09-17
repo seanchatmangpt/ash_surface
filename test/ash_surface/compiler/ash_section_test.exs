@@ -71,17 +71,24 @@ end
 
 defmodule AshSurface.Compiler.AshSectionTest do
   @moduledoc """
-  First-ever tests for `AshSurface.Compiler.Ash`, the ash section of the
-  compiler: it populates `IR.Ash` from REAL Ash metadata only
-  (`Ash.Resource.Info.public_actions/1`, `action_inputs/2`, action returns,
-  resource policies). No semantics, no capability, no presentation — those are
-  sibling sections; every assertion here pins the exact metadata Ash itself
-  reports for the inline resource above.
+  Tests for the ash section of the compiler, re-pointed at gapfix-adapters-001
+  from the RETIRED resource-enumerating rival `AshSurface.Compiler.Ash` to the
+  integrated one-canon builder `AshSurface.Compiler.AshTruth` (the rival
+  violated the `AshSurface.IR.Ash` @type: raw accepted-key atom lists as
+  inputs, a raw `returns` type atom as outputs). Every assertion here pins the
+  exact metadata Ash itself reports for the inline resource above, through the
+  canon's typed sub-shapes (`%IR.Input{}`, `%IR.Output{}`, `%IR.Policy{}`).
+
+  Reconciliation note (ledgered in HANDWRITTEN.md): the retired rival
+  restated ACCEPTED ATTRIBUTES as inputs (`Ash.Resource.Info.action_inputs/2`);
+  the canon restates DECLARED ARGUMENTS only (`act.arguments`), so the
+  defaults-expanded CRUD actions here carry `[]` inputs — accepted attributes
+  are input-contract facts the surface does not re-derive.
   """
 
   use ExUnit.Case, async: true
 
-  alias AshSurface.Compiler
+  alias AshSurface.Compiler.AshTruth
   alias AshSurface.IR
 
   @document AshSurface.Compiler.AshSectionTest.Document
@@ -92,15 +99,16 @@ defmodule AshSurface.Compiler.AshSectionTest do
   # (defaults expand in reverse declaration order).
   @public_actions [:update, :create, :read, :by_title, :publish, :archive_summary]
 
-  # Exact accepted-input keys per public action, from Ash's own persisted
-  # action_inputs (arguments plus accepted attributes; publish accepts none).
+  # Exact declared-argument inputs per public action, typed through the
+  # canon's sub-shape (required is the mechanical negation of `allow_nil?`;
+  # defaults surface verbatim; accepted attributes are NOT restated).
   @expected_inputs %{
-    update: [:body, :title],
-    create: [:title],
+    update: [],
+    create: [],
     read: [],
-    by_title: [:title],
-    publish: [:note],
-    archive_summary: [:since]
+    by_title: [%IR.Input{name: :title, type: "string", required: true, default: nil}],
+    publish: [%IR.Input{name: :note, type: "string", required: false, default: nil}],
+    archive_summary: [%IR.Input{name: :since, type: "integer", required: true, default: nil}]
   }
 
   @expected_action_types %{
@@ -112,44 +120,57 @@ defmodule AshSurface.Compiler.AshSectionTest do
     archive_summary: :action
   }
 
-  test "every public action yields a section with exact inputs, action type, and outputs" do
-    assert {:ok, sections} = Compiler.Ash.build(@document)
+  # Witnessed policy facts: declared scope (conditions) and declared check
+  # set, projected read-only into the canon's %IR.Policy{} sub-shape.
+  @expected_policies [
+    %IR.Policy{
+      bypass: false,
+      checks: [%{check: "Ash.Policy.Check.Static", kind: :authorize_if}],
+      conditions: [%{check: "Ash.Policy.Check.Static", opts: %{result: true}}]
+    },
+    %IR.Policy{
+      bypass: false,
+      checks: [%{check: "Ash.Policy.Check.ActorAttributeEquals", kind: :forbid_if}],
+      conditions: [%{check: "Ash.Policy.Check.Action", opts: %{action: [:publish]}}]
+    }
+  ]
 
-    assert Enum.map(sections, & &1.action) == @public_actions
+  defp section_for(action) do
+    assert {:ok, section} = AshTruth.build(@document, action)
+    section
+  end
 
-    assert Enum.map(sections, & &1.action) ==
-             Enum.map(Ash.Resource.Info.public_actions(@document), & &1.name)
+  test "every public action yields a conforming section with exact inputs, type, and outputs" do
+    for action <- @public_actions do
+      section = section_for(action)
 
-    for section <- sections do
-      assert %IR.Ash{} = section
-      assert section.resource == @document
-      assert section.action_type == @expected_action_types[section.action]
-      assert section.inputs == @expected_inputs[section.action]
+      assert %IR.Ash{resource: @document} = section
+      assert section.action == action
+      assert section.action_type == @expected_action_types[action]
+      assert section.inputs == @expected_inputs[action]
+      assert section.outputs == outputs_for(action)
+      assert section.policies == @expected_policies
     end
+
+    assert Enum.map(@public_actions, &section_for(&1).action) ==
+             Enum.map(Ash.Resource.Info.public_actions(@document), & &1.name)
+  end
+
+  test "outputs carry only the generic action's declared returns" do
+    outputs = Map.new(@public_actions, &{&1, outputs_for(&1)})
 
     # Only the generic action declares returns; CRUD actions return the record
     # and carry no :returns metadata, so outputs is nil for them.
-    outputs = sections |> Map.new(&{&1.action, &1.outputs})
-    assert outputs[:archive_summary] == Ash.Type.String
+    assert outputs[:archive_summary] == %IR.Output{returns: "string"}
     assert outputs[:update] == nil
     assert outputs[:create] == nil
     assert outputs[:read] == nil
     assert outputs[:by_title] == nil
     assert outputs[:publish] == nil
-
-    # One full struct, exact against real Ash metadata for :publish.
-    assert %IR.Ash{
-             resource: @document,
-             action: :publish,
-             action_type: :update,
-             inputs: [:note],
-             outputs: nil,
-             policies: Ash.Policy.Info.policies(@document)
-           } in sections
   end
 
   test "IR.Ash has the canonical six-field section shape" do
-    assert {:ok, [section | _]} = Compiler.Ash.build(@document)
+    section = section_for(:read)
 
     assert section |> Map.from_struct() |> Map.keys() |> Enum.sort() == [
              :action,
@@ -161,12 +182,8 @@ defmodule AshSurface.Compiler.AshSectionTest do
            ]
   end
 
-  # Until the shared lib/ash_surface/ir.ex lands, the IR is declared locally
-  # The shared lib/ash_surface/ir.ex is canonical (v01 law); the local
-  # declaration this pinned was superseded at integration. This pins the
-  # canonical top-level shape against the same extraction contract.
   test "canonical top-level IR shape owns the ash facet" do
-    assert {:ok, [facet | _]} = Compiler.Ash.build(@document)
+    facet = section_for(:read)
 
     assert struct!(IR, ash: facet) |> Map.from_struct() |> Map.keys() |> Enum.sort() == [
              :ash,
@@ -197,28 +214,31 @@ defmodule AshSurface.Compiler.AshSectionTest do
   end
 
   test "declared-but-private actions are excluded" do
-    assert {:ok, sections} = Compiler.Ash.build(@document)
-
-    refute :shred in Enum.map(sections, & &1.action)
+    # The canon refuses a non-public action with the exact public set named —
+    # exclusion is a typed refusal, never a silently narrowed build.
+    assert {:error,
+            {:unknown_public_action, :shred,
+             [:archive_summary, :by_title, :create, :publish, :read, :update]}} =
+             AshTruth.build(@document, :shred)
 
     assert %{name: :shred, public?: false} in Enum.map(
              Ash.Resource.Info.actions(@document),
              &Map.take(&1, [:name, :public?])
            )
 
-    assert length(sections) == length(Ash.Resource.Info.public_actions(@document))
+    assert length(Ash.Resource.Info.public_actions(@document)) == length(@public_actions)
   end
 
   test "policies are carried read-only from the authorizer onto every section" do
-    assert {:ok, sections} = Compiler.Ash.build(@document)
     real_policies = Ash.Policy.Info.policies(@document)
 
     assert length(real_policies) == 2
     assert Enum.all?(real_policies, &match?(%Ash.Policy.Policy{}, &1))
 
-    # Carried verbatim — the authorizer's own structs, not a reinterpretation.
-    for section <- sections do
-      assert section.policies == real_policies
+    # Projected read-only into %IR.Policy{} — scope and check set only, never
+    # a reinterpretation or evaluation.
+    for action <- @public_actions do
+      assert section_for(action).policies == @expected_policies
     end
 
     # Read-only: building the section does not mutate the resource's policies.
@@ -226,20 +246,19 @@ defmodule AshSurface.Compiler.AshSectionTest do
   end
 
   test "resource without the policy authorizer carries empty policies, not an error" do
-    assert {:ok, sections} = Compiler.Ash.build(@plain)
+    assert {:ok, section} = AshTruth.build(@plain, :read)
 
-    assert Enum.map(sections, & &1.action) == [:read]
-
-    for section <- sections do
-      assert section.policies == []
-    end
+    assert section.action == :read
+    assert section.policies == []
   end
 
   test "non-Ash source is refused with a typed refusal" do
-    assert {:error, refusals} = Compiler.Ash.build(@not_a_resource)
-    assert [%{code: "not_an_ash_resource", detail: detail}] = refusals
-    assert detail =~ inspect(@not_a_resource)
+    assert {:error, {:not_an_ash_resource, @not_a_resource}} =
+             AshTruth.build(@not_a_resource, :read)
 
-    assert {:error, [%{code: "not_an_ash_resource"}]} = Compiler.Ash.build(String)
+    assert {:error, {:not_an_ash_resource, String}} = AshTruth.build(String, :read)
   end
+
+  defp outputs_for(:archive_summary), do: %IR.Output{returns: "string"}
+  defp outputs_for(_), do: nil
 end

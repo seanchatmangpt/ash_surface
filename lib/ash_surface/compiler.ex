@@ -49,8 +49,10 @@ defmodule AshSurface.Compiler do
   so it is stable across map insertion order while remaining sensitive to
   every action fact.
 
-  The default section modules live on sibling branches and are resolved at
-  call time; a missing or non-conforming module fails closed with a typed
+  The default section modules are the `AshSurface.Compiler.Section.*`
+  adapters (`lib/ash_surface/compiler/section/*.ex`), which bridge the real
+  edge-owner builders (`AshTruth`, `Semantic`, `Capability`, `Presentation`,
+  `Schema`); a missing or non-conforming module fails closed with a typed
   error instead of being silently skipped. `compile/2`'s `:sections`
   override replaces the default bindings wholesale — it exists for tests
   (inline doubles) and for callers that need a different section set.
@@ -137,7 +139,11 @@ defmodule AshSurface.Compiler do
   ## Normalize
 
   # Manifest actions carry the unified inputs (arguments plus accepted
-  # attributes) with explicit `allow_nil?`/`has_default?` facts.
+  # attributes) with explicit `allow_nil?`/`has_default?` facts, the resolved
+  # type kind, and the `custom.ash_surface` envelope. The kind is read from
+  # the manifest's own resolved `Ash.Info.Manifest.Type` — delegated fact,
+  # never re-derived. `custom` rides the normalized entry so the presentation
+  # adapter reads the envelope without a second discovery pass.
   defp normalize_action(resource, %Manifest.Action{} = action) do
     %{
       id: action_id(resource, action.name),
@@ -145,11 +151,17 @@ defmodule AshSurface.Compiler do
       resource_name: module_name(resource),
       action: action.name,
       action_type: action.type,
+      custom: Map.get(action, :custom) || %{},
       inputs:
         action.inputs
         |> Kernel.||([])
         |> Enum.map(
-          &%{name: to_string(&1.name), allow_nil: !!&1.allow_nil?, has_default: !!&1.has_default?}
+          &%{
+            name: to_string(&1.name),
+            type: manifest_type_kind(Map.get(&1, :type)),
+            allow_nil: !!&1.allow_nil?,
+            has_default: !!&1.has_default?
+          }
         )
         |> Enum.sort_by(& &1.name),
       outputs:
@@ -161,7 +173,9 @@ defmodule AshSurface.Compiler do
   end
 
   # Raw Ash actions (domain discovery) expose public arguments; optionality
-  # is derived from `allow_nil?` and the presence of a default.
+  # is derived from `allow_nil?` and the presence of a default. The type kind
+  # is Ash's own short-name registry (the same inversion `AshTruth` uses);
+  # types outside the registry carry nil — UNKNOWN, never a guessed kind.
   defp normalize_action(resource, action) do
     %{
       id: action_id(resource, action.name),
@@ -169,6 +183,7 @@ defmodule AshSurface.Compiler do
       resource_name: module_name(resource),
       action: action.name,
       action_type: action.type,
+      custom: Map.get(action, :custom) || %{},
       inputs:
         action.arguments
         |> Kernel.||([])
@@ -176,6 +191,7 @@ defmodule AshSurface.Compiler do
         |> Enum.map(
           &%{
             name: to_string(&1.name),
+            type: short_name_kind(Map.get(&1, :type)),
             allow_nil: !!&1.allow_nil?,
             has_default: !is_nil(&1.default)
           }
@@ -187,6 +203,18 @@ defmodule AshSurface.Compiler do
         |> Enum.map(&to_string(&1.name))
         |> Enum.sort()
     }
+  end
+
+  defp manifest_type_kind(%Manifest.Type{kind: kind}) when is_atom(kind),
+    do: Atom.to_string(kind)
+
+  defp manifest_type_kind(_), do: nil
+
+  defp short_name_kind(type) do
+    case List.keyfind(Ash.Type.short_names(), type, 1) do
+      {name, ^type} -> Atom.to_string(name)
+      _ -> nil
+    end
   end
 
   defp action_id(resource, action_name) do

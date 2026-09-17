@@ -38,14 +38,16 @@ end
 defmodule AshSurface.Compiler.Capability do
   @moduledoc """
   Capability-section builder: a pure projection of `AshA2A`'s derived
-  capability index.
+  capability index, one public action per `build/2` call.
 
   `ash_surface` invents none of the capability semantics. All four truths
   come from `ash_a2a`:
 
     * `capability_id` -- `AshA2A.Info.capability_index/1` derives the index
       from `Ash.Resource.Info.public_actions/1` (minus `expose?: false`
-      overrides); each entry's `id` is the delegated capability id.
+      overrides); the entry matching
+      `AshA2A.CapabilityIndex.Compiler.capability_id/2` for this action is
+      projected verbatim.
     * `consequence_class` -- the entry's `consequence`, classified at
       compile time by `AshA2A.CapabilityIndex.Compiler` (`:read` ->
       `:observe`, `:create`/`:update`/`:destroy` -> `:change`, explicit
@@ -62,20 +64,58 @@ defmodule AshSurface.Compiler.Capability do
   boolean for it: `authority_required`/`receipt_required` stay `nil` until
   the resource author classifies the skill.
 
-  An unregistered resource (no `AshA2A` extension) has no compiled index;
-  `build/1` returns `nil` for it -- no id, no class, no capability invented.
+  Nil preservation (the semantic section's law, shared here): an
+  unregistered resource (no `AshA2A` extension) has no compiled index, and
+  an `expose?: false` override drops its action from the index; both are
+  `{:ok, nil}` -- no id, no class, no capability invented.
+
+  Conformed to the canonical `AshSurface.Compiler.Section` behaviour
+  (build/2, per action of one compile) by gapfix-adapters-001; the
+  resource-enumerating build/1 it landed with is retired.
   """
 
-  alias AshSurface.Compiler.IR.Capability
-  @spec build(module()) :: [Capability.t()] | nil
-  def build(resource) when is_atom(resource) do
-    # Direct call: v23's canonical dependency set carries ash_a2a in every
-    # env, so no apply/3 laundering is needed (or lawful — no_local_do).
-    index = AshA2A.Info.capability_index(resource)
+  @behaviour AshSurface.Compiler.Section
 
-    case index do
-      nil -> nil
-      skills -> Enum.map(skills, &project/1)
+  alias AshSurface.Compiler.IR.Capability
+
+  @doc """
+  Builds the capability section for one normalized action entry.
+
+  `action` is the compiler's normalized map (`:resource` module, `:action`
+  name); `context` is the shared compile context (unused here: the section
+  reads only the two arguments it is given).
+  """
+  @impl true
+  @spec build(map(), map()) :: {:ok, Capability.t() | nil} | {:error, term()}
+  def build(action, _context) when is_map(action) do
+    resource = Map.get(action, :resource)
+    name = Map.get(action, :action)
+
+    with true <- is_atom(resource) and is_atom(name),
+         {:ok, action_entry} <- action_entry(resource, name) do
+      {:ok, action_entry}
+    else
+      false -> {:error, {:invalid_action_entry, action}}
+    end
+  end
+
+  def build(action, _context), do: {:error, {:invalid_action_entry, action}}
+
+  # No compiled index (unregistered resource) or no entry for this action in
+  # the index (an `expose?: false` override) -> honest nil, never a
+  # fabricated capability.
+  defp action_entry(resource, name) do
+    case AshA2A.Info.capability_index(resource) do
+      nil ->
+        {:ok, nil}
+
+      skills ->
+        id = AshA2A.CapabilityIndex.Compiler.capability_id(resource, name)
+
+        case Enum.find(skills, &(&1.id == id)) do
+          nil -> {:ok, nil}
+          skill -> {:ok, project(skill)}
+        end
     end
   end
 

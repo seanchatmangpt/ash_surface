@@ -314,7 +314,7 @@ defmodule AshSurface.CompilerTest do
                resource: "AshSurface.CompilerTest.Post",
                action: "create",
                action_type: :create,
-               inputs: [%{name: "title", allow_nil: false, has_default: false}],
+               inputs: [%{name: "title", type: nil, allow_nil: false, has_default: false}],
                outputs: ["id"],
                policies: []
              }

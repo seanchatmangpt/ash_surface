@@ -7,6 +7,10 @@ defmodule AshSurface.Compiler.CapabilitySectionTest do
   resource. No mocks: every expectation is stated either against
   `AshA2A.Info` itself (proving pure projection) or against ash_a2a's
   published consequence law (proving the builder invents nothing).
+
+  gapfix-adapters-001 conformed the builder to the canonical
+  `AshSurface.Compiler.Section` behaviour: build/2, one normalized action
+  entry per call (the resource-enumerating build/1 is retired).
   """
 
   use ExUnit.Case, async: true
@@ -96,72 +100,100 @@ defmodule AshSurface.Compiler.CapabilitySectionTest do
     end
   end
 
-  describe "build/1 on the registered resource" do
+  # The compiler's normalized action entry + shared context, as the canonical
+  # build/2 behaviour receives them.
+  defp entry(resource, action) do
+    context = %{
+      discovery: %{token: :erlang.unique_integer([:positive]), kind: :domain, actions: 1},
+      action_id: "#{inspect(resource)}.#{action}",
+      source: resource
+    }
+
+    action_entry = %{
+      id: context.action_id,
+      resource: resource,
+      resource_name: inspect(resource),
+      action: action,
+      action_type: Ash.Resource.Info.action(resource, action).type,
+      custom: %{},
+      inputs: [],
+      outputs: []
+    }
+
+    {action_entry, context}
+  end
+
+  defp build(resource, action) do
+    {action_entry, context} = entry(resource, action)
+    Compiler.Capability.build(action_entry, context)
+  end
+
+  describe "build/2 on the registered resource" do
     test "is a pure projection of AshA2A.Info's derived index" do
       derived = AshA2A.Info.capability_index(Stockpile)
+      derived_ids = Map.new(derived, &{&1.id, &1})
 
-      section = Compiler.Capability.build(Stockpile)
+      for action <- Ash.Resource.Info.public_actions(Stockpile) do
+        id = capability_id(action.name)
 
-      assert is_list(section)
-      # Same entries, same derived order -- the section adds no capability
-      # and reorders nothing.
-      assert Enum.map(section, & &1.capability_id) == Enum.map(derived, & &1.id)
+        case Map.fetch(derived_ids, id) do
+          {:ok, skill} ->
+            # The same entry ash_a2a derived for this action -- the section
+            # adds no capability and reorders nothing.
+            assert {:ok, section} = build(Stockpile, action.name)
+            assert section.capability_id == skill.id
+
+          # An expose?: false override: no entry in the index, no section.
+          :error ->
+            assert build(Stockpile, action.name) == {:ok, nil}
+        end
+      end
     end
 
     test "every capability_id is ash_a2a's derived id, never a surface invention" do
-      ids = Stockpile |> Compiler.Capability.build() |> MapSet.new(& &1.capability_id)
-
-      assert (inspect(Stockpile) <> ".read") in ids
-      assert (inspect(Stockpile) <> ".create") in ids
-      assert (inspect(Stockpile) <> ".update") in ids
-      assert (inspect(Stockpile) <> ".destroy") in ids
-      assert (inspect(Stockpile) <> ".courier_notify") in ids
-      assert (inspect(Stockpile) <> ".recount_projection") in ids
+      for action <- [:read, :create, :update, :destroy, :courier_notify, :recount_projection] do
+        assert {:ok, section} = build(Stockpile, action)
+        assert section.capability_id == inspect(Stockpile) <> ".#{action}"
+      end
     end
 
     test "an expose?: false override removes a public action from the section" do
       # :audit_peek is a public Ash action, but ash_a2a's derived index drops
       # it; the section must mirror the index, not public_actions directly.
-      refute Enum.any?(
-               Compiler.Capability.build(Stockpile),
-               &String.ends_with?(&1.capability_id, ".audit_peek")
-             )
+      assert {:ok, nil} = build(Stockpile, :audit_peek)
     end
 
     test "consequence classes come from ash_a2a's law, not from this repo" do
-      by_action = index_by_action(Stockpile)
-
-      assert by_action["read"].consequence_class == :observe
-      assert by_action["create"].consequence_class == :change
-      assert by_action["update"].consequence_class == :change
-      assert by_action["destroy"].consequence_class == :change
-      assert by_action["courier_notify"].consequence_class == :external_do
-      assert by_action["recount_projection"].consequence_class == :unknown
+      assert {:ok, %{consequence_class: :observe}} = build(Stockpile, :read)
+      assert {:ok, %{consequence_class: :change}} = build(Stockpile, :create)
+      assert {:ok, %{consequence_class: :change}} = build(Stockpile, :update)
+      assert {:ok, %{consequence_class: :change}} = build(Stockpile, :destroy)
+      assert {:ok, %{consequence_class: :external_do}} = build(Stockpile, :courier_notify)
+      assert {:ok, %{consequence_class: :unknown}} = build(Stockpile, :recount_projection)
     end
 
     test "authority/receipt requirements follow the consequence semantics" do
-      by_action = index_by_action(Stockpile)
-
       # :observe -- CommandBus admits with no authority, anchors no receipt.
-      observe = by_action["read"]
+      assert {:ok, observe} = build(Stockpile, :read)
       refute observe.authority_required
       refute observe.receipt_required
 
       # :change -- refused :authority_required on nil authority;
       # RECEIPT_ANCHORED mandatory before DO.
-      for action <- ["create", "update", "destroy"] do
-        assert by_action[action].authority_required
-        assert by_action[action].receipt_required
+      for action <- [:create, :update, :destroy] do
+        assert {:ok, change} = build(Stockpile, action)
+        assert change.authority_required
+        assert change.receipt_required
       end
 
       # :external_do -- same consequence-bearing admission law.
-      external = by_action["courier_notify"]
+      assert {:ok, external} = build(Stockpile, :courier_notify)
       assert external.authority_required
       assert external.receipt_required
     end
 
     test "an unclassified generic action keeps the fail-closed fence, no fabricated booleans" do
-      unknown = index_by_action(Stockpile)["recount_projection"]
+      assert {:ok, unknown} = build(Stockpile, :recount_projection)
 
       assert unknown.consequence_class == :unknown
       # CommandBus refuses :unknown as :consequence_unclassified before any
@@ -171,39 +203,44 @@ defmodule AshSurface.Compiler.CapabilitySectionTest do
     end
 
     test "IR entries are the canonical Capability shape" do
-      assert [%Capability{} | _] = Compiler.Capability.build(Stockpile)
+      assert {:ok, %Capability{}} = build(Stockpile, :read)
     end
   end
 
-  describe "build/1 on an unregistered resource" do
-    test "returns nil -- no fabricated capability truth" do
+  describe "build/2 on an unregistered resource" do
+    test "preserves nil -- no fabricated capability truth" do
       assert AshA2A.Info.capability_index(UnregisteredLedger) == nil
-      assert Compiler.Capability.build(UnregisteredLedger) == nil
+
+      for action <- [:read, :create] do
+        assert build(UnregisteredLedger, action) == {:ok, nil}
+      end
     end
   end
 
   describe "the Section behaviour" do
-    test "the canonical behaviour is build/2; Capability is a build/1 subject projection that does not yet claim it" do
-      # v26.9.16 integration law: the canonical AshSurface.Compiler.Section
-      # behaviour (build/2, per-action, owned by compiler.ex) landed with the
-      # compiler orchestrator. Capability's build/1 subject projection predates
-      # it and does not fake conformance; conforming it is owned by the
-      # capability-section successor branch.
+    test "the canonical behaviour is build/2; Capability conforms to it" do
+      # gapfix-adapters-001: the resource-enumerating build/1 is retired; the
+      # builder claims the canonical per-action behaviour.
       assert AshSurface.Compiler.Section.behaviour_info(:callbacks) == [build: 2]
 
-      assert is_nil(Compiler.Capability.module_info()[:attributes][:behaviour])
-      assert function_exported?(Compiler.Capability, :build, 1)
-      refute function_exported?(Compiler.Capability, :build, 2)
+      assert AshSurface.Compiler.Section in (Compiler.Capability.module_info()[:attributes][
+                                               :behaviour
+                                             ] || [])
+
+      assert function_exported?(Compiler.Capability, :build, 2)
+      refute function_exported?(Compiler.Capability, :build, 1)
+    end
+
+    test "a malformed action entry is refused typed, never coerced" do
+      assert {:error, {:invalid_action_entry, :not_a_map}} =
+               Compiler.Capability.build(:not_a_map, %{})
+
+      assert {:error, {:invalid_action_entry, %{resource: "not_a_module"}}} =
+               Compiler.Capability.build(%{resource: "not_a_module"}, %{})
     end
   end
 
-  defp index_by_action(resource) do
-    resource
-    |> Compiler.Capability.build()
-    |> Map.new(fn entry ->
-      # Action atoms contain no dot; the derived id is "#{inspect(resource)}.#{action}".
-      action = entry.capability_id |> String.split(".") |> List.last()
-      {action, entry}
-    end)
+  defp capability_id(action) do
+    AshA2A.CapabilityIndex.Compiler.capability_id(Stockpile, action)
   end
 end
