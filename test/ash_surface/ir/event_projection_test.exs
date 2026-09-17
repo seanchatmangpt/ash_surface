@@ -24,8 +24,11 @@ defmodule AshSurface.IR.EventProjectionTest do
 
   # The brokered DO-consequence receipt shape emitted by the consumer runtime
   # (test/js/consumer_e2e_runner.mjs step 5): actionId, input, consequence,
-  # dispatchState, selectedTransport, timestamp, receiptHash.
-  @full_receipt %{
+  # dispatchState, selectedTransport, timestamp, receiptHash. Since
+  # chicago-replay-state-028 the receiptHash is REAL: minted over the exact
+  # covered section set through the one canonical-JSON law, so the fixture
+  # satisfies the projection's digest-binding law like any runtime receipt.
+  @full_digest_payload %{
     "actionId" => "AshSurface.Fixtures.VolunteerMilestone#record",
     "input" => %{
       "member_id" => "member_zoela_01",
@@ -40,11 +43,14 @@ defmodule AshSurface.IR.EventProjectionTest do
     },
     "dispatchState" => "completed",
     "selectedTransport" => "http",
-    "timestamp" => "2026-09-15T10:00:00Z",
-    "receiptHash" => "b3f9c0a1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9",
-    "authorityBoundary" => "DO",
-    "doAuthority" => true
+    "timestamp" => "2026-09-15T10:00:00Z"
   }
+
+  @full_receipt Map.merge(@full_digest_payload, %{
+                  "receiptHash" => AshSurface.CanonicalJSON.sha256_hex(@full_digest_payload),
+                  "authorityBoundary" => "DO",
+                  "doAuthority" => true
+                })
 
   @full_ir_action %{
     "resource" => "AshSurface.Fixtures.VolunteerMilestone",
@@ -191,13 +197,22 @@ defmodule AshSurface.IR.EventProjectionTest do
     end
 
     test "an unknown-after-dispatch receipt still back-projects as a lawful observation" do
-      unknown = %{@full_receipt | "dispatchState" => "unknown_after_dispatch"}
+      # The mutated dispatch state is lawfully re-bound into a fresh
+      # runtime-minted digest before projection (content and digest agree);
+      # the tampered variant of this state is refused in the replay-state
+      # suite (chicago-replay-state-028).
+      unknown_payload = %{@full_digest_payload | "dispatchState" => "unknown_after_dispatch"}
+
+      unknown =
+        Map.merge(unknown_payload, %{
+          "receiptHash" => AshSurface.CanonicalJSON.sha256_hex(unknown_payload)
+        })
 
       assert {:ok, event} = EventProjection.from_receipt(unknown, @full_ir_action)
 
       assert event.authority_boundary == :OBSERVE
       assert event.subject_ref == "zoe:KingdomNeed#need_42"
-      assert event.receipt_ref == @full_receipt["receiptHash"]
+      assert event.receipt_ref == unknown["receiptHash"]
     end
 
     test "no receipt or IR section can smuggle a non-OBSERVE boundary through the wire form" do
