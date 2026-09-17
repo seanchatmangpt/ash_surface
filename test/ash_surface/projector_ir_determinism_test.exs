@@ -239,7 +239,10 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
                  IR.project(adapter, ir_node, prefix: @prefix, target_dir: adapter_dir)
 
         assert {:ok, descriptor_artifacts, descriptor_meta} =
-                 IR.project(DescriptorProjector, ir_node, prefix: @prefix, target_dir: descriptor_dir)
+                 IR.project(DescriptorProjector, ir_node,
+                   prefix: @prefix,
+                   target_dir: descriptor_dir
+                 )
 
         %{
           surface: surface,
@@ -385,7 +388,8 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
     assert {:ok, json_artifacts, _meta} =
              AshSurface.project(surface, JsonProjector, prefix: @prefix)
 
-    assert json_artifacts["#{@prefix}.ir.json"] =~ ~s("actionIds":["#{@ledger}#read","#{@ledger}#record"])
+    assert json_artifacts["#{@prefix}.ir.json"] =~
+             ~s("actionIds":["#{@ledger}#read","#{@ledger}#record"])
   end
 
   test "presentation order metadata is content: permutations move digests deterministically" do
