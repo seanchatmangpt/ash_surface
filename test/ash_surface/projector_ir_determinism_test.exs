@@ -1,84 +1,15 @@
-defmodule AshSurface.ProjectorIRDeterminism.IR do
-  @moduledoc false
+defmodule AshSurface.ProjectorIRDeterminism.CanonicalJson do
+  @moduledoc """
+  Sorted-key canonical JSON encoding (recursively string-keyed, key-sorted
+  pairs), used as the rendering engine of the injected projector doubles
+  below.
 
-  # Test-local double for the absent lib/ash_surface/ir.ex sibling: a
-  # normalized intermediate representation between a verified surface and the
-  # projectors that consume it, with a canonical (map-order invariant) digest.
-  # To be replaced wholesale when the real module is admitted; until then it
-  # exists only to pin the determinism contract IR consumers may rely on.
+  This helper predates the lib promotion tracked by finish item F1; when the
+  canonical encoder is admitted into lib, this module retires and the doubles
+  re-point at it. No lib module is shadowed today.
+  """
 
-  @enforce_keys [:version, :nodes, :presentation, :digest]
-  defstruct [:version, :nodes, :presentation, :digest]
-
-  @ir_version "ir.26.9.15"
-
-  def from_surface(%AshSurface.Surface{} = surface) do
-    actions = get_in(surface.contract, ["surface", "actions"]) || []
-
-    nodes =
-      Enum.map(actions, fn action ->
-        %{
-          "id" => action["id"],
-          "semanticId" => action["semanticId"],
-          "resource" => action["resource"],
-          "action" => action["action"],
-          "authorityBoundary" => action["authorityBoundary"],
-          "doAuthority" => action["doAuthority"],
-          "profile" => action["profile"] || %{}
-        }
-      end)
-
-    presentation =
-      case get_in(surface.contract, ["surface", "profile", "presentation"]) do
-        p when is_map(p) -> p
-        _ -> %{}
-      end
-
-    ir = %__MODULE__{
-      version: @ir_version,
-      nodes: nodes,
-      presentation: presentation,
-      digest: nil
-    }
-
-    %{ir | digest: digest(ir)}
-  end
-
-  # The presentation-declared order, with nodes the order does not mention
-  # appended in sorted id order: deterministic fallback, never map order.
-  def resolved_order(%__MODULE__{} = ir) do
-    ids = Enum.map(ir.nodes, & &1["id"])
-    id_set = MapSet.new(ids)
-
-    ordered =
-      ir
-      |> presentation_order()
-      |> Enum.filter(&MapSet.member?(id_set, &1))
-
-    ordered ++ Enum.sort(MapSet.difference(id_set, MapSet.new(ordered)))
-  end
-
-  def presentation_order(%__MODULE__{} = ir) do
-    case Map.get(ir.presentation, "order") do
-      order when is_list(order) -> order
-      _ -> ir.nodes |> Enum.map(& &1["id"]) |> Enum.sort()
-    end
-  end
-
-  # Canonical digest mirroring AshSurface's private digest/1: recursively
-  # string-keyed, key-sorted pairs, so construction history cannot leak in.
-  def digest(%__MODULE__{} = ir) do
-    %{version: ir.version, nodes: ir.nodes, presentation: ir.presentation}
-    |> canonical()
-    |> :erlang.term_to_binary()
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
-
-  # Canonical JSON with recursively sorted keys: identical bytes for any two
-  # structurally equal maps, independent of map construction history (flatmap
-  # or >32-key HAMT).
-  def to_canonical_json(map) when is_map(map) do
+  def encode(map) when is_map(map) do
     pairs =
       map
       |> Enum.map(fn {key, value} -> {to_string(key), value} end)
@@ -86,67 +17,59 @@ defmodule AshSurface.ProjectorIRDeterminism.IR do
 
     "{" <>
       Enum.map_join(pairs, ",", fn {key, value} ->
-        Jason.encode!(key) <> ":" <> to_canonical_json(value)
+        Jason.encode!(key) <> ":" <> encode(value)
       end) <> "}"
   end
 
-  def to_canonical_json(list) when is_list(list) do
-    "[" <> Enum.map_join(list, ",", &to_canonical_json/1) <> "]"
+  def encode(list) when is_list(list) do
+    "[" <> Enum.map_join(list, ",", &encode/1) <> "]"
   end
 
-  def to_canonical_json(scalar), do: Jason.encode!(scalar)
-
-  defp canonical(term) when is_map(term) do
-    term
-    |> Enum.map(fn {key, value} -> {to_string(key), canonical(value)} end)
-    |> Enum.sort_by(&elem(&1, 0))
-  end
-
-  defp canonical(term) when is_list(term), do: Enum.map(term, &canonical/1)
-  defp canonical(term), do: term
+  def encode(scalar), do: Jason.encode!(scalar)
 end
 
-defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR do
-  @moduledoc false
+defmodule AshSurface.ProjectorIRDeterminism.JsonProjector do
+  @moduledoc """
+  Injected projector double over the legacy `AshSurface.Projector` behaviour —
+  the seam TESTING.md admits for projectors (the projector module passed to
+  `AshSurface.project/3`). State-based, no mocks: it renders one JSON artifact
+  from admitted surface facts only.
 
-  # Test-local double for the absent lib/ash_surface/projector/ir.ex sibling:
-  # the JSON artifact kind. Emits one canonical-JSON document whose node list
-  # follows presentation order exactly.
+  Canonical modules it drives: `AshSurface.IR.Codec.digest/1` (the production
+  digest canon, pinned against the surface's own digest by the suite) and the
+  contract's admitted action entries. The IR-era dispatch path drives this same
+  double through `AshSurface.Projector.IR.ManifestProjector`.
+  """
 
   @behaviour AshSurface.Projector
 
-  def project(input, opts \\ [])
+  alias AshSurface.IR.Codec
+  alias AshSurface.ProjectorIRDeterminism.CanonicalJson
 
   @impl true
-  def project(%AshSurface.Surface{} = surface, opts) do
-    surface
-    |> AshSurface.ProjectorIRDeterminism.IR.from_surface()
-    |> project(opts)
-  end
-
-  def project(%AshSurface.ProjectorIRDeterminism.IR{} = ir, opts) do
+  def project(%AshSurface.Surface{} = surface, opts \\ []) do
     prefix = Keyword.get(opts, :prefix, "surface_ir")
 
-    order = AshSurface.ProjectorIRDeterminism.IR.resolved_order(ir)
-    nodes_by_id = Map.new(ir.nodes, &{&1["id"], &1})
+    actions =
+      surface.contract
+      |> get_in(["surface", "actions"])
+      |> Enum.map(&Map.take(&1, ["id", "semanticId", "authorityBoundary", "doAuthority"]))
 
     document = %{
-      "version" => ir.version,
-      "digest" => ir.digest,
-      "order" => order,
-      "nodes" => Enum.map(order, &nodes_by_id[&1]),
-      "presentation" => ir.presentation
+      "digest" => surface.digest,
+      "codecDigest" => Codec.digest(surface.contract),
+      "actionIds" => surface.action_ids,
+      "presentationOrder" =>
+        get_in(surface.contract, ["surface", "profile", "presentation", "order"]) || [],
+      "actions" => actions
     }
 
-    artifacts = %{
-      "#{prefix}.ir.json" =>
-        AshSurface.ProjectorIRDeterminism.IR.to_canonical_json(document) <> "\n"
-    }
+    artifacts = %{"#{prefix}.ir.json" => CanonicalJson.encode(document) <> "\n"}
 
     write!(artifacts, Keyword.get(opts, :target_dir))
 
     {:ok, artifacts,
-     %{kind: :ir_json, digest: ir.digest, order: order, node_count: length(order)}}
+     %{kind: :ir_json, digest: surface.digest, action_count: length(surface.action_ids)}}
   end
 
   defp write!(_artifacts, nil), do: :ok
@@ -157,48 +80,54 @@ defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR do
   end
 end
 
-defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR.Descriptor do
-  @moduledoc false
+defmodule AshSurface.ProjectorIRDeterminism.DescriptorProjector do
+  @moduledoc """
+  Injected projector double implementing the IR-era
+  `AshSurface.Projector.IR` behaviour (`project_ir/2`) — the canonical
+  dispatch target exercised through `AshSurface.Projector.IR.project/3`.
 
-  # Test-local double: the text descriptor projector kind. Same ordering and
-  # digest laws as the JSON kind, rendered as numbered human-readable lines.
+  It renders one text descriptor from the `ash_surface.surface` node's
+  admitted facts: digest and contract from `ash`, and the delegated facts
+  (`semanticId`, `authorityBoundary`, `doAuthority`) read through the
+  canonical `AshSurface.IR.delegated/2` — read, never derived. Ordering is
+  the repo law: entries are id-sorted, never list or map construction order.
+  """
 
-  @behaviour AshSurface.Projector
+  @behaviour AshSurface.Projector.IR
 
-  def project(input, opts \\ [])
+  alias AshSurface.IR
+  alias AshSurface.IR.Codec
 
   @impl true
-  def project(%AshSurface.Surface{} = surface, opts) do
-    surface
-    |> AshSurface.ProjectorIRDeterminism.IR.from_surface()
-    |> project(opts)
-  end
-
-  def project(%AshSurface.ProjectorIRDeterminism.IR{} = ir, opts) do
+  def project_ir(irs, opts \\ []) do
     prefix = Keyword.get(opts, :prefix, "surface_ir")
-
-    order = AshSurface.ProjectorIRDeterminism.IR.resolved_order(ir)
-    nodes_by_id = Map.new(ir.nodes, &{&1["id"], &1})
+    %{ash: ash} = surface_node(irs)
 
     numbered =
-      order
+      ash.manifest.entrypoints
+      |> Enum.map(&{AshSurface.action_id(&1), &1})
+      |> Enum.sort_by(&elem(&1, 0))
       |> Enum.with_index(1)
-      |> Enum.map(fn {id, index} ->
-        node = nodes_by_id[id]
-
-        "#{index}. #{node["id"]} :: #{node["semanticId"]} " <>
-          "[#{node["authorityBoundary"]}] do=#{node["doAuthority"]}"
+      |> Enum.map(fn {{id, entrypoint}, index} ->
+        "#{index}. #{id} :: #{IR.delegated(entrypoint, "semanticId")} " <>
+          "[#{IR.delegated(entrypoint, "authorityBoundary")}] do=#{IR.delegated(entrypoint, "doAuthority")}"
       end)
 
-    lines = ["# ash_surface ir #{ir.version}", "digest: #{ir.digest}"] ++ numbered
+    lines =
+      [
+        "# ash_surface ir #{ash.digest}",
+        "codec: #{Codec.digest(ash.contract)}"
+      ] ++ numbered
 
     artifacts = %{"#{prefix}.ir.txt" => Enum.join(lines, "\n") <> "\n"}
 
     write!(artifacts, Keyword.get(opts, :target_dir))
 
-    {:ok, artifacts,
-     %{kind: :ir_descriptor, digest: ir.digest, order: order, node_count: length(order)}}
+    {:ok, artifacts, %{kind: :ir_descriptor, digest: ash.digest}}
   end
+
+  defp surface_node(irs) when is_list(irs), do: surface_node(List.first(irs))
+  defp surface_node(%{kind: "ash_surface.surface"} = node), do: node
 
   defp write!(_artifacts, nil), do: :ok
 
@@ -208,72 +137,62 @@ defmodule AshSurface.ProjectorIRDeterminism.ProjectorIR.Descriptor do
   end
 end
 
-defmodule AshSurface.ProjectorIRDeterminism.LedgerDomain do
-  @moduledoc false
-
-  use Ash.Domain, validate_config_inclusion?: false
-
-  resources do
-    resource(AshSurface.ProjectorIRDeterminism.Ledger)
-  end
-end
-
-defmodule AshSurface.ProjectorIRDeterminism.Ledger do
-  @moduledoc false
-
-  use Ash.Resource,
-    domain: AshSurface.ProjectorIRDeterminism.LedgerDomain,
-    data_layer: Ash.DataLayer.Ets
-
-  attributes do
-    uuid_primary_key(:id)
-    attribute(:member_id, :string, public?: true, allow_nil?: false)
-    attribute(:entry, :string, public?: true, allow_nil?: false)
-  end
-
-  actions do
-    defaults([:read])
-
-    read(:list_all)
-    create(:record)
-  end
-end
-
 defmodule AshSurface.ProjectorIRDeterminismTest do
   @moduledoc """
-  Determinism proofs for IR projection.
+  Determinism proofs for IR projection, driven entirely by the canonical IR
+  modules (finish item F8: the former test-local `ProjectorIRDeterminism.IR` /
+  `ProjectorIR` shadow doubles are retired — `lib/ash_surface/ir.ex`,
+  `lib/ash_surface/ir/codec.ex`, and `lib/ash_surface/projector/ir.ex` exist
+  and are the subjects under test).
 
-  The IR modules (`AshSurface.IR`, `AshSurface.Projector.IR`,
-  `AshSurface.Projector.IR.Descriptor`) are test-local doubles declared inline
-  because the lib siblings (ir.ex, projector/ir.ex) are absent; the projectors
-  are driven through the real `AshSurface.project/3` seam where a surface is
-  the input, and directly over one IR fixture elsewhere.
+  The pipeline under test is the real manufacturing pass:
 
-  Zero env, zero db, zero network: one IR fixture built through the real
-  `Manifest.generate -> AshSurface.from_manifest` pass, artifacts materialized
+      Manifest.generate -> AshSurface.from_manifest
+        -> AshSurface.Compiler.compile        (canonical [%AshSurface.IR{}] assembly)
+        -> AshSurface.Projector.IR.from_surface / to_surface   (IR round-trip)
+        -> AshSurface.IR.Codec.digest         (the production digest canon)
+
+  Projection dispatch is exercised through every canonical path: the legacy
+  `AshSurface.project/3` seam and the IR-era `AshSurface.Projector.IR.project/3`
+  (both the `ManifestProjector` adapter wrapping the legacy double and the
+  native `project_ir/2` double). The doubles are the admitted injected seam
+  only — they are real state-based renderers, not fakes of any lib module.
+
+  Zero env, zero db, zero network: one fixture built from the real shared
+  `AshSurface.Fixtures.VolunteerMilestone` resource, artifacts materialized
   into per-test temporary directories.
   """
 
   use ExUnit.Case, async: false
 
-  alias AshSurface.ProjectorIRDeterminism.IR
-  alias AshSurface.ProjectorIRDeterminism.ProjectorIR, as: IRJson
-  alias AshSurface.ProjectorIRDeterminism.ProjectorIR.Descriptor, as: IRDescriptor
+  alias AshSurface.Fixtures.VolunteerMilestone
+  alias AshSurface.IR.Codec
+  alias AshSurface.Projector.IR
+  alias AshSurface.Projector.IREntry
+  alias AshSurface.ProjectorIRDeterminism.CanonicalJson
+  alias AshSurface.ProjectorIRDeterminism.DescriptorProjector
+  alias AshSurface.ProjectorIRDeterminism.JsonProjector
 
   @prefix "surface_ir"
-  @ledger "AshSurface.ProjectorIRDeterminism.Ledger"
+  @ledger "AshSurface.Fixtures.VolunteerMilestone"
+
+  # Deliberately not id-sorted: ordering in every artifact below must come
+  # from the canonical id-sort laws, never from declaration coincidence.
   @entrypoints [
-    {AshSurface.ProjectorIRDeterminism.Ledger, :record},
-    {AshSurface.ProjectorIRDeterminism.Ledger, :list_all},
-    {AshSurface.ProjectorIRDeterminism.Ledger, :read}
+    {VolunteerMilestone, :record},
+    {VolunteerMilestone, :read}
   ]
 
-  # Deliberately not id-sorted: proves ordering follows presentation order,
-  # not a sorted coincidence.
-  @order ["#{@ledger}#record", "#{@ledger}#list_all", "#{@ledger}#read"]
+  @sorted_ids Enum.sort(["#{@ledger}#record", "#{@ledger}#read"])
 
-  # The presentation map carries a >32-key member so canonical digesting and
-  # canonical JSON cross the large-map (HAMT) iteration boundary.
+  # Presentation order metadata is content: it rides the surface profile into
+  # the contract (the digest preimage), so permuting it moves the identity.
+  @order ["#{@ledger}#record", "#{@ledger}#read"]
+
+  # Delegated facts per the v26.9.16 delegation law (v10): read from this
+  # profile by `AshSurface.IR.delegated/2`, never derived from action type.
+  # The "wide" member crosses the 32-key small-map boundary so the digest
+  # canon is exercised over large-map (HAMT) iteration.
   @profile %{
     "presentation" => %{
       "order" => @order,
@@ -281,208 +200,258 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
     },
     "actions" => %{
       "#{@ledger}#record" => %{
-        "semanticId" => "zoe:ConstructLedger",
+        "semanticId" => "zoe:ConstructMilestone",
         "authorityBoundary" => "CONSTRUCT",
-        "doAuthority" => false
-      },
-      # v26.9.16 delegation law (v10): these facts are DELEGATED by the
-      # fixture profile, never derived from action type by the projector.
-      "#{@ledger}#list_all" => %{
-        "semanticId" => "ash:#{@ledger}#list_all",
-        "authorityBoundary" => "OBSERVE",
-        "doAuthority" => false
+        "doAuthority" => false,
+        "receiptRequired" => true
       },
       "#{@ledger}#read" => %{
         "semanticId" => "ash:#{@ledger}#read",
         "authorityBoundary" => "OBSERVE",
-        "doAuthority" => false
+        "doAuthority" => false,
+        "receiptRequired" => false
       }
     }
   }
 
-  @kinds [IRJson, IRDescriptor]
-
   @runs 7
 
   @tag :tmp_dir
-  test "n runs of each projector kind over one ir fixture are byte-identical",
+  test "n runs of the canonical IR pipeline are byte-identical across every dispatch path",
        %{tmp_dir: tmp_dir} do
-    surface = surface!()
-    ir = IR.from_surface(surface)
+    runs =
+      for i <- 1..@runs do
+        {surface, compiler_irs, ir_node} = pass!()
 
-    # An independent full rebuild of the surface yields the same digest and
-    # the same IR: the fixture itself is stable before projection begins.
-    rebuilt = surface!()
-    assert rebuilt.digest == surface.digest
-    assert IR.from_surface(rebuilt) == ir
+        json_dir = Path.join(tmp_dir, "json_#{i}")
+        adapter_dir = Path.join(tmp_dir, "adapter_#{i}")
+        descriptor_dir = Path.join(tmp_dir, "descriptor_#{i}")
 
-    for kind <- @kinds do
-      runs =
-        for i <- 1..@runs do
-          dir = Path.join(tmp_dir, "#{inspect(kind)}_#{i}")
+        assert {:ok, json_artifacts, json_meta} =
+                 AshSurface.project(surface, JsonProjector,
+                   prefix: @prefix,
+                   target_dir: json_dir
+                 )
 
-          assert {:ok, artifacts, meta} =
-                   AshSurface.project(surface, kind, prefix: @prefix, target_dir: dir)
+        assert {:ok, adapter} = IR.from_manifest_projector(JsonProjector)
 
-          {artifacts, meta, read_dir(dir)}
-        end
+        assert {:ok, adapter_artifacts, adapter_meta} =
+                 IR.project(adapter, ir_node, prefix: @prefix, target_dir: adapter_dir)
 
-      [{artifacts0, meta0, files0} | rest] = runs
+        assert {:ok, descriptor_artifacts, descriptor_meta} =
+                 IR.project(DescriptorProjector, ir_node, prefix: @prefix, target_dir: descriptor_dir)
 
-      for {artifacts, meta, files} <- rest do
-        assert artifacts == artifacts0
-        assert meta == meta0
-        assert files == files0
+        %{
+          surface: surface,
+          compiler_irs: compiler_irs,
+          ir_node: ir_node,
+          json: {json_artifacts, json_meta, read_dir(json_dir)},
+          adapter: {adapter_artifacts, adapter_meta, read_dir(adapter_dir)},
+          descriptor: {descriptor_artifacts, descriptor_meta, read_dir(descriptor_dir)}
+        }
       end
 
-      # On-disk bytes are exactly the in-memory artifact bytes: no strays.
-      assert files0 == artifacts0
-      assert Enum.sort(Map.keys(artifacts0)) == [expected_artifact(kind)]
+    [first | rest] = runs
 
-      # Direct IR-level projection equals the surface-routed projection.
-      assert {:ok, ^artifacts0, ^meta0} = kind.project(ir, prefix: @prefix)
-
-      # Both projector kinds agree on the fixture's IR digest.
-      assert meta0.digest == ir.digest
+    for run <- rest do
+      assert run.surface == first.surface
+      assert run.compiler_irs == first.compiler_irs
+      assert run.ir_node == first.ir_node
+      assert run.json == first.json
+      assert run.adapter == first.adapter
+      assert run.descriptor == first.descriptor
     end
+
+    surface = first.surface
+    ir_node = first.ir_node
+    {json_artifacts, json_meta, json_files} = first.json
+    {adapter_artifacts, adapter_meta, _adapter_files} = first.adapter
+    {descriptor_artifacts, descriptor_meta, descriptor_files} = first.descriptor
+
+    # The production digest canon agrees with the surface identity on the real
+    # fixture: the codec and AshSurface.from_manifest run the same pipeline.
+    assert Codec.digest(surface.contract) == surface.digest
+
+    # The canonical IR node carries exactly the verified surface's four facts.
+    assert ir_node == %{
+             kind: "ash_surface.surface",
+             ash: %{
+               manifest: surface.manifest,
+               contract: surface.contract,
+               digest: surface.digest,
+               action_ids: surface.action_ids
+             }
+           }
+
+    # The IR round-trip re-extracts the exact surface, byte for byte.
+    assert {:ok, ^surface} = IR.to_surface(ir_node)
+
+    # The adapter re-extracted the identical surface, so the wrapped legacy
+    # projector emitted identical bytes through both dispatch paths.
+    assert adapter_artifacts == json_artifacts
+    assert adapter_meta == json_meta
+
+    # Both artifact kinds agree on the fixture's IR identity.
+    assert json_meta.digest == surface.digest
+    assert descriptor_meta.digest == surface.digest
+    assert json_artifacts["#{@prefix}.ir.json"] =~ surface.digest
+
+    # On-disk bytes are exactly the in-memory artifact bytes: no strays.
+    assert json_files == json_artifacts
+    assert descriptor_files == descriptor_artifacts
+    assert Enum.sort(Map.keys(json_artifacts)) == ["#{@prefix}.ir.json"]
+    assert Enum.sort(Map.keys(descriptor_artifacts)) == ["#{@prefix}.ir.txt"]
+
+    # The compiler's canonical IR assembly agrees with the IR node on the
+    # fixture's identity and delegated facts.
+    assert length(first.compiler_irs) == 2
+    assert Enum.uniq(Enum.map(first.compiler_irs, & &1.digest)) |> length() == 1
   end
 
-  test "structurally equal irs with permuted map ordering project identically" do
-    ir = surface!() |> IR.from_surface()
+  test "structurally equal surfaces with permuted map construction history project identically" do
+    surface = surface!()
+    {:ok, ir_node} = IR.from_surface(surface)
+
+    # An independent full rebuild of the surface yields the exact same struct —
+    # manifest, contract, digest, and action ids: the fixture itself is stable
+    # before projection begins.
+    assert surface!() == surface
+
+    baseline = %{
+      json: AshSurface.project(surface, JsonProjector, prefix: @prefix),
+      descriptor: IR.project(DescriptorProjector, ir_node, prefix: @prefix)
+    }
 
     for rotation <- [0, 1, 2, 3, 5, 7] do
-      permuted = %{
-        ir
-        | nodes: reorder_maps(ir.nodes, rotation),
-          presentation: reorder_maps(ir.presentation, rotation)
-      }
+      permuted_contract = reorder_maps(surface.contract, rotation)
 
-      # The variant differs only in map construction history, not in content.
-      assert permuted.nodes == ir.nodes
-      assert permuted.presentation == ir.presentation
+      # The variant differs only in map construction history, not in content —
+      # including the 40-key wide profile member across the HAMT boundary.
+      assert permuted_contract == surface.contract
 
-      # The canonical digest is invariant under that history.
-      assert IR.digest(permuted) == ir.digest
+      # The production digest canon is invariant under that history.
+      assert Codec.digest(permuted_contract) == surface.digest
 
-      for kind <- @kinds do
-        assert {:ok, artifacts0, meta0} = kind.project(ir, prefix: @prefix)
-        assert {:ok, ^artifacts0, ^meta0} = kind.project(permuted, prefix: @prefix)
-      end
+      # The canonical IR node is invariant too: it carries content, not
+      # construction history.
+      variant_surface = %{surface | contract: permuted_contract}
+      assert {:ok, variant_node} = IR.from_surface(variant_surface)
+      assert variant_node == ir_node
+
+      # Both dispatch paths project the permuted history to the baseline bytes.
+      assert AshSurface.project(variant_surface, JsonProjector, prefix: @prefix) ==
+               baseline.json
+
+      assert IR.project(DescriptorProjector, variant_node, prefix: @prefix) ==
+               baseline.descriptor
     end
   end
 
-  test "output ordering follows presentation order deterministically" do
-    ir = surface!() |> IR.from_surface()
+  test "output ordering is the canonical id law, never declaration or construction order" do
+    # Fixture guard: the entrypoints are declared out of id order, so sorted
+    # output can only come from a sorting law acting on the facts.
+    refute @entrypoints == Enum.sort(@entrypoints)
 
-    # Fixture guard: the declared order is not the sorted fallback.
-    refute @order == Enum.sort(@order)
-    assert IR.presentation_order(ir) == @order
-    assert IR.resolved_order(ir) == @order
+    surface = surface!()
+    {:ok, ir_node} = IR.from_surface(surface)
+    assert {:ok, compiler_irs} = AshSurface.Compiler.compile(surface.manifest)
 
-    assert {:ok, json_artifacts, json_meta} = IRJson.project(ir, prefix: @prefix)
+    # Surface identity: action ids are id-sorted by from_manifest.
+    assert surface.action_ids == @sorted_ids
 
-    document = json_artifacts["#{@prefix}.ir.json"] |> Jason.decode!()
+    # Contract actions ride the same law.
+    assert Enum.map(surface.contract["surface"]["actions"], & &1["id"]) == @sorted_ids
 
-    assert document["order"] == @order
-    assert Enum.map(document["nodes"], & &1["id"]) == @order
-    assert document["digest"] == ir.digest
-    assert json_meta.order == @order
+    # The canonical entry reader id-sorts regardless of input list order.
+    entries = IREntry.entries(compiler_irs)
+    ids = Enum.map(entries, & &1.id)
+    assert ids == Enum.sort(ids)
+    assert IREntry.entries(Enum.reverse(compiler_irs)) == entries
 
-    assert {:ok, txt_artifacts, txt_meta} = IRDescriptor.project(ir, prefix: @prefix)
+    # Artifacts follow the same law: the descriptor's lines are id-sorted even
+    # though the fixture declares #record before #read.
+    assert {:ok, descriptor_artifacts, _meta} =
+             IR.project(DescriptorProjector, ir_node, prefix: @prefix)
 
-    lines = txt_artifacts["#{@prefix}.ir.txt"] |> String.split("\n", trim: true)
+    lines = descriptor_artifacts["#{@prefix}.ir.txt"] |> String.split("\n", trim: true)
 
-    assert lines ==
-             [
-               "# ash_surface ir #{ir.version}",
-               "digest: #{ir.digest}",
-               "1. #{@ledger}#record :: zoe:ConstructLedger [CONSTRUCT] do=false",
-               "2. #{@ledger}#list_all :: ash:#{@ledger}#list_all [OBSERVE] do=false",
-               "3. #{@ledger}#read :: ash:#{@ledger}#read [OBSERVE] do=false"
-             ]
+    assert lines == [
+             "# ash_surface ir #{surface.digest}",
+             "codec: #{Codec.digest(surface.contract)}",
+             "1. #{@ledger}#read :: ash:#{@ledger}#read [OBSERVE] do=false",
+             "2. #{@ledger}#record :: zoe:ConstructMilestone [CONSTRUCT] do=false"
+           ]
 
-    assert txt_meta.order == @order
+    assert {:ok, json_artifacts, _meta} =
+             AshSurface.project(surface, JsonProjector, prefix: @prefix)
+
+    assert json_artifacts["#{@prefix}.ir.json"] =~ ~s("actionIds":["#{@ledger}#read","#{@ledger}#record"])
   end
 
-  test "permuting presentation order re-orders output and digests deterministically" do
-    ir = surface!() |> IR.from_surface()
+  test "presentation order metadata is content: permutations move digests deterministically" do
+    baseline = surface!()
 
     results =
       for permutation <- permutations(@order) do
-        presentation = %{ir.presentation | "order" => permutation}
-        variant = %{ir | presentation: presentation}
-        variant = %{variant | digest: IR.digest(variant)}
+        profile = put_in(@profile["presentation"]["order"], permutation)
+        variant = surface!(profile)
 
-        # Order is content: changing it changes the IR identity. The identity
-        # permutation is the original IR and keeps its digest.
-        if permutation != @order do
-          assert variant.digest != ir.digest
+        # Order is content: changing it changes the surface identity. The
+        # identity permutation reproduces the original surface exactly.
+        if permutation == @order do
+          assert variant == baseline
+        else
+          assert variant.digest != baseline.digest
         end
 
-        assert {:ok, json_artifacts, json_meta} = IRJson.project(variant, prefix: @prefix)
-        assert {:ok, txt_artifacts, txt_meta} = IRDescriptor.project(variant, prefix: @prefix)
+        # The codec canon content-addresses the permutation.
+        assert Codec.digest(variant.contract) == variant.digest
 
-        document = json_artifacts["#{@prefix}.ir.json"] |> Jason.decode!()
+        assert {:ok, json_artifacts, json_meta} =
+                 AshSurface.project(variant, JsonProjector, prefix: @prefix)
 
-        assert document["order"] == permutation
-        assert Enum.map(document["nodes"], & &1["id"]) == permutation
-        assert json_meta.order == permutation
-        assert txt_meta.order == permutation
+        assert {:ok, variant_node} = IR.from_surface(variant)
+
+        assert {:ok, descriptor_artifacts, descriptor_meta} =
+                 IR.project(DescriptorProjector, variant_node, prefix: @prefix)
+
         assert json_meta.digest == variant.digest
-        assert txt_meta.digest == variant.digest
+        assert descriptor_meta.digest == variant.digest
+
+        # The declared order rides the artifact verbatim.
+        assert json_artifacts["#{@prefix}.ir.json"] =~ CanonicalJson.encode(permutation)
 
         # Repeated projection of the same variant stays byte-identical.
-        assert {:ok, ^json_artifacts, ^json_meta} = IRJson.project(variant, prefix: @prefix)
-        assert {:ok, ^txt_artifacts, ^txt_meta} = IRDescriptor.project(variant, prefix: @prefix)
+        assert {:ok, ^json_artifacts, ^json_meta} =
+                 AshSurface.project(variant, JsonProjector, prefix: @prefix)
+
+        assert {:ok, ^descriptor_artifacts, ^descriptor_meta} =
+                 IR.project(DescriptorProjector, variant_node, prefix: @prefix)
 
         {variant.digest, json_artifacts["#{@prefix}.ir.json"]}
       end
 
-    assert length(results) == 6
-    assert results |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length() == 6
-    assert results |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length() == 6
+    assert length(results) == 2
+    assert results |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length() == 2
+    assert results |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length() == 2
   end
 
-  test "nodes missing from presentation order append in sorted determinism" do
-    ir = surface!() |> IR.from_surface()
+  ## helpers
 
-    partial = ["#{@ledger}#read"]
-    presentation = %{ir.presentation | "order" => partial}
-    variant = %{ir | presentation: presentation}
-    variant = %{variant | digest: IR.digest(variant)}
-
-    expected = ["#{@ledger}#read", "#{@ledger}#list_all", "#{@ledger}#record"]
-
-    assert IR.resolved_order(variant) == expected
-
-    assert {:ok, json_artifacts, json_meta} = IRJson.project(variant, prefix: @prefix)
-    assert {:ok, txt_artifacts, txt_meta} = IRDescriptor.project(variant, prefix: @prefix)
-
-    document = json_artifacts["#{@prefix}.ir.json"] |> Jason.decode!()
-
-    assert document["order"] == expected
-    assert Enum.map(document["nodes"], & &1["id"]) == expected
-    assert json_meta.order == expected
-    assert txt_meta.order == expected
-
-    # The fallback is itself map-order invariant.
-    permuted = %{
-      variant
-      | nodes: reorder_maps(variant.nodes, 1),
-        presentation: reorder_maps(variant.presentation, 1)
-    }
-
-    assert {:ok, ^json_artifacts, ^json_meta} = IRJson.project(permuted, prefix: @prefix)
-    assert {:ok, ^txt_artifacts, ^txt_meta} = IRDescriptor.project(permuted, prefix: @prefix)
+  # One full manufacturing pass: manifest generation, surface verification,
+  # canonical IR assembly, and the canonical surface-IR node.
+  defp pass! do
+    surface = surface!()
+    assert {:ok, compiler_irs} = AshSurface.Compiler.compile(surface.manifest)
+    assert {:ok, ir_node} = IR.from_surface(surface)
+    {surface, compiler_irs, ir_node}
   end
 
-  # Runs the real manufacturing pass to the verified surface: manifest
-  # generation with presentation metadata carried through the profile.
-  defp surface! do
+  defp surface!(profile \\ @profile) do
     assert {:ok, manifest} =
              Ash.Info.Manifest.generate(otp_app: :ash_surface, action_entrypoints: @entrypoints)
 
-    assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: @profile)
+    assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
     surface
   end
 
@@ -491,9 +460,6 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
     |> File.ls!()
     |> Map.new(fn file -> {file, File.read!(Path.join(dir, file))} end)
   end
-
-  defp expected_artifact(IRJson), do: "#{@prefix}.ir.json"
-  defp expected_artifact(IRDescriptor), do: "#{@prefix}.ir.txt"
 
   # Rebuilds every map in the term from pairs in a different order, so that a
   # structurally equal term is produced with a different construction history.

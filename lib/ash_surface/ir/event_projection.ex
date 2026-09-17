@@ -13,13 +13,10 @@ defmodule AshSurface.IR.EventProjection do
 
   ## Canonical IR action shape
 
-  [Corrected by gapfix-docs-truth-013: the note below said
-  "`lib/ash_surface/ir.ex` does not exist yet" — it has since been admitted
-  (`AshSurface.IR`, the five-section struct carrier). The declared action
-  shape intentionally stays local regardless: it is the JSON-decoded receipt
-  shape, not the `%AshSurface.IR{}` struct, so there is no owner module for it
-  to move into.] Atom and
-  string keys are both accepted (receipts arrive JSON-decoded):
+  The declared action shape stays local by design: it is the JSON-decoded
+  receipt shape, not the `%AshSurface.IR{}` five-section struct carrier
+  (`lib/ash_surface/ir.ex`), so there is no owner module for it to move into.
+  Atom and string keys are both accepted (receipts arrive JSON-decoded):
 
       %{
         "resource" => "AshSurface.Fixtures.VolunteerMilestone",
