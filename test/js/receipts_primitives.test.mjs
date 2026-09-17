@@ -12,7 +12,7 @@ import {
 
 function surfaceContract() {
   return {
-    surfaceSchemaVersion: "26.9.17",
+    surfaceSchemaVersion: "26.9.16",
     ashManifestSchemaVersion: "1.1.0",
     manifest: {},
     surface: {
@@ -21,7 +21,7 @@ function surfaceContract() {
         {
           id: "Zoela.KingdomNeed#select_option",
           semanticId: "zoe:SelectOption",
-          // v26.9.17 delegation: authorityBoundary/doAuthority/receiptRequired
+          // v26.9.16 delegation: authorityBoundary/doAuthority/receiptRequired
           // surface as explicit null when not delegated.
           authorityBoundary: null,
           doAuthority: null,

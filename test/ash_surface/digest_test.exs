@@ -56,11 +56,11 @@ defmodule AshSurface.DigestTest do
   # doAuthority/receiptRequired stopped being derived in the surface envelope
   # (delegated facts now surface from custom.ash_surface or as nil).
   @golden %{
-    minimal_read: "c8f65e1c57ae9c644f67d39948075fd79b71f41646c17a91d7b7c49b91a134d5",
-    two_actions: "dbf5dc6a388c6daac193e06d082a834bde60a331ef6427fb67ec37aff27edbd8",
-    profiled_action: "33868fece2b5d77e66497c9a604c75046bf353086a64f9f446f98c90cc505f25",
-    transport_metadata: "b379832eafe7a70698851e7280a1f5726c291daacb5a13f46c9215d4e16e3671",
-    large_map_profile: "0fcd874769f985b2db8b6ee4ba22a6d67525ead8aa52cd2f6bf01fd791b2c7e8"
+    minimal_read: "cab081a03811a036c50c47152f6fb1300ceb7abf337f044673c710f18eede93b",
+    two_actions: "4e9ebfdb4a5c8cd60b0382e4d933b3a34f0ed8676cc343e3d6d6809a88af5ed2",
+    profiled_action: "0b2ca6642b20d0a0c96b3fc7edb0d187c0cbd97c3c492fe5a3caef5c5b94c3d9",
+    transport_metadata: "5fb5de537d5ec6c3a9fc9ad8e1ac6d163aff2d391b34e33964d35762fdd5599a",
+    large_map_profile: "4ded9cc009991b095b1bbed7880d6078e727ca7fd91f5a2666910bdc8e5ec8a8"
   }
 
   defp entrypoint(resource, name, type, action_opts \\ []) do

@@ -12,7 +12,7 @@ defmodule AshSurface.RuntimeSourceTest do
   # v26.9.16 delegation: re-frozen after the runtime's surfaceActionSchema moved
   # delegated facts (semanticId/authorityBoundary/doAuthority/receiptRequired)
   # from client-side defaults to nullable delegated-or-null.
-  @golden_runtime_sha256 "911406b4ce0bcd6438d32ffe98041ceb6f210c7e440d73e9e993b06c39a52bfc"
+  @golden_runtime_sha256 "612c4d24671483bf7afe67a8846be11ea77579c000bc0fc6534369d75e04f90a"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

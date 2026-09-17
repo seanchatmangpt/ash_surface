@@ -18,7 +18,7 @@ defmodule AshSurface.Projectors.JS do
 
   alias AshSurface.Projector.IREntry
 
-  @calver "26.9.17"
+  @calver "26.9.16"
   @default_prefix "ash_surface_client"
 
   @doc """

@@ -12,7 +12,7 @@ defmodule AshSurface.Projectors.LiveViewTest do
 
   defp ir(resource, action, action_type, opts) do
     %IR{
-      version: "26.9.17",
+      version: "26.9.16",
       digest: Keyword.get(opts, :digest, "digest-#{resource}-#{action}"),
       ash: %IR.Ash{
         resource: resource,
@@ -27,7 +27,7 @@ defmodule AshSurface.Projectors.LiveViewTest do
         capability_iri: "ash:#{resource}##{action}",
         predicates: Keyword.get(opts, :predicates, %{}),
         shape_id: "shape-#{resource}-#{action}",
-        ontology: "ggen-marketplace:v26.9.17"
+        ontology: "ggen-marketplace:v26.9.16"
       },
       capability: %IR.Capability{
         capability_id: "#{resource}##{action}",
@@ -134,7 +134,7 @@ defmodule AshSurface.Projectors.LiveViewTest do
 
       assert view == %{
                "kind" => "ash_admin",
-               "ir_version" => "26.9.17",
+               "ir_version" => "26.9.16",
                "digest" => view["digest"],
                "navigation" => %{
                  "groups" => [
@@ -454,7 +454,7 @@ defmodule AshSurface.Projectors.LiveViewTest do
       [ir_a | rest] = fixture_irs()
       conflicting = [%{ir_a | version: "25.0.0"} | rest]
 
-      assert {:error, {:ir_version_conflict, ["25.0.0", "26.9.17"]}} =
+      assert {:error, {:ir_version_conflict, ["25.0.0", "26.9.16"]}} =
                LiveView.project_ir(conflicting, [])
     end
 
