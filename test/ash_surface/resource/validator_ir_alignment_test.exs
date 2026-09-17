@@ -60,26 +60,39 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
       ash section
 
   v50 integration: the locally declared stand-in contract was DELETED and
-  these tests re-point at the REAL `AshSurface.Compiler.Ash.build/1`
-  (landed via the sections wave); the `:integration_pending` tags are
-  dropped — both consumers of the one truth are present and alive.
+  these tests re-point at the REAL ash-section builder (landed via the
+  sections wave); the `:integration_pending` tags are dropped — both
+  consumers of the one truth are present and alive. gapfix-adapters-001:
+  the builder is `AshSurface.Compiler.AshTruth`, the ONE canon for the ash
+  section (the resource-enumerating `Compiler.Ash` rival retired there).
   """
 
   use ExUnit.Case, async: true
 
+  alias AshSurface.Compiler.AshTruth
   alias AshSurface.Resource.Validator
 
   @document AshSurface.Resource.ValidatorIRAlignmentTest.Document
   @renamed AshSurface.Resource.ValidatorIRAlignmentTest.RenamedDocument
-  @ir_ash_section AshSurface.Compiler.Ash
+  @ir_ash_section AshSurface.Compiler.AshTruth
 
   # v50 integration: the stand-in contract was DELETED per its own
   # INTEGRATION clause; this helper derives the sorted action set from the
-  # REAL `AshSurface.Compiler.Ash.build/1` output (one facet per public
-  # action). Fails closed: a refused build is a test failure, never [].
+  # REAL `AshSurface.Compiler.AshTruth.build/2` (one section per public
+  # action of the same resource). Fails closed: the probe universe is every
+  # declared action, and a build that is neither {:ok, _} nor the typed
+  # public-set refusal is a test failure, never a silent [].
   defp ir_ash_action_set(resource) do
-    assert {:ok, facets} = @ir_ash_section.build(resource)
-    facets |> Enum.map(& &1.action) |> Enum.sort()
+    resource
+    |> action_universe()
+    |> Enum.filter(fn action ->
+      case AshTruth.build(resource, action) do
+        {:ok, %AshSurface.IR.Ash{}} -> true
+        {:error, {:unknown_public_action, ^action, _public}} -> false
+        other -> flunk("unexpected ash-section verdict: #{inspect(other)}")
+      end
+    end)
+    |> Enum.sort()
   end
 
   # The validator's admitted set, probed black-box through validate/1: a
@@ -177,13 +190,15 @@ defmodule AshSurface.Resource.ValidatorIRAlignmentTest do
     end
 
     test "the ash-section contract refuses non-Ash sources fail-closed with typed errors" do
-      assert {:error, [%{code: "not_an_ash_resource", detail: detail}]} =
-               @ir_ash_section.build("AshSurface.Resource.ValidatorIRAlignmentTest.Document")
+      assert {:error,
+              {:not_an_ash_resource, "AshSurface.Resource.ValidatorIRAlignmentTest.Document"}} =
+               @ir_ash_section.build(
+                 "AshSurface.Resource.ValidatorIRAlignmentTest.Document",
+                 :read
+               )
 
-      assert detail =~ "ash section builds only from a compiled Ash resource"
-
-      assert {:error, [%{code: "not_an_ash_resource"}]} =
-               @ir_ash_section.build(AshSurface.Resource.Validator)
+      assert {:error, {:not_an_ash_resource, AshSurface.Resource.Validator}} =
+               @ir_ash_section.build(AshSurface.Resource.Validator, :read)
     end
   end
 end

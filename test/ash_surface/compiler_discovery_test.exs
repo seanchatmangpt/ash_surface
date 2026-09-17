@@ -29,6 +29,7 @@ defmodule AshSurface.CompilerDiscoveryTest do
   use ExUnit.Case, async: true
 
   alias AshSurface.Compiler
+  alias AshSurface.IR
   alias AshSurface.TestSupport.CompilerEchoSection, as: EchoSection
   alias AshSurface.Fixtures.{Domain, VolunteerMilestone}
 
@@ -120,14 +121,41 @@ defmodule AshSurface.CompilerDiscoveryTest do
              Compiler.compile(:not_a_domain_module, sections: echo_sections())
   end
 
-  test "default section bindings fail closed until conforming adapters land" do
-    # Integrated truth: the canonical default bindings name
-    # AshSurface.Compiler.Section.* adapters that no branch has landed; the
-    # compiler refuses them typed instead of silently skipping — the
-    # fail-closed law working as designed. The adapter set is owed by the
-    # section-conformance owner.
-    assert {:error, {:invalid_section_module, :ash, AshSurface.Compiler.Section.Ash}} =
-             Compiler.compile(Domain)
+  test "default section bindings build the five-section IR through the real adapters" do
+    # gapfix-adapters-001 landed the `AshSurface.Compiler.Section.*` adapters,
+    # so `compile/1` runs the REAL pipeline on the real fixture: AshTruth's
+    # conforming ash truth, the presentation defaults, the schema boundary —
+    # and honest nils where the fixture has no edge owner (no r2rml mapping,
+    # no AshA2A extension). The v50-era pin that the default bindings fail
+    # closed with {:invalid_section_module, ...} was the recorded owed debt;
+    # the debt is paid and the law is now the working pipeline itself.
+    assert {:ok, [read, record] = irs} = Compiler.compile(Domain)
+    assert length(irs) == 2
+
+    for ir <- irs do
+      assert %IR{} = ir
+      assert %IR.Ash{resource: AshSurface.Fixtures.VolunteerMilestone} = ir.ash
+      # No mapping on the fixture: the meaning edge is honestly absent.
+      assert is_nil(ir.semantic)
+      # No AshA2A extension on the fixture: the capability edge is honestly
+      # absent — nil, never a fabricated capability.
+      assert is_nil(ir.capability)
+      assert %IR.Presentation{widget: "default", order: 0} = ir.presentation
+      assert %IR.Schema{} = ir.schema
+    end
+
+    # Per-action ash truth through the real canon.
+    assert %{action: :read, action_type: :read, inputs: [], outputs: nil, policies: []} =
+             read.ash
+
+    assert %{action: :record, action_type: :create} = record.ash
+
+    # Presentation defaults are derived from the action name only.
+    assert record.presentation.label == "Record"
+
+    # The schema section is the real builder's boundary: deterministic zod
+    # source text carrying the action id.
+    assert record.schema.zod =~ "record_inputSchema"
   end
 
   test "malformed section bindings fail closed" do

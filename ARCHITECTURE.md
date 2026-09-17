@@ -120,7 +120,15 @@ pieces is in §7.
 
 `%AshSurface.IR{}` — `lib/ash_surface/ir.ex` (five-section form landed with the wave;
 `@ir_version "26.9.16"` in `lib/ash_surface/compiler.ex`). Every field is owned by
-exactly one section builder implementing `AshSurface.Compiler.Section`.
+exactly one section builder implementing `AshSurface.Compiler.Section`. The default
+`compile/1` bindings are the five `AshSurface.Compiler.Section.*` adapters
+(`lib/ash_surface/compiler/section/*.ex`, gapfix-adapters-001), each bridging the
+real edge-owner builder and carrying its projection verbatim into the mounted
+`AshSurface.IR.*` slice: `Section.Ash` -> `Compiler.AshTruth` (the ONE canon for
+`:ash`; the `IR.Ash`-@type-violating rival `Compiler.Ash` is retired),
+`Section.Semantic` -> `Compiler.Semantic`, `Section.Capability` ->
+`Compiler.Capability` (conformed to the canonical build/2), `Section.Presentation`
+-> `Compiler.Presentation`, `Section.Schema` -> `Compiler.Schema`.
 
 | Section | Struct | Fields | Truth source (edge owner) |
 |---|---|---|---|
@@ -245,6 +253,8 @@ The v26.9.16 wave is admitted on per-section branches and converges at integrati
 | ARIA section | `exp/v08` | `lib/ash_surface/compiler/aria.ex` |
 | IR codec (serialization + content addressing) | `exp/v09` | `lib/ash_surface/ir/codec.ex` |
 | Delegation correction (four facts) | `exp/v10` (`c6744cb`) | `lib/ash_surface/ir.ex`, `lib/ash_surface.ex`, `priv/static/ash_surface_runtime.mjs` |
+| Default section adapters (`Section.*`, build/2) | `exp/gapfix-adapters-001` | `lib/ash_surface/compiler/section/{ash,semantic,capability,presentation,schema}.ex` |
+| Capability section conformed to build/2; `Compiler.Ash` rival retired (`AshTruth` = one canon); normalize carries `custom` + type kind | `exp/gapfix-adapters-001` | `lib/ash_surface/compiler/capability.ex`, `lib/ash_surface/compiler/ash_truth.ex`, `lib/ash_surface/compiler.ex` |
 
 Already on base: `lib/ash_surface.ex`, `lib/ash_surface/projector/expo.ex`,
 `priv/static/ash_surface_runtime.mjs`, `lib/ash_surface/{event,observation,planning_episode,transport,health,formatter}.ex`,

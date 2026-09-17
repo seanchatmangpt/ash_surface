@@ -1,7 +1,9 @@
 # The ash TRUTH section (v29): per-action compilation into `AshSurface.IR.Ash`
-# with the read-only section renderer. (Landed as `AshSurface.Compiler.Ash` on
-# its branch; renamed at v50 integration — v03's section-set builder owns that
-# name.) Paired with the `AshSurface.Section` behaviour in section.ex.
+# with the read-only section renderer. THE one canon for the ash section since
+# gapfix-adapters-001 (the resource-enumerating `Compiler.Ash` rival — an
+# `AshSurface.IR.Ash` @type violation — is retired; the default pipeline
+# bridges here through `AshSurface.Compiler.Section.Ash`). Paired with the
+# `AshSurface.Section` behaviour in section.ex.
 defmodule AshSurface.Compiler.AshTruth do
   @moduledoc """
   Compiles one public Ash action into `AshSurface.IR.Ash` truth and renders the
