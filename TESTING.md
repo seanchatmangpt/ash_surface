@@ -1,7 +1,7 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (771 tests, 68 files) and `npm test` (220 tests, 16 files), chained
+`mix test` (842 tests, 75 files) and `npm test` (258 tests, 17 files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
@@ -68,11 +68,38 @@ not a setup problem.
   env-read guard — no file under `test/` reads an environment variable
   outside the documented allowlist (`@zero_env_allowlist` in `mix.exs`);
   reads must carry a literal variable name, and an opaque read fails
-  closed; (2) `mix test.zero` re-run inside the fresh clone when the alias
-  is defined there. Hermetic re-exec through `env -i PATH HOME`, per-step
-  `EXIT[<label>]=<code>` receipt lines, fail-closed (any failure aborts
-  before the terminal line, so it cannot print a false `ZERO_CONFIG_OK`).
-  Owned by ticket `zero-config-battery-002`; live in-repo at this SHA.
+  closed; (2) the **chicago suite census** (ticket
+  `chicago-zeroconfig-census-048`, below); (3) `mix test.zero` re-run
+  inside the fresh clone when the alias is defined there. Hermetic re-exec
+  through `env -i PATH HOME`, per-step `EXIT[<label>]=<code>` receipt
+  lines, fail-closed (any failure aborts before the terminal line, so it
+  cannot print a false `ZERO_CONFIG_OK`). Owned by ticket
+  `zero-config-battery-002` (census owned by
+  `chicago-zeroconfig-census-048`); live in-repo at this SHA.
+
+### Chicago suite census (in the v2 battery)
+
+The battery pins the full chicago suite set: `scripts/chicago_census.txt`
+is the golden census — one `# floor: <N>` line plus one suite path per
+line (92 suites at this SHA: 75 mix + 17 npm), regenerated with
+`git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
+the floor re-measured from `mix test` whenever suites change. Two
+fail-closed battery steps consume it:
+
+- **file set** (before deps are fetched) — every pinned suite must exist
+  in the fresh clone; deleting a suite file turns the battery RED, as does
+  a missing census, a missing/duplicated/malformed floor line, an empty
+  list, or a path escaping the clone.
+- **mix test count floor** (after `mix test`) — the clone's `mix test`
+  count must be >= the pinned floor (842 at this SHA), so gutting a suite
+  without deleting its file also fails. The summary parser handles the
+  ExUnit >= 1.19 `Result: N passed (…)` / `Result: X/Y passed` lines and
+  the classic `N tests, M failures` line; an unparsable summary fails
+  closed.
+
+This is the same golden-vector discipline as section 2's drift detection,
+applied to the suite set itself: a removed or emptied-out suite is a
+battery failure, never a silent shrink of the proof.
 
 ## 2. What Chicago-style means here
 

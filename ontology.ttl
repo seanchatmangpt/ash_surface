@@ -468,3 +468,9 @@ surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
     surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
     surf:ledgerDate "2026-09-17" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/zero_config_v2.sh + scripts/chicago_census.txt" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "verification battery suite-census emission (golden suite manifest + measured floor pin) in the zero-config-proof family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
