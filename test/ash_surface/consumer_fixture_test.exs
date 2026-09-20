@@ -81,6 +81,7 @@ defmodule AshSurface.ConsumerFixtureTest do
 
     refute is_nil(successful_record),
            "Expected the receipt-bound Ash consequence to exist in the data layer"
+
     assert successful_record.milestone_id == "milestone_serve_42"
     assert successful_record.cost_physical == 10
     assert successful_record.reward_spiritual == 100
