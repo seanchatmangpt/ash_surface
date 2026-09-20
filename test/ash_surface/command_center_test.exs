@@ -51,6 +51,7 @@ defmodule AshSurface.CommandCenterTest do
       )
 
     assert center.authority_boundary == :OBSERVE
+    assert center.standing == :PARTIAL_ALIVE
     assert String.starts_with?(center.projection_id, "cc_")
     assert byte_size(center.state_digest) == 64
 
