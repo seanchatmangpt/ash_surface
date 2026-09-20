@@ -148,3 +148,32 @@ mix test
 ```
 
 The JavaScript projection requires Zod at runtime and does not require TypeScript.
+
+
+## DfCM live command center projection
+
+`AshSurface.Obligation` and `AshSurface.CommandCenter` provide the consumer
+surface for a Blue River Dam / SA2A operational loop without moving actuation
+authority into the UI layer.
+
+```text
+external systems
+    -> semantic admission / Knowledge Hooks
+    -> SA2A capability + authority
+    -> planner SELECT / CONSTRUCT
+    -> CommandBus DO
+    -> receipts + independent observation
+    -> AshSurface.CommandCenter (OBSERVE only)
+```
+
+The command-center projection composes already-admitted observations,
+operational obligations, planning episodes, capability descriptions, and
+receipt identities. It derives no business semantics and cannot dispatch a
+command. An obligation's identity is stable across state changes while its
+state digest changes, making assignment/escalation transitions replayable and
+consumer-safe.
+
+This boundary is intentionally DfCM: upstream systems may be Planning Center,
+WebEOC, Everbridge, ArcGIS, a security vendor, a human observer, or a future
+adapter. AshSurface preserves those lawful alternatives instead of becoming
+their owner.
