@@ -14,6 +14,8 @@ defmodule AshSurface.CommandCenter do
 
   alias AshSurface.{Observation, Obligation, PlanningEpisode}
 
+  @standings [:ALIVE, :PARTIAL_ALIVE, :REFUSED, :BLOCKED]
+
   @enforce_keys [
     :projection_id,
     :exact_subject,
@@ -35,7 +37,7 @@ defmodule AshSurface.CommandCenter do
     :capabilities,
     :receipt_refs,
     evidence_refs: [],
-    standing: :ALIVE,
+    standing: :PARTIAL_ALIVE,
     authority_boundary: :OBSERVE
   ]
 
@@ -61,7 +63,11 @@ defmodule AshSurface.CommandCenter do
     capabilities = Keyword.get(opts, :capabilities, [])
     receipt_refs = Keyword.get(opts, :receipt_refs, [])
     evidence_refs = Keyword.get(opts, :evidence_refs, [])
-    standing = Keyword.get(opts, :standing, :ALIVE)
+    standing = Keyword.get(opts, :standing, :PARTIAL_ALIVE)
+
+    unless standing in @standings do
+      raise ArgumentError, "unknown command-center standing: #{inspect(standing)}"
+    end
 
     validate_struct_list!(observations, Observation, :observations)
     validate_struct_list!(obligations, Obligation, :obligations)
