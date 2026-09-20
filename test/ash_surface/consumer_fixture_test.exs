@@ -61,14 +61,26 @@ defmodule AshSurface.ConsumerFixtureTest do
 
     assert exit_code == 0, "Node runner failed with exit code #{exit_code}: #{output}"
 
-    # 5. Observe physical Ash action consequence in ETS data layer
+    # 5. Bind verification to the exact consequence identity emitted by the
+    # consumer receipt. The ETS resource is shared across end-to-end courts,
+    # so member_id alone is not a unique execution identity.
+    assert File.exists?(receipt_path)
+    receipt_json = File.read!(receipt_path)
+    assert {:ok, receipt} = Jason.decode(receipt_json)
+
+    # 6. Observe the exact physical Ash action consequence in ETS data layer
     assert {:ok, records} =
              Ash.read(VolunteerMilestone, domain: AshSurface.Fixtures.Domain)
 
-    successful_record =
-      Enum.find(records, fn r -> r.member_id == "member_zoela_01" end)
+    consequence_id = get_in(receipt, ["consequence", "id"])
 
-    refute is_nil(successful_record), "Expected Ash record created by JS consumer"
+    assert is_binary(consequence_id),
+           "Expected receipt to bind the exact Ash consequence identity"
+
+    successful_record = Enum.find(records, fn r -> r.id == consequence_id end)
+
+    refute is_nil(successful_record),
+           "Expected the receipt-bound Ash consequence to exist in the data layer"
     assert successful_record.milestone_id == "milestone_serve_42"
     assert successful_record.cost_physical == 10
     assert successful_record.reward_spiritual == 100
@@ -82,11 +94,7 @@ defmodule AshSurface.ConsumerFixtureTest do
     refute is_nil(failed_record),
            "Expected record from post-dispatch disconnect to exist in Ash data layer"
 
-    # 6. Verify cryptographic execution receipt
-    assert File.exists?(receipt_path)
-    receipt_json = File.read!(receipt_path)
-    assert {:ok, receipt} = Jason.decode(receipt_json)
-
+    # 7. Verify cryptographic execution receipt
     assert receipt["actionId"] == "AshSurface.Fixtures.VolunteerMilestone#record"
     assert receipt["dispatchState"] == "completed"
     assert receipt["selectedTransport"] == "http"
@@ -95,7 +103,7 @@ defmodule AshSurface.ConsumerFixtureTest do
     assert is_binary(receipt["receiptHash"])
     assert byte_size(receipt["receiptHash"]) == 64
 
-    # 7. Replay / verification: confirm receipt matches consequence proof
+    # 8. Replay / verification: confirm receipt matches consequence proof
     receipt_payload = %{
       "actionId" => receipt["actionId"],
       "input" => receipt["input"],
