@@ -29,6 +29,23 @@ defmodule AshSurface.ObligationTest do
     assert Obligation.to_map(assigned)["authorityBoundary"] == "OBSERVE"
   end
 
+  test "requires independent postcondition proof before projecting resolved" do
+    assert_raise ArgumentError, ~r/requires a postcondition_ref/, fn ->
+      Obligation.create("subject", "capability", "cause", status: :resolved)
+    end
+
+    resolved =
+      Obligation.create("subject", "capability", "cause",
+        status: :resolved,
+        receipt_ref: "receipt_1",
+        postcondition_ref: "proof_1"
+      )
+
+    assert resolved.status == :resolved
+    assert resolved.receipt_ref == "receipt_1"
+    assert resolved.postcondition_ref == "proof_1"
+  end
+
   test "refuses unknown statuses instead of inventing workflow semantics" do
     assert_raise ArgumentError, ~r/unknown obligation status/, fn ->
       Obligation.create("subject", "capability", "cause", status: :magically_done)
