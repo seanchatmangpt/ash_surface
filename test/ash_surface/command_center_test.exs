@@ -26,7 +26,10 @@ defmodule AshSurface.CommandCenterTest do
         planner_identity: "ash_pplan:fond_hddl_solver",
         policy_identity: "zoe:event_safety:v1",
         candidate_actions: [
-          %{"capabilityId" => "Zoe.Security.request_reinforcement", "provider" => "security:second_guard"}
+          %{
+            "capabilityId" => "Zoe.Security.request_reinforcement",
+            "provider" => "security:second_guard"
+          }
         ],
         authority_ceiling: :SELECT
       )
