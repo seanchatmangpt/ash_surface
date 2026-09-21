@@ -69,7 +69,8 @@ defmodule AshSurface.Obligation do
     receipt_ref = Keyword.get(opts, :receipt_ref)
     postcondition_ref = Keyword.get(opts, :postcondition_ref)
 
-    if status == :resolved and not (is_binary(postcondition_ref) and byte_size(postcondition_ref) > 0) do
+    if status == :resolved and
+         not (is_binary(postcondition_ref) and byte_size(postcondition_ref) > 0) do
       raise ArgumentError, "resolved obligation requires a postcondition_ref"
     end
 
