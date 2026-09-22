@@ -52,6 +52,7 @@ defmodule AshSurface.Projector.ExpoTest do
           "zoela_surface.events.mjs",
           "zoela_surface.receipts.mjs",
           "zoela_surface.human.mjs",
+          "zoela_surface.demo.mjs",
           "zoela_surface.mjs",
           "zoela_surface.tanstack.mjs"
         ] do
@@ -70,6 +71,15 @@ defmodule AshSurface.Projector.ExpoTest do
     assert human =~ "journeyTimeline"
     assert human =~ "assertNoDoAuthority"
 
+    demo = artifacts["zoela_surface.demo.mjs"]
+    assert demo =~ "buildZoeDemoViewModel"
+    assert demo =~ "createContinuousDevotionalPlayer"
+    assert demo =~ "createHtmlAudioAdapter"
+    assert demo =~ "constructBrceIntent"
+    assert demo =~ "renderZoeDemoHtml"
+    refute demo =~ "createClient("
+    refute demo =~ ".invoke("
+
     # Verify every generated JavaScript artifact independently. Passing many
     # filenames to one node --check only checks the first script and treats the
     # remainder as argv, so each artifact gets its own syntax receipt.
@@ -79,6 +89,7 @@ defmodule AshSurface.Projector.ExpoTest do
           "zoela_surface.events.mjs",
           "zoela_surface.receipts.mjs",
           "zoela_surface.human.mjs",
+          "zoela_surface.demo.mjs",
           "zoela_surface.mjs",
           "zoela_surface.tanstack.mjs"
         ] do
