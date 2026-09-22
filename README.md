@@ -212,6 +212,10 @@ These are projections, not independent application models:
 - `HumanSurface` composes those projections into TODAY/BIBLE/LIFE/ZOE/YOU.
 - `AshSurface.Projector.Expo` manufactures a `*.human.mjs` artifact alongside
   schemas/actions/events/receipts/TanStack/client artifacts.
+- It also manufactures a deterministic `*.demo.mjs` consumer court for Wednesday:
+  a DfCM view model, straight-through player, injectable HTML-audio adapter,
+  provenance-visible HTML, and a CONSTRUCT-only BRCE intent boundary. The demo
+  artifact has no client construction or transport invocation path.
 
 The JavaScript runtime exports Zod schemas for every human projection plus
 `parseHumanSurfaceProjection(...)`, including subject-private personalization
@@ -247,6 +251,12 @@ Repository courts can establish the projection contracts, deterministic demo
 fixture, generated Expo artifact syntax, Zod admission/refusal behavior,
 manufactured human-module execution against the demo fixture, and the existing
 manifest -> JavaScript -> HTTP -> Ash consequence -> receipt fixture.
+
+The generated demo consumer now executes the synthetic Wednesday fixture end to
+end inside the repository court: four preserved choices, straight-through local
+playback over all four devotional segments, an injected HTML-audio-compatible
+adapter, visible WhyThis / personalization / `A=mu(O*)` provenance, private
+journey replay, and construction of a BRCE handoff with `dispatched=false`.
 
 They do not by themselves establish:
 
