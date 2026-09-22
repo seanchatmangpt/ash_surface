@@ -60,22 +60,34 @@ defmodule AshSurface.Projector.ExpoTest do
       assert is_binary(artifacts[file])
     end
 
-    # Verify that generated files pass node --check syntax validation
-    {output, exit_code} =
-      System.cmd(
-        "node",
-        [
-          "--check",
-          Path.join(@tmp_dir, "zoela_surface.schemas.mjs"),
-          Path.join(@tmp_dir, "zoela_surface.actions.mjs"),
-          Path.join(@tmp_dir, "zoela_surface.events.mjs"),
-          Path.join(@tmp_dir, "zoela_surface.receipts.mjs"),
-          Path.join(@tmp_dir, "zoela_surface.human.mjs"),
-          Path.join(@tmp_dir, "zoela_surface.tanstack.mjs")
-        ],
-        stderr_to_stdout: true
-      )
+    human = artifacts["zoela_surface.human.mjs"]
+    assert human =~ "HUMAN_AREAS"
+    assert human =~ "preservedPossibilities"
+    assert human =~ "devotionalQueue"
+    assert human =~ "commitmentPreview"
+    assert human =~ "journeyTimeline"
+    assert human =~ "assertNoDoAuthority"
 
-    assert exit_code == 0, "node --check failed on generated artifacts: #{output}"
+    # Verify every generated JavaScript artifact independently. Passing many
+    # filenames to one node --check only checks the first script and treats the
+    # remainder as argv, so each artifact gets its own syntax receipt.
+    for file <- [
+          "zoela_surface.schemas.mjs",
+          "zoela_surface.actions.mjs",
+          "zoela_surface.events.mjs",
+          "zoela_surface.receipts.mjs",
+          "zoela_surface.human.mjs",
+          "zoela_surface.mjs",
+          "zoela_surface.tanstack.mjs"
+        ] do
+      {output, exit_code} =
+        System.cmd(
+          "node",
+          ["--check", Path.join(@tmp_dir, file)],
+          stderr_to_stdout: true
+        )
+
+      assert exit_code == 0, "node --check failed for #{file}: #{output}"
+    end
   end
 end
