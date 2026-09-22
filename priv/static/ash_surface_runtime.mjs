@@ -8,7 +8,7 @@ import { z } from "zod";
  * emitted, or consumed.
  */
 
-export const SURFACE_RUNTIME_VERSION = "26.9.13";
+export const SURFACE_RUNTIME_VERSION = "26.9.21";
 const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
 
@@ -70,6 +70,235 @@ export const eventProjectionSchema = z
     authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
   })
   .passthrough();
+
+const evidenceStandingSchema = z.enum(["UNKNOWN", "PARTIAL_ALIVE", "ALIVE", "BLOCKED", "REFUSED"]);
+
+export const possibilitySchema = z
+  .object({
+    possibilityId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    capabilityId: z.string().min(1),
+    label: z.string().min(1),
+    summary: z.string().nullable().optional(),
+    actionRef: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    status: z.enum(["CANDIDATE", "PRESERVED", "BLOCKED", "REFUSED"]),
+    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
+    stateDigest: z.string().min(1),
+    costSummary: z.string().nullable().optional(),
+    consequenceSummary: z.string().nullable().optional(),
+    requirements: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    expiresAt: z.string().nullable().optional(),
+    authorityCeiling: z.enum(["OBSERVE", "SELECT", "CONSTRUCT"]).default("SELECT"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const possibilitySetSchema = z
+  .object({
+    setId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    objective: z.string().min(1),
+    horizon: z.string().nullable().optional(),
+    selectionRef: z.string().nullable().optional(),
+    closureReason: z.string().nullable().optional(),
+    possibilities: z.array(possibilitySchema),
+    constraints: z.array(z.string()).default([]),
+    sourceEpisodeRefs: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema.default("PARTIAL_ALIVE"),
+    mode: z.literal("MAXIMAL_REVERSIBLE_FRONTIER"),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.standing === "ALIVE" && value.possibilities.length === 0) {
+      ctx.addIssue({ code: "custom", message: "ALIVE possibility set requires at least one option" });
+    }
+    if (new Set(value.possibilities.map((item) => item.possibilityId)).size !== value.possibilities.length) {
+      ctx.addIssue({ code: "custom", message: "possibility ids must be unique" });
+    }
+  });
+
+export const whyThisSchema = z
+  .object({
+    explanationId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    title: z.string().min(1),
+    summary: z.string().min(1),
+    claimKind: z.enum(["HYPOTHESIS", "OBSERVATION", "USER_STATED", "DOCTRINAL"]),
+    evidenceState: evidenceStandingSchema,
+    falsifier: z.string().nullable().optional(),
+    basis: z.array(z.string()).default([]),
+    caveats: z.array(z.string()).default([]),
+    profileRefs: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    hypothesisRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.claimKind === "HYPOTHESIS" && !value.falsifier) {
+      ctx.addIssue({ code: "custom", message: "HYPOTHESIS explanation requires falsifier" });
+    }
+  });
+
+export const outcomeHypothesisSchema = z
+  .object({
+    hypothesisId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    practiceRef: z.string().min(1),
+    outcomeRef: z.string().min(1),
+    relationship: z.enum(["MAY_SUPPORT", "MAY_HINDER", "ASSOCIATED", "UNKNOWN"]),
+    evidenceState: evidenceStandingSchema,
+    falsifier: z.string().min(1),
+    horizon: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    observationRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    causalClaim: z.literal(false),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const devotionalSegmentSchema = z
+  .object({
+    position: z.number().int().nonnegative(),
+    kind: z.enum(["SCRIPTURE", "COMMENTARY", "PRAYER", "REFLECTION", "MUSIC", "TRANSITION"]),
+    ref: z.string().min(1),
+    label: z.string().min(1),
+    durationSeconds: z.number().int().nonnegative(),
+    audioRef: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const devotionalEpisodeSchema = z
+  .object({
+    episodeId: z.string().min(1),
+    title: z.string().min(1),
+    subtitle: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    status: z.enum(["READY", "IN_PROGRESS", "COMPLETED", "BLOCKED"]),
+    durationSeconds: z.number().int().nonnegative(),
+    completionReceiptRef: z.string().nullable().optional(),
+    stateDigest: z.string().min(1),
+    segments: z.array(devotionalSegmentSchema),
+    hypothesisRefs: z.array(z.string()).default([]),
+    sourceRefs: z.array(z.string()).default([]),
+    playbackPolicy: z.literal("STRAIGHT_THROUGH"),
+    continuousPlay: z.literal(true),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "COMPLETED" && !value.completionReceiptRef) {
+      ctx.addIssue({ code: "custom", message: "COMPLETED devotional requires completion receipt" });
+    }
+  });
+
+export const commitmentBoundarySchema = z
+  .object({
+    boundaryId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    actionRef: z.string().min(1),
+    consequenceSummary: z.string().min(1),
+    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
+    confirmationState: z.enum(["UNCONFIRMED", "CONFIRMED", "DECLINED", "EXPIRED"]),
+    constructRef: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    expiresAt: z.string().nullable().optional(),
+    externalEffects: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    confirmationRequired: z.literal(true),
+    nextHandoff: z.literal("BRCE"),
+    authorityCeiling: z.literal("CONSTRUCT"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export const journeyEntrySchema = z
+  .object({
+    entryId: z.string().min(1),
+    kind: z.enum(["PRACTICE", "SERVICE", "ATTENDANCE", "COMMITMENT", "REFLECTION", "OUTCOME", "RECEIPT"]),
+    subjectRef: z.string().min(1),
+    label: z.string().min(1),
+    occurredAt: z.string().min(1),
+    receiptRef: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+  })
+  .passthrough();
+
+export const journeySchema = z
+  .object({
+    journeyId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    entries: z.array(journeyEntrySchema),
+    evidenceRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    privacyScope: z.literal("SUBJECT_PRIVATE"),
+    standing: evidenceStandingSchema,
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const humanSurfaceSchema = z
+  .object({
+    surfaceId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    stateDigest: z.string().min(1),
+    standing: evidenceStandingSchema,
+    grammar: z.tuple([
+      z.literal("SEE"),
+      z.literal("UNDERSTAND"),
+      z.literal("EXPLORE"),
+      z.literal("CHOOSE"),
+      z.literal("ACT"),
+      z.literal("LEARN"),
+    ]),
+    areas: z.tuple([
+      z.literal("TODAY"),
+      z.literal("BIBLE"),
+      z.literal("LIFE"),
+      z.literal("ZOE"),
+      z.literal("YOU"),
+    ]),
+    today: jsonRecordSchema,
+    bible: jsonRecordSchema,
+    life: jsonRecordSchema,
+    zoe: jsonRecordSchema,
+    you: jsonRecordSchema,
+    possibilitySets: z.array(possibilitySetSchema).default([]),
+    explanations: z.array(whyThisSchema).default([]),
+    devotionalEpisodes: z.array(devotionalEpisodeSchema).default([]),
+    outcomeHypotheses: z.array(outcomeHypothesisSchema).default([]),
+    commitmentBoundaries: z.array(commitmentBoundarySchema).default([]),
+    journeys: z.array(journeySchema).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export function parseHumanSurfaceProjection(value) {
+  const parsed = humanSurfaceSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new SurfaceRuntimeError(
+      "INVALID_HUMAN_SURFACE",
+      "AshSurface human projection failed Zod validation",
+      { issues: parsed.error.issues },
+    );
+  }
+  return parsed.data;
+}
 
 export const ashSurfaceContractSchema = z
   .object({
