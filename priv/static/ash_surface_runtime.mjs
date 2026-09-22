@@ -249,6 +249,82 @@ export const journeySchema = z
   })
   .passthrough();
 
+export const personalizationFacetSchema = z
+  .object({
+    facetId: z.string().min(1),
+    dimension: z.string().min(1),
+    valueRef: z.string().min(1),
+    source: z.enum(["USER_STATED", "OBSERVED", "INFERRED"]),
+    standing: evidenceStandingSchema,
+    falsifier: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.source === "INFERRED" && !value.falsifier) {
+      ctx.addIssue({ code: "custom", message: "INFERRED personalization facet requires falsifier" });
+    }
+  });
+
+export const personalizationContextSchema = z
+  .object({
+    contextId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    facets: z.array(personalizationFacetSchema),
+    consentRef: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+    privacyScope: z.literal("SUBJECT_PRIVATE"),
+    shareScope: z.literal("SUBJECT_ONLY"),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export const manufactureTraceSchema = z
+  .object({
+    traceId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    artifactRef: z.string().min(1),
+    manufacturerIdentity: z.string().min(1),
+    humanSummary: z.string().nullable().optional(),
+    observedRefs: z.array(z.string()).default([]),
+    admittedRefs: z.array(z.string()).default([]),
+    groundedRefs: z.array(z.string()).default([]),
+    boundedRefs: z.array(z.string()).default([]),
+    alignedRefs: z.array(z.string()).default([]),
+    oStarRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    falsifiers: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+    stateDigest: z.string().min(1),
+    equation: z.literal("A=mu(O*)"),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .superRefine((value, ctx) => {
+    const sources = [
+      new Set(value.observedRefs),
+      new Set(value.admittedRefs),
+      new Set(value.groundedRefs),
+      new Set(value.boundedRefs),
+      new Set(value.alignedRefs),
+    ];
+
+    for (const ref of value.oStarRefs) {
+      if (!sources.every((set) => set.has(ref))) {
+        ctx.addIssue({
+          code: "custom",
+          message: "every O* reference must be observed, admitted, grounded, bounded, and aligned",
+        });
+      }
+    }
+
+    if (value.standing === "ALIVE" && value.receiptRefs.length === 0) {
+      ctx.addIssue({ code: "custom", message: "ALIVE manufacture trace requires receipt" });
+    }
+  });
+
 export const humanSurfaceSchema = z
   .object({
     surfaceId: z.string().min(1),
@@ -281,6 +357,8 @@ export const humanSurfaceSchema = z
     outcomeHypotheses: z.array(outcomeHypothesisSchema).default([]),
     commitmentBoundaries: z.array(commitmentBoundarySchema).default([]),
     journeys: z.array(journeySchema).default([]),
+    personalizationContexts: z.array(personalizationContextSchema).default([]),
+    manufactureTraces: z.array(manufactureTraceSchema).default([]),
     evidenceRefs: z.array(z.string()).default([]),
     receiptRefs: z.array(z.string()).default([]),
     authorityBoundary: z.literal("OBSERVE"),
