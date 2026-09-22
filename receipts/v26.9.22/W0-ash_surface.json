@@ -1,0 +1,42 @@
+{
+  "repo": "ash_surface",
+  "path": "/Users/sac/ash_surface",
+  "wave": "v26.9.22",
+  "lane": "L10-consumers-w0",
+  "base_sha_before": {
+    "found_branch": "feat/dfcm-surface-core",
+    "found_head": "386135cbef8b1de78f19cca8095552aaab39a27c"
+  },
+  "preserve_branches": [
+    {"branch": "preserve/v26.9.22/ash_surface-main", "sha": "c9844514a7f8db59a79f1cc64f86c0034e699855", "covers": "untracked docs/jira/v26.9.17/cleanup-merge-plan.md and docs/jira/v26.9.19/ (000-004), 6 files, at 386135c"}
+  ],
+  "stashes_preserved": {
+    "count": 0,
+    "disposition": "no stashes existed"
+  },
+  "merge": {
+    "target": "main",
+    "merged": "origin/main 7d5492795d9b9a0956f51545ed1ad1932768b77e",
+    "merge_sha": "7d5492795d9b9a0956f51545ed1ad1932768b77e",
+    "mode": "fast-forward 6e9cd90 -> 7d54927 via 'git fetch origin main:main' (ff-only; main not checked out in any of the 33 worktrees)",
+    "conflicts": "none (fast-forward)",
+    "note": "the feat/dfcm-surface-core lineage reconciliation (ASF-26922-01, add/add across divergent lineages) is a later-wave work order needing a user decision; NOT touched here"
+  },
+  "integration_worktree": {
+    "path": "/Users/sac/wt/v26922/ash_surface/int",
+    "branch": "release/v26.9.22",
+    "head": "7d5492795d9b9a0956f51545ed1ad1932768b77e",
+    "note": "created by earlier same-wave pass; == post-merge local main; verified clean, not recreated"
+  },
+  "baseline_gate": {
+    "command": "mix deps.get; mix compile --force --warnings-as-errors; npm install; mix test  (PATH=$HOME/.local-xaas-bin:$HOME/.asdf/shims:$PATH; elixir 1.20.2/OTP 28)",
+    "exits": {"deps_get": 0, "compile_force_warnings_as_errors": 0, "npm_install": 0, "mix_test": 0},
+    "excerpt": "mix test: Result: 18 passed (17.6s). First run without node_modules was 16/18 with 2 JS-consumer failures (ERR_MODULE_NOT_FOUND: Cannot find package 'zod' imported from test/js/consumer_e2e_runner.mjs); after the documented 'npm install' env materialization the suite is fully green.",
+    "verdict": "ALIVE on release/v26.9.22 @ 7d54927 for compile + mix test (18/18). Not run here: test.all npm suite details beyond mix test, test.zero, dialyzer, falsifier/zero-config scripts (later-wave WOs)."
+  },
+  "standing": "ALIVE (scoped: compile + mix test on the merged default)",
+  "notes": [
+    "Earlier partial W0 pass (same wave) verified and completed by this run.",
+    "No push performed. 32 side worktrees under /Users/sac/ash-surface-wt verified clean and left untouched (removal is ASF-26922-11, later wave)."
+  ]
+}
