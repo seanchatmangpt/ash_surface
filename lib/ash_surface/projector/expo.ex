@@ -237,6 +237,16 @@ defmodule AshSurface.Projector.Expo do
       return surface.explanations.filter((explanation) => explanation.subjectRef === subjectRef);
     }
 
+    export function personalizationContext(raw, contextId) {
+      const surface = humanSurfaceSchema.parse(raw);
+      return surface.personalizationContexts.find((item) => item.contextId === contextId) ?? null;
+    }
+
+    export function manufactureTraceFor(raw, artifactRef) {
+      const surface = humanSurfaceSchema.parse(raw);
+      return surface.manufactureTraces.find((item) => item.artifactRef === artifactRef) ?? null;
+    }
+
     export function devotionalQueue(raw, episodeId) {
       const surface = humanSurfaceSchema.parse(raw);
       const episode = surface.devotionalEpisodes.find((item) => item.episodeId === episodeId);
@@ -299,6 +309,23 @@ defmodule AshSurface.Projector.Expo do
           if (option.doAuthority !== false || option.authorityCeiling === "DO") {
             throw new Error("Possibility " + option.possibilityId + " attempted DO authority");
           }
+        }
+      }
+
+      for (const context of surface.personalizationContexts) {
+        if (
+          context.doAuthority !== false ||
+          context.authorityBoundary !== "OBSERVE" ||
+          context.privacyScope !== "SUBJECT_PRIVATE" ||
+          context.shareScope !== "SUBJECT_ONLY"
+        ) {
+          throw new Error("Personalization context " + context.contextId + " violates privacy/authority");
+        }
+      }
+
+      for (const trace of surface.manufactureTraces) {
+        if (trace.doAuthority !== false || trace.authorityBoundary !== "OBSERVE") {
+          throw new Error("Manufacture trace " + trace.traceId + " attempted authority");
         }
       }
 
