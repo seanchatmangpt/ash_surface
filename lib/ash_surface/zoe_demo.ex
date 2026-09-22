@@ -12,7 +12,9 @@ defmodule AshSurface.ZoeDemo do
     DevotionalEpisode,
     HumanSurface,
     Journey,
+    ManufactureTrace,
     OutcomeHypothesis,
+    PersonalizationContext,
     Possibility,
     PossibilitySet,
     WhyThis
@@ -23,6 +25,44 @@ defmodule AshSurface.ZoeDemo do
 
   @spec surface() :: HumanSurface.t()
   def surface do
+    personalization =
+      PersonalizationContext.create(
+        @subject,
+        [
+          %{
+            dimension: "life:outcome",
+            value_ref: "life:outcome:consistency",
+            source: :USER_STATED,
+            standing: :ALIVE,
+            evidence_refs: ["demo-evidence:synthetic-profile"]
+          }
+        ],
+        consent_ref: "demo-consent:subject-only",
+        evidence_refs: ["demo-evidence:synthetic-profile"],
+        standing: :ALIVE
+      )
+
+    manufacture_trace =
+      ManufactureTrace.create(
+        @subject,
+        "practice:devotional:perseverance",
+        "zoe:personalization:semantic-map",
+        observed_refs: ["demo-o:consistency-perseverance"],
+        admitted_refs: ["demo-o:consistency-perseverance"],
+        grounded_refs: ["demo-o:consistency-perseverance"],
+        bounded_refs: ["demo-o:consistency-perseverance"],
+        aligned_refs: ["demo-o:consistency-perseverance"],
+        o_star_refs: ["demo-o:consistency-perseverance"],
+        receipt_refs: ["demo-receipt:manufacture:001"],
+        falsifiers: [
+          "The profile facet is withdrawn or no longer admitted.",
+          "The devotional semantics no longer include the mapped perseverance concept."
+        ],
+        human_summary:
+          "The candidate was manufactured from the admitted demo goal and devotional semantics.",
+        standing: :ALIVE
+      )
+
     hypothesis =
       OutcomeHypothesis.create(
         @subject,
@@ -53,7 +93,8 @@ defmodule AshSurface.ZoeDemo do
           "candidate relevance only",
           "no causal effect has been admitted"
         ],
-        profile_refs: ["demo-profile:goal:consistency"],
+        profile_refs: [personalization.context_id],
+        evidence_refs: manufacture_trace.receipt_refs,
         hypothesis_refs: [hypothesis.hypothesis_id]
       )
 
@@ -208,6 +249,8 @@ defmodule AshSurface.ZoeDemo do
       outcome_hypotheses: [hypothesis],
       commitment_boundaries: [service_boundary],
       journeys: [journey],
+      personalization_contexts: [personalization],
+      manufacture_traces: [manufacture_trace],
       today: %{
         "headline" => "Today",
         "asOf" => @demo_time,
@@ -224,6 +267,8 @@ defmodule AshSurface.ZoeDemo do
         "headline" => "Life",
         "selectedOutcomeRefs" => ["life:outcome:consistency"],
         "outcomeHypothesisRefs" => [hypothesis.hypothesis_id],
+        "personalizationContextRefs" => [personalization.context_id],
+        "manufactureTraceRefs" => [manufacture_trace.trace_id],
         "causalClaimsAdmitted" => false
       },
       zoe: %{
@@ -267,6 +312,16 @@ defmodule AshSurface.ZoeDemo do
         ),
       "journeyPrivate" =>
         Enum.all?(value["journeys"], &(&1["privacyScope"] == "SUBJECT_PRIVATE")),
+      "personalizationBounded" =>
+        Enum.all?(
+          value["personalizationContexts"],
+          &(&1["privacyScope"] == "SUBJECT_PRIVATE" and &1["shareScope"] == "SUBJECT_ONLY")
+        ),
+      "manufactureReceipted" =>
+        Enum.all?(
+          value["manufactureTraces"],
+          &(&1["equation"] == "A=mu(O*)" and &1["receiptRefs"] != [])
+        ),
       "humanAreas" => value["areas"] == ["TODAY", "BIBLE", "LIFE", "ZOE", "YOU"],
       "syntheticOnly" => true
     }
