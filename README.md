@@ -198,6 +198,10 @@ These are projections, not independent application models:
 
 - `Possibility` / `PossibilitySet` project a DfCM maximal reversible frontier.
 - `WhyThis` projects evidence-bounded rationale and requires a falsifier for hypotheses.
+- `PersonalizationContext` keeps USER_STATED, OBSERVED, and INFERRED profile facets distinct,
+  subject-private, and non-authoritative. INFERRED facets require falsifiers.
+- `ManufactureTrace` projects `A=mu(O*)`: every O* reference must be present in the
+  observed/admitted/grounded/bounded/aligned intersection, and ALIVE requires a receipt.
 - `OutcomeHypothesis` projects a practice-to-outcome candidate while fixing `causalClaim=false`.
 - `DevotionalEpisode` composes scripture/commentary/prayer/reflection into one ordered
   `STRAIGHT_THROUGH` episode so a devotional can be listened to without manually
@@ -210,7 +214,8 @@ These are projections, not independent application models:
   schemas/actions/events/receipts/TanStack/client artifacts.
 
 The JavaScript runtime exports Zod schemas for every human projection plus
-`parseHumanSurfaceProjection(...)`. Human surfaces require
+`parseHumanSurfaceProjection(...)`, including subject-private personalization
+and receipted manufacture-provenance contracts. Human surfaces require
 `authorityBoundary="OBSERVE"` and `doAuthority=false`; commitment boundaries
 require `authorityCeiling="CONSTRUCT"` and `nextHandoff="BRCE"`.
 
@@ -229,7 +234,9 @@ acceptance = AshSurface.ZoeDemo.acceptance()
 
 The demo fixture shows four preserved alternatives instead of a single opaque
 recommendation: listen to the continuous devotional, read the same episode,
-explore serving, or keep the current rhythm. "Why this?" is explicitly a
+explore serving, or keep the current rhythm. Its personalization basis is a
+synthetic USER_STATED goal facet, and the candidate mapping carries an explicit
+receipted `A=mu(O*)` trace rather than an opaque recommender score. "Why this?" is explicitly a
 hypothesis with a falsifier. The Life projection shows an UNKNOWN candidate
 relationship between the devotional and a selected consistency outcome. The
 serving path stops at a visible commitment boundary before BRCE.
@@ -237,8 +244,9 @@ serving path stops at a visible commitment boundary before BRCE.
 ### Wednesday evidence ceiling
 
 Repository courts can establish the projection contracts, deterministic demo
-fixture, generated Expo artifact syntax, Zod admission/refusal behavior, and
-existing manifest -> JavaScript -> HTTP -> Ash consequence -> receipt fixture.
+fixture, generated Expo artifact syntax, Zod admission/refusal behavior,
+manufactured human-module execution against the demo fixture, and the existing
+manifest -> JavaScript -> HTTP -> Ash consequence -> receipt fixture.
 
 They do not by themselves establish:
 
