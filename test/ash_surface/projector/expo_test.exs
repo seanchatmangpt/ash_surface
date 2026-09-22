@@ -44,12 +44,14 @@ defmodule AshSurface.Projector.ExpoTest do
 
     assert meta.prefix == "zoela_surface"
     assert meta.action_count == 2
+    assert meta.human_surface == true
 
     for file <- [
           "zoela_surface.schemas.mjs",
           "zoela_surface.actions.mjs",
           "zoela_surface.events.mjs",
           "zoela_surface.receipts.mjs",
+          "zoela_surface.human.mjs",
           "zoela_surface.mjs",
           "zoela_surface.tanstack.mjs"
         ] do
@@ -68,6 +70,7 @@ defmodule AshSurface.Projector.ExpoTest do
           Path.join(@tmp_dir, "zoela_surface.actions.mjs"),
           Path.join(@tmp_dir, "zoela_surface.events.mjs"),
           Path.join(@tmp_dir, "zoela_surface.receipts.mjs"),
+          Path.join(@tmp_dir, "zoela_surface.human.mjs"),
           Path.join(@tmp_dir, "zoela_surface.tanstack.mjs")
         ],
         stderr_to_stdout: true
