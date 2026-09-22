@@ -95,7 +95,14 @@ defmodule AshSurface.PersonalizationContext do
     dimension = fetch_string!(facet, :dimension)
     value_ref = fetch_string!(facet, :value_ref)
     source = normalize_atom!(fetch!(facet, :source), @sources, :source)
-    standing = normalize_atom!(Map.get(facet, :standing) || Map.get(facet, "standing") || :UNKNOWN, @standings, :standing)
+
+    standing =
+      normalize_atom!(
+        Map.get(facet, :standing) || Map.get(facet, "standing") || :UNKNOWN,
+        @standings,
+        :standing
+      )
+
     evidence_refs = Map.get(facet, :evidence_refs) || Map.get(facet, "evidenceRefs") || []
     falsifier = Map.get(facet, :falsifier) || Map.get(facet, "falsifier")
 
@@ -144,7 +151,9 @@ defmodule AshSurface.PersonalizationContext do
   end
 
   defp normalize_atom!(value, allowed, field) when is_atom(value) do
-    if value in allowed, do: value, else: raise(ArgumentError, "unknown #{field}: #{inspect(value)}")
+    if value in allowed,
+      do: value,
+      else: raise(ArgumentError, "unknown #{field}: #{inspect(value)}")
   end
 
   defp normalize_atom!(value, allowed, field) when is_binary(value) do
