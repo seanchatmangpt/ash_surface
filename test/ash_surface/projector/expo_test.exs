@@ -63,6 +63,8 @@ defmodule AshSurface.Projector.ExpoTest do
     human = artifacts["zoela_surface.human.mjs"]
     assert human =~ "HUMAN_AREAS"
     assert human =~ "preservedPossibilities"
+    assert human =~ "personalizationContext"
+    assert human =~ "manufactureTraceFor"
     assert human =~ "devotionalQueue"
     assert human =~ "commitmentPreview"
     assert human =~ "journeyTimeline"
