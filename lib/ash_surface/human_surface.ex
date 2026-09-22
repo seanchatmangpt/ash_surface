@@ -16,7 +16,9 @@ defmodule AshSurface.HumanSurface do
     CommitmentBoundary,
     DevotionalEpisode,
     Journey,
+    ManufactureTrace,
     OutcomeHypothesis,
+    PersonalizationContext,
     PossibilitySet,
     WhyThis
   }
@@ -51,6 +53,8 @@ defmodule AshSurface.HumanSurface do
     outcome_hypotheses: [],
     commitment_boundaries: [],
     journeys: [],
+    personalization_contexts: [],
+    manufacture_traces: [],
     evidence_refs: [],
     receipt_refs: [],
     standing: :PARTIAL_ALIVE,
@@ -70,6 +74,8 @@ defmodule AshSurface.HumanSurface do
     outcome_hypotheses = Keyword.get(opts, :outcome_hypotheses, [])
     commitment_boundaries = Keyword.get(opts, :commitment_boundaries, [])
     journeys = Keyword.get(opts, :journeys, [])
+    personalization_contexts = Keyword.get(opts, :personalization_contexts, [])
+    manufacture_traces = Keyword.get(opts, :manufacture_traces, [])
     evidence_refs = Keyword.get(opts, :evidence_refs, [])
     receipt_refs = Keyword.get(opts, :receipt_refs, [])
     standing = Keyword.get(opts, :standing, :PARTIAL_ALIVE)
@@ -80,6 +86,13 @@ defmodule AshSurface.HumanSurface do
     validate_struct_list!(outcome_hypotheses, OutcomeHypothesis, :outcome_hypotheses)
     validate_struct_list!(commitment_boundaries, CommitmentBoundary, :commitment_boundaries)
     validate_struct_list!(journeys, Journey, :journeys)
+    validate_struct_list!(
+      personalization_contexts,
+      PersonalizationContext,
+      :personalization_contexts
+    )
+
+    validate_struct_list!(manufacture_traces, ManufactureTrace, :manufacture_traces)
     validate_string_list!(evidence_refs, :evidence_refs)
     validate_string_list!(receipt_refs, :receipt_refs)
 
@@ -100,7 +113,9 @@ defmodule AshSurface.HumanSurface do
 
     life =
       Keyword.get(opts, :life, %{
-        "outcomeHypothesisRefs" => Enum.map(outcome_hypotheses, & &1.hypothesis_id)
+        "outcomeHypothesisRefs" => Enum.map(outcome_hypotheses, & &1.hypothesis_id),
+        "personalizationContextRefs" => Enum.map(personalization_contexts, & &1.context_id),
+        "manufactureTraceRefs" => Enum.map(manufacture_traces, & &1.trace_id)
       })
 
     zoe =
@@ -134,6 +149,10 @@ defmodule AshSurface.HumanSurface do
       commitment_boundaries:
         canonicalize(commitment_boundaries, &CommitmentBoundary.to_map/1, "boundaryId"),
       journeys: canonicalize(journeys, &Journey.to_map/1, "journeyId"),
+      personalization_contexts:
+        canonicalize(personalization_contexts, &PersonalizationContext.to_map/1, "contextId"),
+      manufacture_traces:
+        canonicalize(manufacture_traces, &ManufactureTrace.to_map/1, "traceId"),
       evidence_refs: Enum.sort(evidence_refs),
       receipt_refs: Enum.sort(receipt_refs),
       standing: standing,
@@ -158,6 +177,8 @@ defmodule AshSurface.HumanSurface do
       outcome_hypotheses: outcome_hypotheses,
       commitment_boundaries: commitment_boundaries,
       journeys: journeys,
+      personalization_contexts: personalization_contexts,
+      manufacture_traces: manufacture_traces,
       evidence_refs: evidence_refs,
       receipt_refs: receipt_refs,
       standing: standing
@@ -185,6 +206,9 @@ defmodule AshSurface.HumanSurface do
       "commitmentBoundaries" =>
         Enum.map(value.commitment_boundaries, &CommitmentBoundary.to_map/1),
       "journeys" => Enum.map(value.journeys, &Journey.to_map/1),
+      "personalizationContexts" =>
+        Enum.map(value.personalization_contexts, &PersonalizationContext.to_map/1),
+      "manufactureTraces" => Enum.map(value.manufacture_traces, &ManufactureTrace.to_map/1),
       "evidenceRefs" => value.evidence_refs,
       "receiptRefs" => value.receipt_refs,
       "authorityBoundary" => "OBSERVE",
