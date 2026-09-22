@@ -43,7 +43,8 @@ defmodule AshSurface.ManufactureTrace do
 
   @spec create(String.t(), String.t(), String.t(), keyword()) :: t()
   def create(exact_subject, artifact_ref, manufacturer_identity, opts \\ [])
-      when is_binary(exact_subject) and is_binary(artifact_ref) and is_binary(manufacturer_identity) do
+      when is_binary(exact_subject) and is_binary(artifact_ref) and
+             is_binary(manufacturer_identity) do
     observed = Keyword.get(opts, :observed_refs, [])
     admitted = Keyword.get(opts, :admitted_refs, [])
     grounded = Keyword.get(opts, :grounded_refs, [])
