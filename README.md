@@ -177,3 +177,98 @@ This boundary is intentionally DfCM: upstream systems may be Planning Center,
 WebEOC, Everbridge, ArcGIS, a security vendor, a human observer, or a future
 adapter. AshSurface preserves those lawful alternatives instead of becoming
 their owner.
+
+
+## ZOE human surface v26.9.21
+
+AshSurface now projects the ecosystem into a human grammar without moving
+domain truth, planning, or consequence authority into the UI.
+
+```text
+SEE -> UNDERSTAND -> EXPLORE -> CHOOSE -> ACT -> LEARN
+```
+
+The stable ZOE member areas are:
+
+```text
+TODAY | BIBLE | LIFE | ZOE | YOU
+```
+
+These are projections, not independent application models:
+
+- `Possibility` / `PossibilitySet` project a DfCM maximal reversible frontier.
+- `WhyThis` projects evidence-bounded rationale and requires a falsifier for hypotheses.
+- `PersonalizationContext` keeps USER_STATED, OBSERVED, and INFERRED profile facets distinct,
+  subject-private, and non-authoritative. INFERRED facets require falsifiers.
+- `ManufactureTrace` projects `A=mu(O*)`: every O* reference must be present in the
+  observed/admitted/grounded/bounded/aligned intersection, and ALIVE requires a receipt.
+- `OutcomeHypothesis` projects a practice-to-outcome candidate while fixing `causalClaim=false`.
+- `DevotionalEpisode` composes scripture/commentary/prayer/reflection into one ordered
+  `STRAIGHT_THROUGH` episode so a devotional can be listened to without manually
+  starting every passage.
+- `CommitmentBoundary` makes consequences legible to the human, but stops at
+  `CONSTRUCT` and hands confirmed intent to BRCE. It never owns DO.
+- `Journey` is the subject-private human replay over observed event/evidence/receipt identities.
+- `HumanSurface` composes those projections into TODAY/BIBLE/LIFE/ZOE/YOU.
+- `AshSurface.Projector.Expo` manufactures a `*.human.mjs` artifact alongside
+  schemas/actions/events/receipts/TanStack/client artifacts.
+- It also manufactures a deterministic `*.demo.mjs` consumer court for Wednesday:
+  a DfCM view model, straight-through player, injectable HTML-audio adapter,
+  provenance-visible HTML, and a CONSTRUCT-only BRCE intent boundary. The demo
+  artifact has no client construction or transport invocation path.
+
+The JavaScript runtime exports Zod schemas for every human projection plus
+`parseHumanSurfaceProjection(...)`, including subject-private personalization
+and receipted manufacture-provenance contracts. Human surfaces require
+`authorityBoundary="OBSERVE"` and `doAuthority=false`; commitment boundaries
+require `authorityCeiling="CONSTRUCT"` and `nextHandoff="BRCE"`.
+
+### Deterministic Wednesday demo
+
+`AshSurface.ZoeDemo` manufactures a synthetic, deterministic member surface
+that exercises the full local projection without pretending that private member
+data, live Planning Center state, outcome causality, or production execution has
+been observed.
+
+```elixir
+surface = AshSurface.ZoeDemo.surface()
+map = AshSurface.ZoeDemo.map()
+acceptance = AshSurface.ZoeDemo.acceptance()
+```
+
+The demo fixture shows four preserved alternatives instead of a single opaque
+recommendation: listen to the continuous devotional, read the same episode,
+explore serving, or keep the current rhythm. Its personalization basis is a
+synthetic USER_STATED goal facet, and the candidate mapping carries an explicit
+receipted `A=mu(O*)` trace rather than an opaque recommender score. "Why this?" is explicitly a
+hypothesis with a falsifier. The Life projection shows an UNKNOWN candidate
+relationship between the devotional and a selected consistency outcome. The
+serving path stops at a visible commitment boundary before BRCE.
+
+### Wednesday evidence ceiling
+
+Repository courts can establish the projection contracts, deterministic demo
+fixture, generated Expo artifact syntax, Zod admission/refusal behavior,
+manufactured human-module execution against the demo fixture, and the existing
+manifest -> JavaScript -> HTTP -> Ash consequence -> receipt fixture.
+
+The generated demo consumer now executes the synthetic Wednesday fixture end to
+end inside the repository court: four preserved choices, straight-through local
+playback over all four devotional segments, an injected HTML-audio-compatible
+adapter, visible WhyThis / personalization / `A=mu(O*)` provenance, private
+journey replay, and construction of a BRCE handoff with `dispatched=false`.
+
+They do not by themselves establish:
+
+- live ZOE member/profile data;
+- live Planning Center reads or writes;
+- Bible/audio content licensing or production media availability;
+- a causal life outcome from a religious practice;
+- production deployment or device-route standing;
+- organizational adoption;
+- any consequence not represented by an observed BRCE receipt.
+
+The CI security audit is also a separate gate. As of this implementation the
+runner advisory feed flags the currently locked latest Ash/Mint releases; that
+condition must remain visible rather than being suppressed merely to make the
+demo branch green.
