@@ -172,3 +172,150 @@ surf:postconditionRef a rdf:Property ;
 surf:operationalAuthorityBoundary a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "AshSurface operational projections use the literal OBSERVE." .
+
+
+# Human-facing DfCM projection vocabulary.
+# These terms project already-admitted semantics into understandable choices,
+# explanations, practices, commitments, and replay. They never grant DO authority.
+surf:HumanSurfaceProjection a rdfs:Class ;
+    rdfs:comment "OBSERVE-only projection with TODAY/BIBLE/LIFE/ZOE/YOU human areas." .
+
+surf:PossibilitySet a rdfs:Class ;
+    rdfs:comment "A DfCM frontier preserving plural lawful alternatives until explicit selection or closure." .
+
+surf:Possibility a rdfs:Class ;
+    rdfs:comment "One human-facing candidate option; never an execution authority." .
+
+surf:WhyThisExplanation a rdfs:Class ;
+    rdfs:comment "Evidence-bounded explanation of why a candidate may be relevant to the subject." .
+
+surf:OutcomeHypothesis a rdfs:Class ;
+    rdfs:comment "Falsifiable non-causal candidate relationship between a practice and a selected outcome." .
+
+surf:DevotionalEpisode a rdfs:Class ;
+    rdfs:comment "Ordered devotional program intended for straight-through listening or reading." .
+
+surf:DevotionalSegment a rdfs:Class ;
+    rdfs:comment "Ordered scripture, commentary, prayer, reflection, music, or transition segment." .
+
+surf:CommitmentBoundary a rdfs:Class ;
+    rdfs:comment "Human confirmation projection that stops at CONSTRUCT and hands consequence-bearing intent to BRCE." .
+
+surf:JourneyProjection a rdfs:Class ;
+    rdfs:comment "Subject-private human replay over observed events, evidence, and receipts." .
+
+surf:HumanArea a rdfs:Class .
+surf:HumanGrammarStep a rdfs:Class .
+
+surf:TodayArea a surf:HumanArea .
+surf:BibleArea a surf:HumanArea .
+surf:LifeArea a surf:HumanArea .
+surf:ZoeArea a surf:HumanArea .
+surf:YouArea a surf:HumanArea .
+
+surf:SeeStep a surf:HumanGrammarStep .
+surf:UnderstandStep a surf:HumanGrammarStep .
+surf:ExploreStep a surf:HumanGrammarStep .
+surf:ChooseStep a surf:HumanGrammarStep .
+surf:ActStep a surf:HumanGrammarStep ;
+    rdfs:comment "Presents a commitment boundary; does not denote DO authority." .
+surf:LearnStep a surf:HumanGrammarStep .
+
+surf:hasHumanArea a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:HumanArea .
+
+surf:hasGrammarStep a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:HumanGrammarStep .
+
+surf:hasPossibilitySet a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:PossibilitySet .
+
+surf:hasPossibility a rdf:Property ;
+    rdfs:domain surf:PossibilitySet ;
+    rdfs:range surf:Possibility .
+
+surf:objective a rdf:Property ;
+    rdfs:domain surf:PossibilitySet ;
+    rdfs:range xsd:string .
+
+surf:reversibility a rdf:Property ;
+    rdfs:domain surf:Possibility ;
+    rdfs:range xsd:string .
+
+surf:whyThis a rdf:Property ;
+    rdfs:range surf:WhyThisExplanation .
+
+surf:claimKind a rdf:Property ;
+    rdfs:domain surf:WhyThisExplanation ;
+    rdfs:range xsd:string .
+
+surf:falsifier a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:evidenceState a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:practiceRef a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:string .
+
+surf:outcomeRef a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:string .
+
+surf:causalClaim a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:boolean .
+
+surf:hasDevotionalEpisode a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:DevotionalEpisode .
+
+surf:hasSegment a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range surf:DevotionalSegment .
+
+surf:segmentPosition a rdf:Property ;
+    rdfs:domain surf:DevotionalSegment ;
+    rdfs:range xsd:integer .
+
+surf:continuousPlay a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range xsd:boolean .
+
+surf:playbackPolicy a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range xsd:string .
+
+surf:hasCommitmentBoundary a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:CommitmentBoundary .
+
+surf:confirmationState a rdf:Property ;
+    rdfs:domain surf:CommitmentBoundary ;
+    rdfs:range xsd:string .
+
+surf:nextHandoff a rdf:Property ;
+    rdfs:domain surf:CommitmentBoundary ;
+    rdfs:range xsd:string .
+
+surf:doAuthority a rdf:Property ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "Human AshSurface projections require false; consequence authority lives outside the projection." .
+
+surf:hasJourney a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:JourneyProjection .
+
+surf:privacyScope a rdf:Property ;
+    rdfs:domain surf:JourneyProjection ;
+    rdfs:range xsd:string .
+
+surf:ZoeHumanSurfaceContract a surf:HumanSurfaceProjection ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:doAuthority false ;
+    surf:hasHumanArea surf:TodayArea, surf:BibleArea, surf:LifeArea, surf:ZoeArea, surf:YouArea ;
+    surf:hasGrammarStep surf:SeeStep, surf:UnderstandStep, surf:ExploreStep, surf:ChooseStep, surf:ActStep, surf:LearnStep .
