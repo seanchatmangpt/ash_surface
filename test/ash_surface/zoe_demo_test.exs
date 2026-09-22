@@ -11,6 +11,8 @@ defmodule AshSurface.ZoeDemoTest do
              "outcomeHypothesisNonCausal" => true,
              "commitmentStopsBeforeDo" => true,
              "journeyPrivate" => true,
+             "personalizationBounded" => true,
+             "manufactureReceipted" => true,
              "humanAreas" => true,
              "syntheticOnly" => true
            }
@@ -62,6 +64,30 @@ defmodule AshSurface.ZoeDemoTest do
     assert explanation["claimKind"] == "HYPOTHESIS"
     assert explanation["evidenceState"] == "UNKNOWN"
     assert is_binary(explanation["falsifier"])
+  end
+
+  test "demo personalization is subject-private and separates user testimony from inference" do
+    map = ZoeDemo.map()
+    [context] = map["personalizationContexts"]
+    [facet] = context["facets"]
+
+    assert facet["source"] == "USER_STATED"
+    assert facet["valueRef"] == "life:outcome:consistency"
+    assert context["privacyScope"] == "SUBJECT_PRIVATE"
+    assert context["shareScope"] == "SUBJECT_ONLY"
+    assert context["doAuthority"] == false
+  end
+
+  test "demo WhyThis candidate has a receipted A=mu(O*) manufacture trace" do
+    map = ZoeDemo.map()
+    [trace] = map["manufactureTraces"]
+
+    assert trace["equation"] == "A=mu(O*)"
+    assert trace["artifactRef"] == "practice:devotional:perseverance"
+    assert trace["oStarRefs"] == ["demo-o:consistency-perseverance"]
+    assert trace["receiptRefs"] == ["demo-receipt:manufacture:001"]
+    assert trace["standing"] == "ALIVE"
+    assert trace["doAuthority"] == false
   end
 
   test "demo commitment cannot bypass BRCE even after a human chooses" do
