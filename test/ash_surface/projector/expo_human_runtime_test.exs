@@ -45,6 +45,7 @@ defmodule AshSurface.Projector.ExpoHumanRuntimeTest do
 
     assert meta.human_surface == true
     assert is_binary(artifacts["zoela_surface.human.mjs"])
+    assert is_binary(artifacts["zoela_surface.demo.mjs"])
 
     install_runtime_shim!()
 
@@ -68,6 +69,11 @@ defmodule AshSurface.Projector.ExpoHumanRuntimeTest do
     assert receipt["devotionalSegmentCount"] == 4
     assert receipt["journeyEntryCount"] == 3
     assert is_binary(receipt["manufactureTraceId"])
+    assert receipt["consumerStanding"] == "ALIVE"
+    assert receipt["playbackReceiptKind"] == "LOCAL_PLAYBACK_COMPLETED"
+    assert receipt["htmlAudioPlayback"] == "COMPLETED"
+    assert receipt["provenanceVisible"] == true
+    assert receipt["brceDispatched"] == false
   end
 
   defp install_runtime_shim! do
