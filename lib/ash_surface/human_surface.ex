@@ -86,6 +86,7 @@ defmodule AshSurface.HumanSurface do
     validate_struct_list!(outcome_hypotheses, OutcomeHypothesis, :outcome_hypotheses)
     validate_struct_list!(commitment_boundaries, CommitmentBoundary, :commitment_boundaries)
     validate_struct_list!(journeys, Journey, :journeys)
+
     validate_struct_list!(
       personalization_contexts,
       PersonalizationContext,
@@ -151,8 +152,7 @@ defmodule AshSurface.HumanSurface do
       journeys: canonicalize(journeys, &Journey.to_map/1, "journeyId"),
       personalization_contexts:
         canonicalize(personalization_contexts, &PersonalizationContext.to_map/1, "contextId"),
-      manufacture_traces:
-        canonicalize(manufacture_traces, &ManufactureTrace.to_map/1, "traceId"),
+      manufacture_traces: canonicalize(manufacture_traces, &ManufactureTrace.to_map/1, "traceId"),
       evidence_refs: Enum.sort(evidence_refs),
       receipt_refs: Enum.sort(receipt_refs),
       standing: standing,
