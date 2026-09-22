@@ -40,6 +40,7 @@ defmodule AshSurface.Journey do
       do: raise(ArgumentError, "journey entry ids must be unique")
 
     standing = Keyword.get(opts, :standing, :PARTIAL_ALIVE)
+
     unless standing in @standings,
       do: raise(ArgumentError, "unknown standing: #{inspect(standing)}")
 
@@ -99,8 +100,10 @@ defmodule AshSurface.Journey do
     standing = normalize_atom(standing)
 
     unless kind in @kinds, do: raise(ArgumentError, "unknown journey kind: #{inspect(kind)}")
+
     unless standing in @standings,
       do: raise(ArgumentError, "unknown journey standing: #{inspect(standing)}")
+
     validate_string_list!(evidence_refs, :evidence_refs)
 
     occurred_at = normalize_datetime(occurred_at)
@@ -124,6 +127,7 @@ defmodule AshSurface.Journey do
 
   defp fetch(map, key) do
     camel = key |> Atom.to_string() |> camelize()
+
     Map.get(map, key) || Map.get(map, camel) ||
       raise(ArgumentError, "journey entry missing #{key}")
   end
