@@ -50,7 +50,8 @@ defmodule AshSurface.PossibilitySet do
       do: raise(ArgumentError, "possibility ids must be unique")
 
     standing = Keyword.get(opts, :standing, :PARTIAL_ALIVE)
-    unless standing in @standings, do: raise(ArgumentError, "unknown standing: #{inspect(standing)}")
+    unless standing in @standings,
+      do: raise(ArgumentError, "unknown standing: #{inspect(standing)}")
 
     if standing == :ALIVE and possibilities == [],
       do: raise(ArgumentError, "ALIVE possibility set must preserve at least one option")

@@ -42,10 +42,25 @@ defmodule AshSurface.HumanSurfaceTest do
       DevotionalEpisode.create(
         "Perseverance when progress feels slow",
         [
-          %{kind: :SCRIPTURE, ref: "bible:James.1.2-8", label: "James 1:2-8", duration_seconds: 180},
+          %{
+            kind: :SCRIPTURE,
+            ref: "bible:James.1.2-8",
+            label: "James 1:2-8",
+            duration_seconds: 180
+          },
           %{kind: :TRANSITION, ref: "transition:1", label: "Next reading", duration_seconds: 5},
-          %{kind: :SCRIPTURE, ref: "bible:Romans.5.1-5", label: "Romans 5:1-5", duration_seconds: 140},
-          %{kind: :REFLECTION, ref: "reflection:perseverance", label: "Reflection", duration_seconds: 120}
+          %{
+            kind: :SCRIPTURE,
+            ref: "bible:Romans.5.1-5",
+            label: "Romans 5:1-5",
+            duration_seconds: 140
+          },
+          %{
+            kind: :REFLECTION,
+            ref: "reflection:perseverance",
+            label: "Reflection",
+            duration_seconds: 120
+          }
         ],
         why_this_ref: why.explanation_id,
         hypothesis_refs: [hypothesis.hypothesis_id],
@@ -95,7 +110,10 @@ defmodule AshSurface.HumanSurfaceTest do
         reversibility: :CONDITIONAL,
         confirmation_state: :UNCONFIRMED,
         why_this_ref: why.explanation_id,
-        external_effects: ["team may be notified after authorized DO", "roster may change after authorized DO"]
+        external_effects: [
+          "team may be notified after authorized DO",
+          "roster may change after authorized DO"
+        ]
       )
 
     journey =

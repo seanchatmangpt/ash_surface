@@ -63,7 +63,9 @@ defmodule AshSurface.DevotionalEpisode do
       do: raise(ArgumentError, "duration_seconds must be a non-negative integer")
 
     identity_digest =
-      digest({"ash_surface_devotional_episode/1", title, Enum.map(normalized_segments, & &1["ref"])})
+      digest(
+        {"ash_surface_devotional_episode/1", title, Enum.map(normalized_segments, & &1["ref"])}
+      )
 
     canonical = %{
       subtitle: Keyword.get(opts, :subtitle),
@@ -125,7 +127,9 @@ defmodule AshSurface.DevotionalEpisode do
 
     normalized_kind =
       case kind do
-        value when is_atom(value) -> value
+        value when is_atom(value) ->
+          value
+
         value when is_binary(value) ->
           value
           |> String.upcase()

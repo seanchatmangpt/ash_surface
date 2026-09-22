@@ -27,7 +27,8 @@ defmodule AshSurface.Journey do
   @type t :: %__MODULE__{}
 
   @spec create(String.t(), [map()], keyword()) :: t()
-  def create(exact_subject, entries, opts \\ []) when is_binary(exact_subject) and is_list(entries) do
+  def create(exact_subject, entries, opts \\ [])
+      when is_binary(exact_subject) and is_list(entries) do
     normalized =
       entries
       |> Enum.map(&normalize_entry!/1)
@@ -39,7 +40,8 @@ defmodule AshSurface.Journey do
       do: raise(ArgumentError, "journey entry ids must be unique")
 
     standing = Keyword.get(opts, :standing, :PARTIAL_ALIVE)
-    unless standing in @standings, do: raise(ArgumentError, "unknown standing: #{inspect(standing)}")
+    unless standing in @standings,
+      do: raise(ArgumentError, "unknown standing: #{inspect(standing)}")
 
     evidence_refs = Keyword.get(opts, :evidence_refs, [])
     receipt_refs = Keyword.get(opts, :receipt_refs, [])
@@ -97,7 +99,8 @@ defmodule AshSurface.Journey do
     standing = normalize_atom(standing)
 
     unless kind in @kinds, do: raise(ArgumentError, "unknown journey kind: #{inspect(kind)}")
-    unless standing in @standings, do: raise(ArgumentError, "unknown journey standing: #{inspect(standing)}")
+    unless standing in @standings,
+      do: raise(ArgumentError, "unknown journey standing: #{inspect(standing)}")
     validate_string_list!(evidence_refs, :evidence_refs)
 
     occurred_at = normalize_datetime(occurred_at)
@@ -121,7 +124,8 @@ defmodule AshSurface.Journey do
 
   defp fetch(map, key) do
     camel = key |> Atom.to_string() |> camelize()
-    Map.get(map, key) || Map.get(map, camel) || raise(ArgumentError, "journey entry missing #{key}")
+    Map.get(map, key) || Map.get(map, camel) ||
+      raise(ArgumentError, "journey entry missing #{key}")
   end
 
   defp camelize(value) do

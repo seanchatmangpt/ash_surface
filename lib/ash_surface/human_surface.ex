@@ -180,10 +180,8 @@ defmodule AshSurface.HumanSurface do
       "you" => value.you,
       "possibilitySets" => Enum.map(value.possibility_sets, &PossibilitySet.to_map/1),
       "explanations" => Enum.map(value.explanations, &WhyThis.to_map/1),
-      "devotionalEpisodes" =>
-        Enum.map(value.devotional_episodes, &DevotionalEpisode.to_map/1),
-      "outcomeHypotheses" =>
-        Enum.map(value.outcome_hypotheses, &OutcomeHypothesis.to_map/1),
+      "devotionalEpisodes" => Enum.map(value.devotional_episodes, &DevotionalEpisode.to_map/1),
+      "outcomeHypotheses" => Enum.map(value.outcome_hypotheses, &OutcomeHypothesis.to_map/1),
       "commitmentBoundaries" =>
         Enum.map(value.commitment_boundaries, &CommitmentBoundary.to_map/1),
       "journeys" => Enum.map(value.journeys, &Journey.to_map/1),
