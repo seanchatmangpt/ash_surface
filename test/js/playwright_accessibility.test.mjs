@@ -11,7 +11,7 @@ test("real Chromium produces an OBSERVE-only WAI-ARIA surface receipt", async ()
       <body>
         <main>
           <h1>Marketplace</h1>
-          <a href="https://example.test/events/marketplace">Register</a>
+          <a href="http://127.0.0.1/events/marketplace">Register</a>
           <button type="button" aria-expanded="false">Details</button>
         </main>
       </body>
@@ -39,7 +39,7 @@ test("real Chromium produces an OBSERVE-only WAI-ARIA surface receipt", async ()
     { role: register.role, count: register.count, visible: register.visible, standing: register.standing },
     { role: "link", count: 1, visible: true, standing: "ALIVE" },
   );
-  assert.equal(register.href, "https://example.test/events/marketplace");
+  assert.equal(register.href, "http://127.0.0.1/events/marketplace");
   assert.equal(details.standing, "ALIVE");
 });
 
