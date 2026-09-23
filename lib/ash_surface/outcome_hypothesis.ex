@@ -32,8 +32,7 @@ defmodule AshSurface.OutcomeHypothesis do
     evidence_refs: [],
     observation_refs: [],
     causal_claim: false,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

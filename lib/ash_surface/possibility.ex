@@ -36,8 +36,7 @@ defmodule AshSurface.Possibility do
     :expires_at,
     requirements: [],
     evidence_refs: [],
-    authority_ceiling: :SELECT,
-    do_authority: false
+    authority_ceiling: :SELECT
   ]
 
   @type t :: %__MODULE__{}
@@ -95,8 +94,7 @@ defmodule AshSurface.Possibility do
       requirements: requirements,
       evidence_refs: evidence_refs,
       expires_at: Keyword.get(opts, :expires_at),
-      authority_ceiling: ceiling,
-      do_authority: false
+      authority_ceiling: ceiling
     }
   end
 

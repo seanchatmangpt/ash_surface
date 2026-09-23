@@ -8,6 +8,7 @@ defmodule AshSurface.Projector.Expo do
   - `{prefix}.events.mjs`: Read-only realtime observation & event projections
   - `{prefix}.receipts.mjs`: MX receipt envelope and reconciliation primitives
   - `{prefix}.human.mjs`: DfCM member-facing TODAY/BIBLE/LIFE/ZOE/YOU projection helpers
+  - `{prefix}.demo.mjs`: Deterministic human demo consumer (local playback + intent construction)
   - `{prefix}.mjs`: Executable client runtime factory pre-bound with manufactured schemas
   """
 

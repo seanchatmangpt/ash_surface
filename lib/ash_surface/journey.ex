@@ -20,8 +20,7 @@ defmodule AshSurface.Journey do
     receipt_refs: [],
     privacy_scope: :SUBJECT_PRIVATE,
     standing: :PARTIAL_ALIVE,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

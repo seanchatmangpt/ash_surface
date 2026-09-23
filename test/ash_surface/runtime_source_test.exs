@@ -23,7 +23,7 @@ defmodule AshSurface.RuntimeSourceTest do
   # golden recomputed from the merged runtime file (whole-file SHA-256 law).
   # chicago-039 union re-freeze: schema-site ledger-note comment-only edit; golden
   # recomputed from the merged runtime file (whole-file SHA-256 law).
-  @golden_runtime_sha256 "2b5ade1b2d4252a7d851aeac19dab24b58452832a67e214eb6840a09245995b2"
+  @golden_runtime_sha256 "7284ad7b3ce96085730c4f0fbd83b38fbad6e5a2acd3c449607c316d775f08f0"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

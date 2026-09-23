@@ -33,8 +33,7 @@ defmodule AshSurface.WhyThis do
     profile_refs: [],
     evidence_refs: [],
     hypothesis_refs: [],
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

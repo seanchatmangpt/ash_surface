@@ -60,8 +60,7 @@ defmodule AshSurface.HumanSurface do
     standing: :PARTIAL_ALIVE,
     grammar: @grammar,
     areas: @areas,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

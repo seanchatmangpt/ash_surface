@@ -168,7 +168,7 @@ defmodule AshSurface.HumanSurfaceTest do
     assert f.possibilities.mode == :MAXIMAL_REVERSIBLE_FRONTIER
     assert f.possibilities.state_digest == reversed.state_digest
     assert f.possibilities.authority_boundary == :OBSERVE
-    refute f.possibilities.do_authority
+    refute Map.has_key?(f.possibilities, :do_authority)
   end
 
   test "ALIVE possibility set cannot manufacture an empty frontier" do

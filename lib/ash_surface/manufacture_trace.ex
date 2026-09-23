@@ -35,8 +35,7 @@ defmodule AshSurface.ManufactureTrace do
     receipt_refs: [],
     falsifiers: [],
     standing: :PARTIAL_ALIVE,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

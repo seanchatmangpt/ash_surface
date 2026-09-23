@@ -2,8 +2,9 @@ defmodule AshSurface.CommitmentBoundary do
   @moduledoc """
   Human-visible boundary between choosing an option and consequence-bearing DO.
 
-  Confirmation is projected as intent only. Even CONFIRMED values have
-  do_authority false; execution remains an explicit BRCE handoff.
+  Confirmation is projected as intent only. Execution remains an explicit
+  BRCE handoff: the boundary carries next_handoff: :BRCE and
+  authority_ceiling: :CONSTRUCT, never a local DO-authority fact.
   """
 
   @reversibility [:REVERSIBLE, :CONDITIONAL, :IRREVERSIBLE]
@@ -34,8 +35,7 @@ defmodule AshSurface.CommitmentBoundary do
     evidence_refs: [],
     confirmation_required: true,
     next_handoff: :BRCE,
-    authority_ceiling: :CONSTRUCT,
-    do_authority: false
+    authority_ceiling: :CONSTRUCT
   ]
 
   @type t :: %__MODULE__{}
@@ -70,8 +70,7 @@ defmodule AshSurface.CommitmentBoundary do
       evidence_refs: Enum.sort(evidence_refs),
       confirmation_required: true,
       next_handoff: :BRCE,
-      authority_ceiling: :CONSTRUCT,
-      do_authority: false
+      authority_ceiling: :CONSTRUCT
     }
 
     state_digest = digest({"ash_surface_commitment_boundary_state/1", identity_digest, canonical})

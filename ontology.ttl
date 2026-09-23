@@ -832,3 +832,9 @@ surf:ZoeManufactureTraceContract a surf:ManufactureTrace ;
     surf:equation "A=mu(O*)" ;
     surf:authorityBoundary "OBSERVE" ;
     surf:doAuthority false .
+surf:UnsupportedLedgerRow48 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/{human_surface,devotional_episode,commitment_boundary,journey,manufacture_trace,outcome_hypothesis,personalization_context,possibility,possibility_set,why_this}.ex + lib/ash_surface/zoe_demo.ex + test/ash_surface/{human_surface,zoe_demo}_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "human-surface resource family template emission (ontology facts -> Ash surface resources + projections + demo)" ;
+    surf:ledgerDate "2026-09-21" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

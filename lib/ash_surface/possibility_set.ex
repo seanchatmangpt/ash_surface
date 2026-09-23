@@ -32,8 +32,7 @@ defmodule AshSurface.PossibilitySet do
     evidence_refs: [],
     standing: :PARTIAL_ALIVE,
     mode: :MAXIMAL_REVERSIBLE_FRONTIER,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

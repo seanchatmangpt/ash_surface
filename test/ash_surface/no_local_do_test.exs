@@ -111,6 +111,31 @@ defmodule AshSurface.NoLocalDoTest do
     [:AshSurface, :Event],
     [:AshSurface, :Observation],
     [:AshSurface, :PlanningEpisode],
+    # v26.9.21 ZOE human-surface family (ASF-26922-04): plain in-memory struct
+    # constructors (def create/2..4 returning %__MODULE__{}), never resource
+    # mutations — the same admitted class as Event/Observation/PlanningEpisode.
+    [:AshSurface, :HumanSurface],
+    [:AshSurface, :PersonalizationContext],
+    [:AshSurface, :Possibility],
+    [:AshSurface, :PossibilitySet],
+    [:AshSurface, :CommitmentBoundary],
+    [:AshSurface, :DevotionalEpisode],
+    [:AshSurface, :Journey],
+    [:AshSurface, :ManufactureTrace],
+    [:AshSurface, :OutcomeHypothesis],
+    [:AshSurface, :WhyThis],
+    # zoe_demo.ex aliases these AshSurface.* modules to bare names; the walk's
+    # resolve_module/1 does not expand aliases, so admit the bare forms too.
+    [:HumanSurface],
+    [:PersonalizationContext],
+    [:Possibility],
+    [:PossibilitySet],
+    [:CommitmentBoundary],
+    [:DevotionalEpisode],
+    [:Journey],
+    [:ManufactureTrace],
+    [:OutcomeHypothesis],
+    [:WhyThis],
     [:Event],
     [:Observation],
     [:PlanningEpisode]

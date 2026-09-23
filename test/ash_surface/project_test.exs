@@ -57,7 +57,7 @@ defmodule AshSurface.ProjectTest do
       surface.manifest.entrypoints |> Enum.map(&AshSurface.action_id/1) |> Enum.sort()
 
     assert expected_ids == surface.action_ids
-    assert expo_meta == %{prefix: "expo", action_count: 2}
+    assert expo_meta == %{prefix: "expo", action_count: 2, human_surface: true}
     assert phoenix_meta == %{consumer: :phoenix_channel}
 
     # Both consumer kinds carry the same admitted action set, composed from
@@ -217,6 +217,8 @@ defmodule AshSurface.ProjectTest do
       "#{prefix}.actions.mjs",
       "#{prefix}.events.mjs",
       "#{prefix}.receipts.mjs",
+      "#{prefix}.human.mjs",
+      "#{prefix}.demo.mjs",
       "#{prefix}.mjs",
       "#{prefix}.tanstack.mjs"
     ])

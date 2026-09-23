@@ -22,8 +22,7 @@ defmodule AshSurface.PersonalizationContext do
     standing: :PARTIAL_ALIVE,
     privacy_scope: :SUBJECT_PRIVATE,
     share_scope: :SUBJECT_ONLY,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

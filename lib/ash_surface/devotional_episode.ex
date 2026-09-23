@@ -26,8 +26,7 @@ defmodule AshSurface.DevotionalEpisode do
     source_refs: [],
     playback_policy: :STRAIGHT_THROUGH,
     continuous_play: true,
-    authority_boundary: :OBSERVE,
-    do_authority: false
+    authority_boundary: :OBSERVE
   ]
 
   @type t :: %__MODULE__{}

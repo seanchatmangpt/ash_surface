@@ -60,6 +60,8 @@ defmodule AshSurface.Projector.ExpoDeterminismTest do
                           "#{@prefix}.actions.mjs",
                           "#{@prefix}.events.mjs",
                           "#{@prefix}.receipts.mjs",
+                          "#{@prefix}.human.mjs",
+                          "#{@prefix}.demo.mjs",
                           "#{@prefix}.mjs",
                           "#{@prefix}.tanstack.mjs"
                         ])
@@ -126,7 +128,7 @@ defmodule AshSurface.Projector.ExpoDeterminismTest do
     assert Map.keys(files0) |> Enum.sort() == @documented_artifacts
     assert files0 == artifacts0
 
-    assert meta0 == %{prefix: @prefix, action_count: length(@action_entrypoints)}
+    assert meta0 == %{prefix: @prefix, action_count: length(@action_entrypoints), human_surface: true}
   end
 
   @tag :tmp_dir

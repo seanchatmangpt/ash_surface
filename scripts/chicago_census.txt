@@ -12,15 +12,14 @@
 #
 # Regenerate the list when suites change (additions must re-pin; removals
 # must also lower the floor to the new measured count):
-#
-#   git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort
-#
-# floor: 842
+# floor: 1006
 test/ash_surface/action_id_test.exs
 test/ash_surface/aria_projector_test.exs
 test/ash_surface/ash_section_truth_test.exs
 test/ash_surface/capability_delegation_test.exs
 test/ash_surface/capacity_gate_test.exs
+test/ash_surface/codec_props_test.exs
+test/ash_surface/command_center_test.exs
 test/ash_surface/compiler/aria_section_test.exs
 test/ash_surface/compiler/ash_section_test.exs
 test/ash_surface/compiler/boundary_ledger_test.exs
@@ -31,17 +30,21 @@ test/ash_surface/compiler/semantic_section_test.exs
 test/ash_surface/compiler_discovery_test.exs
 test/ash_surface/compiler_test.exs
 test/ash_surface/consumer_fixture_test.exs
+test/ash_surface/digest_parity_fixture_test.exs
 test/ash_surface/digest_test.exs
 test/ash_surface/doctest_test.exs
 test/ash_surface/event_deep_test.exs
+test/ash_surface/event_replay_state_test.exs
 test/ash_surface/event_test.exs
-test/ash_surface/formatter_test.exs
+test/ash_surface/formatter_registration_canary_test.exs
 test/ash_surface/from_app_test.exs
 test/ash_surface/from_manifest_test.exs
 test/ash_surface/handwritten_ledger_test.exs
 test/ash_surface/health_deep_test.exs
 test/ash_surface/health_test.exs
+test/ash_surface/human_surface_test.exs
 test/ash_surface/intent/candidate_test.exs
+test/ash_surface/intent/dispatch_knownness_gate_test.exs
 test/ash_surface/intent/dispatch_test.exs
 test/ash_surface/intent_path_test.exs
 test/ash_surface/intent_round_trip_test.exs
@@ -55,11 +58,15 @@ test/ash_surface/live_view_projector_test.exs
 test/ash_surface/manifest_serializer_test.exs
 test/ash_surface/mx_closed_loop_deep_test.exs
 test/ash_surface/mx_closed_loop_episode_test.exs
+test/ash_surface/mx_episode_compose_state_test.exs
 test/ash_surface/mx_episode_compose_test.exs
 test/ash_surface/no_local_do_test.exs
+test/ash_surface/obligation_test.exs
 test/ash_surface/observation_deep_test.exs
 test/ash_surface/observation_test.exs
 test/ash_surface/ontology_enforced_by_test.exs
+test/ash_surface/path_truth_test.exs
+test/ash_surface/personalization_manufacture_test.exs
 test/ash_surface/planning_episode_deep_test.exs
 test/ash_surface/planning_episode_test.exs
 test/ash_surface/presentation_section_test.exs
@@ -68,6 +75,8 @@ test/ash_surface/projector/expo_actions_test.exs
 test/ash_surface/projector/expo_client_test.exs
 test/ash_surface/projector/expo_determinism_test.exs
 test/ash_surface/projector/expo_events_test.exs
+test/ash_surface/projector/expo_human_runtime_test.exs
+test/ash_surface/projector/expo_receipts_hash_test.exs
 test/ash_surface/projector/expo_receipts_test.exs
 test/ash_surface/projector/expo_schemas_test.exs
 test/ash_surface/projector/expo_test.exs
@@ -76,6 +85,7 @@ test/ash_surface/projector/voice_kiosk_test.exs
 test/ash_surface/projector_ir_determinism_test.exs
 test/ash_surface/projectors/aria_projector_test.exs
 test/ash_surface/projectors/js_projector_test.exs
+test/ash_surface/projectors/live_view_states_test.exs
 test/ash_surface/projectors/live_view_test.exs
 test/ash_surface/refactor_safety_net_test.exs
 test/ash_surface/resource/validator_adversarial_test.exs
@@ -84,27 +94,36 @@ test/ash_surface/resource/validator_test.exs
 test/ash_surface/runtime_source_test.exs
 test/ash_surface/schema_section_test.exs
 test/ash_surface/semantic_delegation_test.exs
+test/ash_surface/stale_claim_tripwire_test.exs
 test/ash_surface/standing_test.exs
+test/ash_surface/transport_calculus_tables_test.exs
 test/ash_surface/transport_fallback_test.exs
 test/ash_surface/transport_falsifiers_test.exs
 test/ash_surface/transport_outcome_test.exs
+test/ash_surface/transport_props_test.exs
 test/ash_surface/transport_select_test.exs
 test/ash_surface/version_sync_test.exs
+test/ash_surface/zoe_demo_test.exs
 test/ash_surface_test.exs
 test/js/consumer_fixture.test.mjs
 test/js/contract_schema.test.mjs
 test/js/digest_cross_language.test.mjs
 test/js/digest_cross_language_v2.test.mjs
+test/js/digest_cross_language_v3.test.mjs
 test/js/e2e_hermetic.test.mjs
 test/js/error_paths.test.mjs
 test/js/event_observation.test.mjs
 test/js/ir_projection.test.mjs
 test/js/ir_projector_deep.test.mjs
 test/js/namespaces_deep.test.mjs
+test/js/personalization_manufacture.test.mjs
 test/js/planning_episode.test.mjs
+test/js/playwright_accessibility.test.mjs
 test/js/receipts_primitives.test.mjs
 test/js/runtime.test.mjs
+test/js/select_calculus_parity.test.mjs
 test/js/transport_law.test.mjs
 test/js/version_sync.test.mjs
 test/js/zod_boundaries.test.mjs
+test/js/zoela_human_surface.test.mjs
 test/js/zoela_mx_consumer_fixture.test.mjs
