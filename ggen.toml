@@ -5,7 +5,7 @@ name = "ash-surface"
 source = "ontology.ttl"
 
 [packs]
-ash-extension-core = { git = "https://github.com/seanchatmangpt/ggen-marketplace.git", version = "7c50bef7c0e32085fe09c1c2cacc558cc2348ed3", subdir = "packs/ash-extension-core-pack" }
+ash-extension = { git = "https://github.com/seanchatmangpt/ggen-marketplace.git", version = "baa5f117deefb3b84f7bd653e65e9fe8d9b1d2fa", subdir = "packs/ash-extension-pack" }
 
 [templates]
 dir = "templates"
