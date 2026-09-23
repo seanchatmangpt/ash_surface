@@ -10,8 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28);
       # drift here is a receipted defect class (ticket gapfix-ci-009).
+      - name: Assert exact subject
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
@@ -24,7 +32,6 @@ jobs:
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: mix deps.get
-      - run: mix hex.audit
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -35,11 +42,20 @@ jobs:
       # test.zero re-runs test.all under literal `env -i` (HOME/PATH only).
       - run: mix test.all
       - run: mix test.zero
+      - run: mix hex.audit
 
   javascript:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact subject
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

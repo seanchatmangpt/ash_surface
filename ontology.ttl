@@ -566,3 +566,30 @@ surf:affordsCapability a rdf:Property ;
 
 surf:conformanceRuleFormat a rdf:Property .
 surf:resultVocabulary a rdf:Property .
+
+
+# DfCM live-operations consumer projections. These terms describe read models
+# only; they do not grant SELECT, CONSTRUCT, or DO authority.
+surf:OperationalObligation a rdfs:Class ;
+    rdfs:comment "OBSERVE-only projection of an upstream-manufactured capability obligation." .
+
+surf:CommandCenterProjection a rdfs:Class ;
+    rdfs:comment "Deterministic consumer composition of observations, obligations, planning episodes, capabilities, and receipt identities." .
+
+surf:capabilityId a rdf:Property ;
+    rdfs:domain surf:OperationalObligation ;
+    rdfs:range xsd:string .
+
+surf:causeRef a rdf:Property ;
+    rdfs:domain surf:OperationalObligation ;
+    rdfs:range xsd:string .
+
+surf:receiptRef a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:postconditionRef a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:operationalAuthorityBoundary a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "AshSurface operational projections use the literal OBSERVE." .
