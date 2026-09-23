@@ -1,0 +1,19 @@
+{
+ "wo": "ASF-26922-01",
+ "base_sha": "9972ef6 (release/v26.9.22 int head at W3 start; W0 reported 7d54927 = origin/main)",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "1fc2506",
+ "command": "git fetch --all --tags; git diff --quiet 78cbb84 origin/main; git merge --no-ff origin/main (plain; manual add/add resolution); git push; gh pr create; gh pr list --head feat/dfcm-surface-core --state open --json number --jq length",
+ "exit": 0,
+ "output_excerpt": [
+  "precondition: git diff --quiet 78cbb84 origin/main => 0 (origin/main tree == ancestor snapshot tree)",
+  "PLAIN merge, no -s ours: 21 add/add + 1 content conflicts resolved file-by-file to the branch's evolved side",
+  "origin/main's single tree contribution lib/ash_surface/formatter.ex was deliberately retired on this branch (d582fbb, chicago-formatter-retire-033) => removed; merged tree byte-identical to pre-merge branch tree (git diff --quiet 386135c HEAD => 0)",
+  "git merge-base --is-ancestor origin/main HEAD => 0 (ANCESTOR_OK)",
+  "push: 386135c..1fc2506 feat/dfcm-surface-core -> origin (non-force)",
+  "PR open: https://github.com/seanchatmangpt/ash_surface/pull/7 (base main); gh pr list --head feat/dfcm-surface-core --state open --jq length => 1",
+  "gates at head: mix deps.get 0; mix compile --warnings-as-errors 0 (elixir 1.20.3-otp-28)",
+  "binding decision applied: plain merge + manual add/add resolution, never -s ours (per dispatch)"
+ ],
+ "standing": "ALIVE"
+}

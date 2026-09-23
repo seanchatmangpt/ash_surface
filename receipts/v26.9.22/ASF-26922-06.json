@@ -1,0 +1,12 @@
+{
+ "wo": "ASF-26922-06",
+ "base_sha": "9972ef6",
+ "repo": "PR #5 / PR #3 (seanchatmangpt/ash_surface)",
+ "branch_head": "n/a",
+ "command": "gh pr checks 5; gh pr view 3 --json state",
+ "exit": null,
+ "output_excerpt": [
+  "NOT STARTED this session: PR #5's engineering-standards.json regeneration must render against the reconciled base after ASF-26922-01 lands, with no ALIVE claim before green; PR #3 close follows the same landing. Both queued behind PR #7's green merge (blocked by dialyzer, see ASF-26922-07)"
+ ],
+ "standing": "BLOCKED"
+}

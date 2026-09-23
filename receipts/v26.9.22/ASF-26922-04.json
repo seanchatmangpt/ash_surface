@@ -1,0 +1,19 @@
+{
+ "wo": "ASF-26922-04",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "8e08177 + c9666a8",
+ "command": "git merge --no-ff df0e859; resolve to version law; re-freeze golden; ledger pair; census re-pin; ci_falsifier.sh",
+ "exit": 0,
+ "output_excerpt": [
+  "git merge-base --is-ancestor df0e8590f8ca7e5644e353c216ec01188a287dca HEAD => 0",
+  "mix.exs kept at HEAD @version 26.9.17 under version_sync_test; runtime SURFACE_RUNTIME_VERSION kept 26.9.17; expo CalVer comments kept; mix.lock kept branch side (incoming's only distinct line ash 3.33.9 already present)",
+  "runtime.mjs golden re-frozen: 2b5ade1b... -> 7284ad7b... (runtime_source_test green)",
+  "HANDWRITTEN.md + ontology.ttl ledger row 48 added (ZOE human-surface family; HANDWRITTEN/UNSUPPORTED pair; handwritten_ledger_test bijection green 10/10)",
+  "chicago census re-pinned: suite list regenerated from git ls-files; floor 842 -> 1006 (measured Result: 1006/1012 passed)",
+  "no-local-DO reconciliation: local do_authority carrier removed from all 10 ZOE modules (semantics carried by next_handoff/authority_ceiling; DO-ness stays delegated); tripwire allowlist extended to the ZOE projection-constructor family (bare alias forms admitted); Expo documented artifact set + human.mjs + demo.mjs (moduledoc updated)",
+  "falsifier: ci_falsifier.sh exit 0 after re-pointing the stale irgolden-presentation-fielddrop recipe at the live golden assert (c9666a8); FALSIFIER_OK, Result: 33 passed",
+  "mix test.all => exit 0 (ExUnit 986-class + JS 289/289)"
+ ],
+ "standing": "ALIVE"
+}

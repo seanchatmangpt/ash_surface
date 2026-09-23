@@ -1,0 +1,14 @@
+{
+ "wo": "ASF-26922-10",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "6b87f05",
+ "command": "scripts/bump_version.sh --check 26.9.22 (and 26.9.22); mix test.all; git tag v26.9.22",
+ "exit": 1,
+ "output_excerpt": [
+  "carrier/citation classification for the merges' drift landed (6b87f05): 9 carriers (mx_episode, verify_closure_episode.py, digest-parity fixture family, v3 JS golden, live_view_states, receipts-hash preimage) + 4 citations (transport.ex F6 notes, calculus tables, transport_select describe, select_calculus_parity header)",
+  "bump then proceeds to the golden generator and FAILS: BUMPGEN_SELFPROOF_FAIL expected 5 @golden pins in ir_codec_test.exs, found 0 \u2014 the chicago-codec-canon-034 refactor replaced the five named pins with the two-form frozen golden in ir_codec_golden_test.exs; the generator's IR_DIGEST family predates the refactor and needs a codec-canon-034-aware repair (speculative re-point was reverted: the 5-pin regex matches no file)",
+  "tag v26.9.22: NOT created \u2014 tag law requires a green exact-HEAD PR first (dialyzer red; see ASF-26922-07) and the bump cannot lawfully complete before the generator repair"
+ ],
+ "standing": "PARTIAL_ALIVE"
+}

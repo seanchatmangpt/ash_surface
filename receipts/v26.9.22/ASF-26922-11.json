@@ -1,0 +1,15 @@
+{
+ "wo": "ASF-26922-11",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface",
+ "branch_head": "6b87f05",
+ "command": "git worktree remove <31 clean ash-surface-wt worktrees>; git worktree list | wc -l",
+ "exit": 0,
+ "output_excerpt": [
+  "all 31 /Users/sac/ash-surface-wt/g* worktrees verified clean (porcelain 0 each) and removed; directory empty",
+  "worktree list now 3: main checkout (6b87f05 feat/dfcm-surface-core), /private/tmp/xaas-w9-sweep-ash_surface (0d99161 w9-sweep/asf-format \u2014 content merged by ASF-26922-03; removal needs xaas coordination per the WO), and the v26.9.22 int worktree (receipt carrier for this release cycle)",
+  "gate 'git worktree list | wc -l = 1' therefore not met this session: int is kept until its receipt commit is consumed and the tmp sweep needs the xaas lane's cut; both removals are mechanical once coordination clears",
+  "cleanup-merge-plan.md correction: the stale g07 note is superseded by the ledger row 48 admission (ZOE family) \u2014 g07's bump-mechanism classification work is superseded by scripts/bump_version.sh 6b87f05 classification; note recorded here because the file on disk was deleted post-W0 and its content lives in preserve/v26.9.22/ash_surface-main"
+ ],
+ "standing": "PARTIAL_ALIVE"
+}

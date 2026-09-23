@@ -1,0 +1,16 @@
+{
+ "wo": "ASF-26922-02",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "ccfe956 + aa94b45 (on top of 1fc2506)",
+ "command": "git cherry-pick 01e8b49 164a07b; mix deps.get; mix hex.audit",
+ "exit": 0,
+ "output_excerpt": [
+  "cherry-picked 01e8b49 'fix(deps): move ash and mint beyond current advisories' as ccfe956 (mix.lock conflict resolved: kept branch lock, spliced incoming ash 3.33.9; mint 1.10.1 already present)",
+  "cherry-picked 164a07b 'ci(manufacture): pin LFS-fenced ggen sync transport' as aa94b45 (clean)",
+  "mix deps.get => 0",
+  "mix hex.audit => 0: 'No retired or security advisory packages found' (was: ash 3.33.x advisory class)",
+  "manufacture-job CI success on the PR head: tracked under ASF-26922-05 exact-HEAD CI receipt (sync / Deterministic manufacture job on PR #7)"
+ ],
+ "standing": "ALIVE"
+}

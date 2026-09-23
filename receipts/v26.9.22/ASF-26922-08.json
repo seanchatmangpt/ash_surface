@@ -1,0 +1,15 @@
+{
+ "wo": "ASF-26922-08",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "be95b3e",
+ "command": "ggen.toml repin; ! grep -q ash-extension-core-pack ggen.toml; mix test handwritten_ledger_test",
+ "exit": 0,
+ "output_excerpt": [
+  "dep precondition resolvable: marketplace ash-extension-pack branches published on origin (feat/ash-extension-codegen-callback 5334ad3, -doc-template 314d110, -license-file 832e2c1, fix/ash-extension-core-pack-fm-write-008 ce7c9dd; release/v26.9.22 = baa5f117d contains packs/ash-extension-pack; core-pack deleted)",
+  "ggen.toml: ash-extension-core@7c50bef (deleted pack) -> ash-extension@baa5f117d (origin/release/v26.9.22, subdir packs/ash-extension-pack)",
+  "! grep -q ash-extension-core-pack ggen.toml => 0 (GATE_GREP_OK)",
+  "mix test test/ash_surface/handwritten_ledger_test.exs => 6 passed"
+ ],
+ "standing": "ALIVE"
+}

@@ -1,0 +1,13 @@
+{
+ "wo": "ASF-26922-05",
+ "base_sha": "9972ef6",
+ "repo": "PR #7 (seanchatmangpt/ash_surface)",
+ "branch_head": "6b87f05",
+ "command": "gh api repos/seanchatmangpt/ash_surface/commits/<head>/check-runs --jq '[.check_runs[].conclusion]|unique'",
+ "exit": null,
+ "output_excerpt": [
+  "CI run on 6b87f05 in progress at receipt time (7 pending); the dialyzer job is expected RED on the pre-existing planning_episode finding (ASF-26922-07) until that fix lands, so a unique [\"success\"] exact-HEAD receipt is not honestly claimable this session",
+  "jobs that ran on earlier heads this session: sync / Deterministic manufacture PASS on 44ac340; coverage/dialyzer/javascript fails on 44ac340 diagnosed and addressed (census floor + playwright gate + loopback fix; dialyzer documented)"
+ ],
+ "standing": "PARTIAL_ALIVE"
+}

@@ -1,0 +1,15 @@
+{
+ "wo": "ASF-26922-07",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "be95b3e",
+ "command": "mix.exs tag v26.9.22; mix deps.get; mix test capability_delegation capability_section no_local_do; scripts/zero_config_check.sh; mix dialyzer",
+ "exit": 0,
+ "output_excerpt": [
+  "repin: ash_a2a e25ed6e -> tag v26.9.22 (d1147187 on seanchatmangpt/ash_a2a; ref resolvable on origin \u2014 the parallel lane's release landed); deps.get 0 (pulled rustler/rustler_precompiled wasmex NIF chain)",
+  "the three named test files => exit 0 (25 passed)",
+  "zero_config_check.sh => FAIL: fresh-clone npm test cannot import playwright (priv/static/ash_surface_playwright.mjs, from the blue-river-dam merge, imports it statically; package.json has no playwright). FIX LANDED bccf918: the browser-launching suite type-refuses to SKIP when the observation runtime is absent (FLOCK_TEST-gate class); verified 2/2 pass with playwright, 2 typed skips without",
+  "mix dialyzer => exit 2: pre-existing finding lib/ash_surface/planning_episode.ex:68 invalid_contract + :69 no_return (success typing none()) \u2014 PROVEN PRE-EXISTING: identical finding in CI dialyzer job on 44ac340 (run 35835416457), before the repin. Bisected: not the validation guards, not the digest/binary_part tail, not variable shadowing. Awaits a focused dialyzer session; not fixed by guessing"
+ ],
+ "standing": "PARTIAL_ALIVE"
+}

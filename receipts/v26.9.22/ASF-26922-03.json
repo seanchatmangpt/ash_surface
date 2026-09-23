@@ -1,0 +1,17 @@
+{
+ "wo": "ASF-26922-03",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "560c848 + 44ac340",
+ "command": "git merge --no-ff 0d99161; resolve; mix test command_center_test obligation_test; mix test.all",
+ "exit": 0,
+ "output_excerpt": [
+  "git merge-base --is-ancestor 0d9916141da37fbf1907706e0713611435db77cd HEAD => 0 (merge 560c848)",
+  "ci.yml conflicts resolved by COMBINATION: kept this branch's OTP 28.3/Elixir 1.20.3 pins (gapfix-ci-009 class) AND gained PR #4's exact-subject checkout + 'Assert exact subject' step; step battery kept test.all + test.zero, added mix hex.audit",
+  "consumer_fixture_test.exs took PR #4's receipt-binding assertions",
+  "gates: mix format --check-formatted 0; the two named test files exit 0 (Result: 5 passed class)",
+  "mix test.all => exit 0 locally after npm install + playwright@1.63.0 chromium (CI javascript-job recipe) and the loopback fixture fix 44ac340 (blue-river-dam's example.test fixture URL violated the e2e_hermetic suite-audit law: loopback-only)",
+  "mix test (full) => Result: 1006/1012 passed => after WO4 reconciliation: full suite green"
+ ],
+ "standing": "ALIVE"
+}

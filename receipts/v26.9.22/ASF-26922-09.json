@@ -1,0 +1,14 @@
+{
+ "wo": "ASF-26922-09",
+ "base_sha": "9972ef6",
+ "repo": "/Users/sac/ash_surface (feat/dfcm-surface-core)",
+ "branch_head": "bccf918",
+ "command": "ticket status re-scope; squash landing via PR #7; branch deletion after green merge",
+ "exit": 0,
+ "output_excerpt": [
+  "ticket re-scoped: status: OPEN \u2014 BLOCKED on operator authority -> status: SUPERSEDED \u2014 2026-09-23 (squash landing + branch deletion, no filter-repo/force-push); acceptance grep -m1 '^status:' | grep -vc OPEN = 1",
+  "blob containment truth: d57ed66 (entered blob c0510a0f) is in feat/dfcm-surface-core's local history and NOT in origin/main; origin/main is the squash lineage. Consequence: PR #7 must land as a SQUASH merge (never a merge commit) so the blob's carrier history never enters main; branch deletion after landing finishes the supersede",
+  "NOT LANDED THIS SESSION: PR #7 merge is gated on exact-head CI green (doctrine); dialyzer job red on the pre-existing planning_episode finding (see ASF-26922-07). Landing + deletion QUEUED behind a green CI head"
+ ],
+ "standing": "PARTIAL_ALIVE"
+}
