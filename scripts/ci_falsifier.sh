@@ -96,10 +96,11 @@ for row in "${recipes[@]}"; do
       assert_mutated grep -q 'Base.encode16(case: :upper)' "$subject"
       ;;
     irgolden-presentation-fielddrop)
-      # \@ in the replacement: perl would otherwise interpolate
-      # @presentation_fields as an (empty) array and mangle the line.
-      perl -pi -e 's/\@presentation_fields ~w\(format group label order widget\)/\@presentation_fields ~w(format group order widget)/' "$subject"
-      assert_mutated grep -q '@presentation_fields ~w(format group order widget)' "$subject"
+      # Re-pointed at the live golden assertion (the old @presentation_fields
+      # attribute left with the blue-river-dam merge): drop one expected
+      # presentation field so the golden suite's own field-shape assert goes RED.
+      perl -pi -e 's/assert fields\.\(IR\.Presentation\) == ~w\(format group label order widget\)a/assert fields.(IR.Presentation) == ~w(format group order widget)a/' "$subject"
+      assert_mutated grep -q 'assert fields.(IR.Presentation) == ~w(format group order widget)a' "$subject"
       ;;
     *)
       fail "unknown recipe: $name"
