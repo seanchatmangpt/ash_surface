@@ -838,3 +838,9 @@ surf:UnsupportedLedgerRow48 a surf:UnsupportedRow ;
     surf:unsupportedElement "human-surface resource family template emission (ontology facts -> Ash surface resources + projections + demo)" ;
     surf:ledgerDate "2026-09-21" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow49 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (v26.9.22 carrier/citation drift classification, commit 6b87f05: TEXT_FILES carriers += lib/ash_surface/mx_episode.ex, priv/verifier/verify_closure_episode.py, and the digest-parity fixture family with its lockstep asserts (digest_parity_fixture_test.exs, mx_episode_compose_test.exs, projector/expo_receipts_hash_test.exs, projectors/live_view_states_test.exs, test/js/digest_cross_language_v3.test.mjs, test/js/fixtures/digest_cross_language_fixtures.json, test/support/digest_parity_fixtures.ex); CITATION_FILES += the transport calculus set (lib/ash_surface/transport.ex F6 notes, transport_calculus_tables_test.exs, transport_select_test.exs, test/js/select_calculus_parity.test.mjs); the embedded generator's IR golden read re-pointed from ir_codec_golden_test.exs to ir_codec_test.exs (scans the five named @golden pins identity_only|full_surface|sparse|large_profile|refusal_actions). BLOCKED recorded in the commit, not papered over: the codec-canon-034-aware generator repair is still owed before any version bump can run; tag law (green exact-HEAD PR only) applies after)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism v26.9.22 carrier/citation facts (mx/closure/digest-parity carrier set, transport citation set, IR-golden source pin) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-23" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

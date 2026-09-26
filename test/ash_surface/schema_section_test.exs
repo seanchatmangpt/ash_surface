@@ -320,10 +320,9 @@ defmodule AshSurface.SchemaSectionTest do
     end
 
     test "the projector beam carries zero Ash.Resource.Info references (static proof)" do
-      beam = :code.which(AshSurface.Projector.Expo)
-      assert is_list(beam), "expected an on-disk beam, got: #{inspect(beam)}"
+      {:ok, {_mod, [atoms: atoms]}} =
+        :beam_lib.chunks(beam_binary(AshSurface.Projector.Expo), [:atoms])
 
-      {:ok, {_mod, [atoms: atoms]}} = :beam_lib.chunks(beam, [:atoms])
       names = for {_index, name} <- atoms, do: name
 
       # No atom -> no call site can exist: the compiled projector cannot
@@ -335,13 +334,32 @@ defmodule AshSurface.SchemaSectionTest do
       # AshSurface.Resource.Validator legitimately rediscovers the exact
       # public action set; the audit must see its call site or the static
       # proof above is dead.
-      beam = :code.which(AshSurface.Resource.Validator)
-      assert is_list(beam)
+      {:ok, {_mod, [atoms: atoms]}} =
+        :beam_lib.chunks(beam_binary(AshSurface.Resource.Validator), [:atoms])
 
-      {:ok, {_mod, [atoms: atoms]}} = :beam_lib.chunks(beam, [:atoms])
       names = for {_index, name} <- atoms, do: name
 
       assert :"Elixir.Ash.Resource.Info" in names
     end
+  end
+
+  # The law under test concerns the COMPILED ARTIFACT, not the loader. Under
+  # `mix test --cover` every project module is cover-loaded and
+  # `:code.which/1` answers the atom `:cover_compiled` instead of a path —
+  # but the artifact the compiler wrote to the build path is the same beam.
+  # Resolve both shapes to a binary so the static proofs hold in the plain
+  # elixir job and under the coverage battery alike (PR #7, L5 wave3,
+  # 2026-09-26; CI runs 36229792940 + 36241226834 evidence).
+  defp beam_binary(mod) do
+    path =
+      case :code.which(mod) do
+        :cover_compiled -> Path.join(Mix.Project.compile_path(), "#{Atom.to_string(mod)}.beam")
+        p when is_list(p) -> List.to_string(p)
+      end
+
+    assert File.exists?(path),
+           "expected a compiled beam on disk for #{inspect(mod)}, got: #{inspect(path)}"
+
+    File.read!(path)
   end
 end

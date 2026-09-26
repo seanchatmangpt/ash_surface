@@ -258,13 +258,8 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
 
     test "the compiled bytecode references no Ash introspection (artifact contract)" do
       # Source text can lie (string-built calls); the loaded artifact cannot.
-      beam = :code.which(AshSurface.Compiler.Schema)
-
-      assert is_list(beam),
-             "schema section must be compiled to a beam we can inspect, got: #{inspect(beam)}"
-
       assert {:ok, {_, [abstract_code: {:raw_abstract_v1, forms}]}} =
-               :beam_lib.chunks(beam, [:abstract_code])
+               :beam_lib.chunks(beam_binary(AshSurface.Compiler.Schema), [:abstract_code])
 
       rendered = inspect(forms, limit: :infinity, printable_limit: :infinity)
 
@@ -364,5 +359,25 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
       )
 
     block
+  end
+
+  # The law under test concerns the COMPILED ARTIFACT, not the loader. Under
+  # `mix test --cover` every project module is cover-loaded and
+  # `:code.which/1` answers the atom `:cover_compiled` instead of a path —
+  # but the artifact the compiler wrote to the build path is the same beam.
+  # Resolve both shapes to a binary so the artifact contract holds in the
+  # plain elixir job and under the coverage battery alike (PR #7, L5 wave3,
+  # 2026-09-26; CI runs 36229792940 + 36241226834 evidence).
+  defp beam_binary(mod) do
+    path =
+      case :code.which(mod) do
+        :cover_compiled -> Path.join(Mix.Project.compile_path(), "#{Atom.to_string(mod)}.beam")
+        p when is_list(p) -> List.to_string(p)
+      end
+
+    assert File.exists?(path),
+           "expected a compiled beam on disk for #{inspect(mod)}, got: #{inspect(path)}"
+
+    File.read!(path)
   end
 end
