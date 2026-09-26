@@ -81,9 +81,7 @@ defmodule AshSurface.MixProject do
       # ash_a2a repinned to the released v26.9.22 tag (ASF-26922-07; was
       # e25ed6e) — pulls rdf ~> 3.0 and the wasmex NIF.
       {:ash_a2a,
-       git: "https://github.com/seanchatmangpt/ash_a2a.git",
-       tag: "v26.9.22",
-       runtime: false}
+       git: "https://github.com/seanchatmangpt/ash_a2a.git", tag: "v26.9.22", runtime: false}
     ]
   end
 
