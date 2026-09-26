@@ -10,16 +10,26 @@ defmodule AshSurface.LineageCourtBenchTest do
   median and p95 wall-clock (microseconds, `:timer.tc`) are printed as a
   `LINEAGE_COURT_BENCH` line so a receipt can cite exact numbers.
 
-  Regression bound: the court is a fixed 10 `git` subprocesses independent of
+  Regression bound: the court is a fixed 11 `git` subprocesses independent of
   path count. Measured on the authoring machine (Apple silicon, 2026-09-26,
   under concurrent multi-agent compile load): median 241 ms, p95 1808 ms,
-  min 120 ms. The bound (median < 2 s, p95 < 6 s) only trips on a real
-  algorithmic regression -- e.g. a per-path subprocess loop at 302 paths
-  costs >= 302 x ~10 ms = 3 s median -- not on scheduler noise. Every run
-  must also return the identical admitted receipt.
+  min 120 ms. The bound (median < 2 s, p95 < 6 s) trips on a per-HEAD-path
+  loop of real object-database git calls (measured: `git cat-file -e` over
+  the 302 head paths exceeds it), not on scheduler noise. It does NOT catch
+  a loop of cheap subprocesses over a handful of paths (measured: a
+  `git --version` loop over 3 base paths stays under the bound); that class
+  is out of scope for a wall-clock bound. Every run must also return the
+  identical admitted receipt.
+
+  Timeout: 25 runs at the median bound is 50 s plus repo construction, which
+  can exceed ExUnit's default 60 s on a heavily loaded host while still
+  inside the bound, so the module timeout is raised to 300 s: the assertion
+  on the bound, not the ExUnit timer, is the regression gate.
   """
 
   use ExUnit.Case, async: true
+
+  @moduletag timeout: 300_000
 
   alias AshSurface.TestSupport.LineageCourt
 

@@ -13,8 +13,10 @@ defmodule AshSurface.LineageCourtTest do
   reordered subjects (base/head swapped), stale subject (pinned tree from an
   older head), wrong digest, merge that silently takes base content, a
   non-merge / wrong-second-parent merge, retired path resurrection, an
-  `-s ours` merge that drops base capability, and duplicate delivery (the
-  same claim judged twice must yield the byte-identical receipt).
+  `-s ours` merge that drops base capability, a lawful merge outside head's
+  history named as the reconciliation, a `refs/replace` substitution, a
+  vacuous retirement, a vacuous (base == head) claim, and duplicate delivery
+  (the same claim judged twice must yield the byte-identical receipt).
 
   The LIVE test re-judges the real PR #7 subjects (base main 7d54927, head
   6b87f05c, reconciliation merge 1fc2506) when real history is reachable:
@@ -397,6 +399,104 @@ defmodule AshSurface.LineageCourtTest do
 
     assert {:refused, :unknown_subject, [^sha, ^sha]} =
              LineageCourt.verdict(empty, %{base: sha, head: sha})
+  end
+
+  # ---------------------------------------------------------------------------
+  # RED: v26.9.26 court findings (merge lineage, replace refs, vacuity)
+  # ---------------------------------------------------------------------------
+
+  test "REFUSE merge_not_in_lineage: a lawful merge outside head's history cannot vouch for head" do
+    dir = new_repo!("dangling")
+    write!(dir, "lib/core.ex", "v1\n")
+    commit!(dir, "root")
+    run!(dir, ["checkout", "-q", "-b", "feat"])
+    write!(dir, "lib/core.ex", "feat\n")
+    write!(dir, "NOTICE", "n\n")
+    commit!(dir, "feat")
+    run!(dir, ["checkout", "-q", "main"])
+    write!(dir, "NOTICE", "n\n")
+    base = commit!(dir, "base")
+
+    # A lawful reconciliation on a side branch that head never contains.
+    run!(dir, ["checkout", "-q", "-b", "side", "feat"])
+    run!(dir, ["merge", "--no-ff", "-q", "-m", "lawful", "main"])
+    lawful = run!(dir, ["rev-parse", "HEAD"])
+
+    # Head's REAL reconciliation takes base content.
+    run!(dir, ["checkout", "-q", "main"])
+    write!(dir, "lib/main_only.ex", "m\n")
+    commit!(dir, "main moves")
+    run!(dir, ["checkout", "-q", "feat"])
+    run!(dir, ["merge", "--no-ff", "-q", "-m", "takes base", "main"])
+    head = run!(dir, ["rev-parse", "HEAD"])
+
+    assert {:refused, :merge_not_in_lineage, {^lawful, ^head}} =
+             LineageCourt.verdict(git_dir(dir), %{base: base, head: head, merge: lawful})
+
+    # The lawful merge still admits a head that does contain it.
+    assert {:admitted, %{merge: ^lawful}} =
+             LineageCourt.verdict(git_dir(dir), %{base: base, head: lawful, merge: lawful})
+  end
+
+  test "REFUSE merge_not_in_lineage: in the lawful shape, a merge newer than head is refused" do
+    s = lawful_shape!("newermerge")
+
+    assert {:refused, :merge_not_in_lineage, _} =
+             LineageCourt.verdict(
+               git_dir(s.dir),
+               claim(s, %{head: s.base, head_tree: nil, base: s.root})
+             )
+  end
+
+  test "REFUSE survives refs/replace: a replacement object cannot turn a refusal into an admission" do
+    dir = new_repo!("replace")
+    write!(dir, "lib/core.ex", "v1\n")
+    commit!(dir, "root")
+    run!(dir, ["checkout", "-q", "-b", "feat"])
+    write!(dir, "lib/core.ex", "feat\n")
+    write!(dir, "N", "n\n")
+    commit!(dir, "f")
+    run!(dir, ["checkout", "-q", "main"])
+    write!(dir, "N", "n\n")
+    base = commit!(dir, "base")
+    run!(dir, ["checkout", "-q", "-b", "side", "feat"])
+    run!(dir, ["merge", "--no-ff", "-q", "-m", "lawful", "main"])
+    lawful = run!(dir, ["rev-parse", "HEAD"])
+    run!(dir, ["checkout", "-q", "feat"])
+    run!(dir, ["merge", "--no-ff", "--no-commit", "-q", "main"])
+    write!(dir, "lib/core.ex", "altered in merge\n")
+    run!(dir, ["add", "-A"])
+    run!(dir, ["commit", "-q", "-m", "bad"])
+    bad = run!(dir, ["rev-parse", "HEAD"])
+    c = %{base: base, head: bad, merge: bad}
+
+    assert {:refused, :merge_tree_not_conserved, _} =
+             before = LineageCourt.verdict(git_dir(dir), c)
+
+    run!(dir, ["replace", bad, lawful])
+    # Plain git now sees the lawful object under the bad id ...
+    assert run!(dir, ["rev-parse", bad <> "^{tree}"]) == tree!(dir, lawful)
+    # ... the court does not.
+    assert LineageCourt.verdict(git_dir(dir), c) == before
+  end
+
+  test "REFUSE retired_not_in_base: a retirement naming a path base never had" do
+    s = lawful_shape!("vacuousretire")
+
+    assert {:refused, :retired_not_in_base, ["never/existed.ex"]} =
+             LineageCourt.verdict(
+               git_dir(s.dir),
+               claim(s, %{retired: s.retired ++ ["never/existed.ex"]})
+             )
+  end
+
+  test "REFUSE vacuous_lineage: base and head are the same commit" do
+    s = lawful_shape!("vacuous")
+
+    assert {:refused, :vacuous_lineage, same} =
+             LineageCourt.verdict(git_dir(s.dir), %{base: s.base, head: s.base})
+
+    assert same == s.base
   end
 
   # ---------------------------------------------------------------------------

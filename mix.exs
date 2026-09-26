@@ -56,7 +56,7 @@ defmodule AshSurface.MixProject do
 
   defp deps do
     [
-      {:ash, "~> 3.33.1"},
+      {:ash, "~> 3.33.11"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
       # Property-based tests (042 + 043 union; deduped at 051 merge). No `only:` restriction

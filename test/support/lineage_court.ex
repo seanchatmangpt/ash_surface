@@ -17,20 +17,36 @@ defmodule AshSurface.TestSupport.LineageCourt do
                                     a commit in the object database
     * `:base_not_ancestor`        — base is not reachable from head (the
                                     lineage claim itself is false)
+    * `:vacuous_lineage`          — base and head are the same commit (the
+                                    claim asserts nothing)
     * `:head_tree_mismatch`       — head's tree digest differs from the
                                     pinned tree (stale subject / wrong digest)
     * `:merge_not_found`          — the named reconciliation commit is not a
                                     two-parent merge whose second parent is
                                     base
+    * `:merge_not_in_lineage`     — the named reconciliation merge is not an
+                                    ancestor of head (a lawful merge elsewhere
+                                    in the object database cannot vouch for a
+                                    head whose real reconciliation differs)
     * `:merge_tree_not_conserved` — the merge tree differs from its first
                                     parent's tree (the merge silently took
                                     content from base: not the claimed
                                     byte-identical reconciliation)
+    * `:retired_not_in_base`      — a retired path was never in base (a
+                                    vacuous retirement retires nothing)
     * `:retired_path_resurrected` — a retired path reappears in head's tree
     * `:base_path_dropped`        — a path present in base is absent from
                                     head without being on the retired list
                                     (conservation: an `-s ours`-class merge
                                     that silently deletes base capability)
+
+  Replace refs (`refs/replace/*`) and grafts are ignored
+  (`GIT_NO_REPLACE_OBJECTS=1`): the court judges the real objects, so a
+  replacement cannot turn a refusal into an admission.
+
+  Exclusion (declared scope): conservation is over path NAMES. A base path
+  whose content is rewritten or emptied in head is not a conservation
+  breach here; content drift is covered by the pinned head tree digest.
 
   The receipt returned on admission carries the exact subject identities
   (base, head, head tree, merge) so it can be replayed.
@@ -42,6 +58,9 @@ defmodule AshSurface.TestSupport.LineageCourt do
           :malformed_subject
           | :unknown_subject
           | :base_not_ancestor
+          | :vacuous_lineage
+          | :merge_not_in_lineage
+          | :retired_not_in_base
           | :head_tree_mismatch
           | :merge_not_found
           | :merge_tree_not_conserved
@@ -69,11 +88,14 @@ defmodule AshSurface.TestSupport.LineageCourt do
     with :ok <- well_formed(claim),
          :ok <- resolves(git_dir, claim),
          :ok <- ancestor(git_dir, claim.base, claim.head),
+         :ok <- non_vacuous(claim.base, claim.head),
          {:ok, head_tree} <- tree(git_dir, claim.head),
          :ok <- pinned_tree(head_tree, Map.get(claim, :head_tree)),
+         :ok <- merge_in_lineage(git_dir, Map.get(claim, :merge), claim.head),
          :ok <- merge_conserved(git_dir, Map.get(claim, :merge), claim.base),
          {:ok, head_paths} <- paths(git_dir, claim.head),
          {:ok, base_paths} <- paths(git_dir, claim.base),
+         :ok <- retired_in_base(base_paths, retired),
          :ok <- retired_absent(head_paths, retired),
          :ok <- base_conserved(base_paths, head_paths, retired) do
       {:admitted,
@@ -120,6 +142,18 @@ defmodule AshSurface.TestSupport.LineageCourt do
     end
   end
 
+  defp non_vacuous(same, same), do: {:refused, :vacuous_lineage, same}
+  defp non_vacuous(_base, _head), do: :ok
+
+  defp merge_in_lineage(_git_dir, nil, _head), do: :ok
+
+  defp merge_in_lineage(git_dir, merge, head) do
+    case git(git_dir, ["merge-base", "--is-ancestor", merge, head]) do
+      {_, 0} -> :ok
+      {_, _} -> {:refused, :merge_not_in_lineage, {merge, head}}
+    end
+  end
+
   defp tree(git_dir, rev) do
     case git(git_dir, ["rev-parse", rev <> "^{tree}"]) do
       {out, 0} -> {:ok, String.trim(out)}
@@ -161,6 +195,13 @@ defmodule AshSurface.TestSupport.LineageCourt do
     end
   end
 
+  defp retired_in_base(base_paths, retired) do
+    case Enum.reject(retired, &MapSet.member?(base_paths, &1)) do
+      [] -> :ok
+      vacuous -> {:refused, :retired_not_in_base, Enum.sort(vacuous)}
+    end
+  end
+
   defp retired_absent(head_paths, retired) do
     case Enum.filter(retired, &MapSet.member?(head_paths, &1)) do
       [] -> :ok
@@ -186,7 +227,11 @@ defmodule AshSurface.TestSupport.LineageCourt do
   def git(git_dir, args) do
     System.cmd("git", ["--git-dir", git_dir | args],
       stderr_to_stdout: true,
-      env: [{"GIT_CONFIG_NOSYSTEM", "1"}, {"GIT_TERMINAL_PROMPT", "0"}]
+      env: [
+        {"GIT_CONFIG_NOSYSTEM", "1"},
+        {"GIT_TERMINAL_PROMPT", "0"},
+        {"GIT_NO_REPLACE_OBJECTS", "1"}
+      ]
     )
   end
 end
