@@ -113,16 +113,18 @@ Current, real edges (read from the three `mix.exs` files):
 
 ## Current vs target dependency list (`ash_surface`)
 
-Current — `mix.exs:42–62` (v26.9.17, six deps; the last two git-pinned):
+Current — `mix.exs:57–87` (v26.9.22 pin era, eight deps; the last two git-pinned):
 
 | dep | constraint | role |
 |---|---|---|
-| `ash` | `~> 3.33.1` (`mix.exs:44`) | upstream truth |
+| `ash` | `~> 3.33.1` | upstream truth |
 | `spark` | `~> 2.7` | DSL/extension substrate |
 | `jason` | `~> 1.4` | JSON |
-| `igniter` | `~> 0.7`, `runtime: false` (`mix.exs:49`) | code generation; no `only:` — `ash_a2a` requires it beyond dev/test |
-| `ash_r2rml` | git pin `7d958a8` (v26.9.12), `runtime: false`, `override: true` (`mix.exs:52–56`) | meaning layer: compile-time delegation target of the semantic section; the pin overrides `ash_a2a`'s hex `~> 26.8` requirement |
-| `ash_a2a` | git pin `e25ed6e`, `runtime: false` (`mix.exs:57–60`) | capability/consequence law: compile-time delegation target of the capability section |
+| `stream_data` | `~> 1.4`, `runtime: false` (`mix.exs:67`) | property-based tests (042+043 union); no `only:` restriction admissible — `ash_a2a` (all-env dep) requires it in every env |
+| `igniter` | `~> 0.7`, `runtime: false` (`mix.exs:70`) | code generation; no `only:` — `ash_a2a` requires it beyond dev/test |
+| `dialyxir` | `~> 1.4`, `only: [:dev, :test]`, `runtime: false` (`mix.exs:73`) | static success-typing analysis (gapfix-dialyzer-010); never ships |
+| `ash_r2rml` | git pin `7d958a8` (v26.9.12), `runtime: false`, `override: true` (`mix.exs:76–80`) | meaning layer: compile-time delegation target of the semantic section; the pin overrides `ash_a2a`'s hex `~> 26.8` requirement |
+| `ash_a2a` | released tag `v26.9.22` (`tag:` pin), `runtime: false` (`mix.exs:83–86`; repinned from `e25ed6e` by be95b3e, ASF-26922-07 — pulls `rdf ~> 3.0` + the wasmex NIF) | capability/consequence law: compile-time delegation target of the capability section |
 
 **Retraction (gapfix-docs-truth-013).** This section previously showed a
 four-dep table cited as `mix.exs:43–48` and declared the target "**unchanged:

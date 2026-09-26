@@ -93,8 +93,15 @@ defmodule AshSurface.PlanningEpisode do
     # history, flatmap or >32-key HAMT alike. Previously a raw `inspect/1`
     # pipeline hashed the candidates — an Elixir-term encoding no JS twin can
     # re-derive, never a cross-language digest law.
+    #
+    # The pre-mint struct carries `""` (a valid String.t()) as the episodeId
+    # placeholder — record_map/1 drops episodeId, so the digest is invariant
+    # over it. Building with `nil` produced a struct outside @type t, making
+    # the digest(episode) call out-of-contract: dialyzer collapsed create/2's
+    # success typing to none() (invalid_contract + no_return; PR #7 lane AS,
+    # 2026-09-24, bisected against CI run 35841301667).
     episode = %__MODULE__{
-      episode_id: nil,
+      episode_id: "",
       world_state_ref: world_state_ref,
       task_network_ref: task_network,
       planner_identity: planner,

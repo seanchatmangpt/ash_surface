@@ -159,7 +159,7 @@ AshSurface may manufacture adapters/descriptors for those consumers without abso
 
 ## ggen extension manufacture
 
-The Ash extension surface is modeled as admitted RDF and manufactured through `ggen-marketplace/packs/ash-extension-core-pack` rather than hand-maintained Spark boilerplate. The generated extension artifacts are pack-owned; edits belong in the ontology/pack path and must be regenerated.
+The Ash extension surface is modeled as admitted RDF and manufactured through `ggen-marketplace/packs/ash-extension-pack` (pinned `baa5f117`; the earlier `ash-extension-core-pack` was deprecated and removed — marketplace commits 5dc0f283f/9e9c23875) rather than hand-maintained Spark boilerplate. The generated extension artifacts are pack-owned; edits belong in the ontology/pack path and must be regenerated.
 
 ## Testing
 
@@ -221,7 +221,15 @@ operational obligations, planning episodes, capability descriptions, and
 receipt identities. It derives no business semantics and cannot dispatch a
 command. An obligation's identity is stable across state changes while its
 state digest changes, making assignment/escalation transitions replayable and
-consumer-safe.
+consumer-safe. An obligation may be projected `:resolved` only when a
+non-empty `postcondition_ref` is supplied — `AshSurface.Obligation.new/1`
+raises `ArgumentError` (`"resolved obligation requires a postcondition_ref"`)
+otherwise, making postcondition proof a hard precondition for resolved
+projection (`lib/ash_surface/obligation.ex`). A command's `standing` defaults
+to `:PARTIAL_ALIVE` (below the ALIVE evidence ceiling) and accepts only the
+closed set
+`[:ALIVE, :PARTIAL_ALIVE, :REFUSED, :BLOCKED]` — any other value raises
+(`AshSurface.CommandCenter.new/1`, `lib/ash_surface/command_center.ex`).
 
 This boundary is intentionally DfCM: upstream systems may be Planning Center,
 WebEOC, Everbridge, ArcGIS, a security vendor, a human observer, or a future

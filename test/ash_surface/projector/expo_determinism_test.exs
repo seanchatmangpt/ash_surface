@@ -128,7 +128,11 @@ defmodule AshSurface.Projector.ExpoDeterminismTest do
     assert Map.keys(files0) |> Enum.sort() == @documented_artifacts
     assert files0 == artifacts0
 
-    assert meta0 == %{prefix: @prefix, action_count: length(@action_entrypoints), human_surface: true}
+    assert meta0 == %{
+             prefix: @prefix,
+             action_count: length(@action_entrypoints),
+             human_surface: true
+           }
   end
 
   @tag :tmp_dir

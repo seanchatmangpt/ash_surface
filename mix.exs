@@ -22,7 +22,34 @@ defmodule AshSurface.MixProject do
       homepage_url: @source_url,
       package: package(),
       aliases: aliases(),
+      test_coverage: test_coverage(),
       dialyzer: dialyzer()
+    ]
+  end
+
+  # Coverage gate. threshold: 90 is Elixir >= 1.20's mix default; it is pinned
+  # here as an explicit repo decision so a future toolchain bump cannot move
+  # the gate silently (PR #7 lane AS, 2026-09-25; CI run 35841301667 failed at
+  # 87.48% partly because the coverage job ran before `npm install`, killing
+  # the zod-importing JS-bridge suites — ordering fixed in
+  # .github/workflows/dialyzer-coverage.yml).
+  #
+  # ignore_modules: everything under test/support/ (fixtures, the compiler
+  # echo section, digest-parity fixtures, Inspect protocol impls for fixture
+  # structs). They are compiled into the :test env and exercised by the
+  # suites, but they are scaffolding, not product surface — the 90% gate
+  # measures product code only.
+  defp test_coverage do
+    [
+      threshold: 90,
+      ignore_modules: [
+        AshSurface.DigestParityFixtures,
+        AshSurface.Fixtures.Domain,
+        AshSurface.Fixtures.Server,
+        AshSurface.Fixtures.VolunteerMilestone,
+        AshSurface.TestSupport.CompilerEchoSection,
+        Inspect.AshSurface.Fixtures.VolunteerMilestone
+      ]
     ]
   end
 
@@ -81,9 +108,7 @@ defmodule AshSurface.MixProject do
       # ash_a2a repinned to the released v26.9.22 tag (ASF-26922-07; was
       # e25ed6e) — pulls rdf ~> 3.0 and the wasmex NIF.
       {:ash_a2a,
-       git: "https://github.com/seanchatmangpt/ash_a2a.git",
-       tag: "v26.9.22",
-       runtime: false}
+       git: "https://github.com/seanchatmangpt/ash_a2a.git", tag: "v26.9.22", runtime: false}
     ]
   end
 

@@ -111,7 +111,7 @@ pieces is in §7.
 | SurfaceIR | dumb carrier; "IR determines NOTHING about existence, meaning, or DO-authority" | `lib/ash_surface/ir.ex` |
 | IR codec | JSON-isomorphic serialization + content addressing | `lib/ash_surface/ir/codec.ex` |
 | Projectors | receive verified `AshSurface.Surface`; never rediscover Spark internals | `lib/ash_surface.ex` (`AshSurface.Projector` behaviour) |
-| Expo (reference) | manufactures schemas/actions/events/receipts/client `.mjs` | `lib/ash_surface/projector/expo.ex` |
+| Expo (reference) | manufactures schemas/actions/events/receipts/client `.mjs` + member-facing `.human.mjs` and deterministic `.demo.mjs` | `lib/ash_surface/projector/expo.ex` |
 | JS runtime | `pi_JS = JavaScript + JSDoc + Zod`, never TypeScript; transport is a facet, not identity; selection weighs delegated cost/latency/privacy facts and exposes the non-dominated frontier (twin of `AshSurface.Transport`) | `priv/static/ash_surface_runtime.mjs` |
 | Observation | OBSERVE-only, zero DO authority | `lib/ash_surface/observation.ex` |
 | Planning | `AshSurface != Planner`; ceiling SELECT/CONSTRUCT | `lib/ash_surface/planning_episode.ex` |
