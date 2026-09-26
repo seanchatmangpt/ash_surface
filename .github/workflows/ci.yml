@@ -9,9 +9,14 @@ jobs:
   elixir:
     runs-on: ubuntu-latest
     steps:
+      # Full history (fetch-depth: 0): the LIVE lineage court tests
+      # (test/ash_surface/lineage_court_test.exs) re-judge the real PR #7
+      # ancestry claim and the checked-out head; a shallow clone makes them a
+      # named skip, so CI would never judge the claim.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28);
       # drift here is a receipted defect class (ticket gapfix-ci-009).
       - name: Assert exact subject

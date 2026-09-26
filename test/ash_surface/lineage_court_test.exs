@@ -22,7 +22,9 @@ defmodule AshSurface.LineageCourtTest do
   6b87f05c, reconciliation merge 1fc2506) when real history is reachable:
   `ASH_SURFACE_LINEAGE_GIT_DIR` or a non-shallow `.git` at the repo root that
   contains the head. Otherwise it is a named skip (a shallow CI checkout
-  cannot see ancestry), never a silent pass.
+  cannot see ancestry), never a silent pass. A second LIVE test re-judges
+  the checked-out head itself (CI checks out the PR head with full history),
+  so the claim is judged on the subject under review, not only on 6b87f05c.
   """
 
   use ExUnit.Case, async: true
@@ -516,6 +518,35 @@ defmodule AshSurface.LineageCourtTest do
                  @live_git_dir,
                  Map.drop(@pr7_claim, [:retired, :head_tree])
                )
+    end
+
+    # The checked-out subject itself (the PR head in CI, which checks out
+    # the exact head with full history): main 7d54927 and the reconciliation
+    # merge 1fc2506 must stay in its lineage, formatter.ex must stay retired,
+    # and every other main path must be conserved. Not tree-pinned: the head
+    # moves; ASH_SURFACE_LINEAGE_HEAD overrides the git dir's HEAD (e.g. a
+    # scratch tree judged against a canonical .git).
+    test "LIVE checked-out head: PR #7 reconciliation stays in lineage and conserved" do
+      head =
+        case System.get_env("ASH_SURFACE_LINEAGE_HEAD") do
+          nil ->
+            {out, 0} =
+              System.cmd("git", ["--git-dir", @live_git_dir, "rev-parse", "HEAD"],
+                stderr_to_stdout: true
+              )
+
+            String.trim(out)
+
+          sha ->
+            sha
+        end
+
+      claim = @pr7_claim |> Map.delete(:head_tree) |> Map.put(:head, head)
+
+      assert {:admitted, receipt} = LineageCourt.verdict(@live_git_dir, claim)
+      assert receipt.head == head
+      assert receipt.merge == @pr7_merge
+      assert receipt.retired == @pr7_retired
     end
   else
     @tag skip:
