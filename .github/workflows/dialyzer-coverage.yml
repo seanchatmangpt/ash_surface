@@ -48,6 +48,13 @@ jobs:
           node-version: "22"
       - run: mix local.hex --force
       - run: mix deps.get
-      - run: mix test --cover
+      # npm install BEFORE mix test --cover: the JS-bridge suites
+      # (event_replay_state, expo_human_runtime, consumer_fixture,
+      # mx_closed_loop_episode) spawn `node` against
+      # priv/static/ash_surface_runtime.mjs, which imports zod — with
+      # node_modules absent those 20 tests die on ERR_MODULE_NOT_FOUND and
+      # the coverage total collapses under the 90% threshold. Order fixed
+      # v26.9.25 (PR #7 lane AS; CI run 35841301667 evidence).
       - run: npm install
+      - run: mix test --cover
       - run: npm run test:coverage

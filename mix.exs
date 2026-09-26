@@ -7,7 +7,15 @@ defmodule AshSurface.MixProject do
   # The only variables allowed to survive `mix test.zero`'s scrub. Anything
   # beyond toolchain discovery (PATH) and the user home (HOME) is a hidden
   # config dependency and must fail loudly under the scrubbed run.
-  @zero_env_allowlist ~w(HOME PATH)
+  #
+  # ASH_SURFACE_LINEAGE_GIT_DIR: optional override pointing the LIVE
+  # lineage-court re-judgment (test/ash_surface/lineage_court_test.exs) at a
+  # non-shallow git dir (e.g. a full clone beside a shallow CI checkout). It
+  # is never a hidden dependency: unset it and the test falls back to the
+  # repo's own `.git` or takes a named skip — never a silent pass.
+  # Documented here (PR #7, L5 wave3, 2026-09-26; zero-config CI run
+  # 36229792938 refused the undocumented read).
+  @zero_env_allowlist ~w(HOME PATH ASH_SURFACE_LINEAGE_GIT_DIR)
 
   def project do
     [
@@ -22,7 +30,34 @@ defmodule AshSurface.MixProject do
       homepage_url: @source_url,
       package: package(),
       aliases: aliases(),
+      test_coverage: test_coverage(),
       dialyzer: dialyzer()
+    ]
+  end
+
+  # Coverage gate. threshold: 90 is Elixir >= 1.20's mix default; it is pinned
+  # here as an explicit repo decision so a future toolchain bump cannot move
+  # the gate silently (PR #7 lane AS, 2026-09-25; CI run 35841301667 failed at
+  # 87.48% partly because the coverage job ran before `npm install`, killing
+  # the zod-importing JS-bridge suites — ordering fixed in
+  # .github/workflows/dialyzer-coverage.yml).
+  #
+  # ignore_modules: everything under test/support/ (fixtures, the compiler
+  # echo section, digest-parity fixtures, Inspect protocol impls for fixture
+  # structs). They are compiled into the :test env and exercised by the
+  # suites, but they are scaffolding, not product surface — the 90% gate
+  # measures product code only.
+  defp test_coverage do
+    [
+      threshold: 90,
+      ignore_modules: [
+        AshSurface.DigestParityFixtures,
+        AshSurface.Fixtures.Domain,
+        AshSurface.Fixtures.Server,
+        AshSurface.Fixtures.VolunteerMilestone,
+        AshSurface.TestSupport.CompilerEchoSection,
+        Inspect.AshSurface.Fixtures.VolunteerMilestone
+      ]
     ]
   end
 
@@ -56,7 +91,7 @@ defmodule AshSurface.MixProject do
 
   defp deps do
     [
-      {:ash, "~> 3.33.11"},
+      {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
       # Property-based tests (042 + 043 union; deduped at 051 merge). No `only:` restriction

@@ -1,7 +1,8 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (842 tests, 75 files) and `npm test` (258 tests, 17 files), chained
+`mix test` (pinned floor 1006 tests, 92 `test/**/*_test.exs` files) and
+`npm test` (289 tests, 22 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
@@ -91,7 +92,9 @@ fail-closed battery steps consume it:
   a missing census, a missing/duplicated/malformed floor line, an empty
   list, or a path escaping the clone.
 - **mix test count floor** (after `mix test`) — the clone's `mix test`
-  count must be >= the pinned floor (842 at this SHA), so gutting a suite
+  count must be >= the pinned floor (1006 at this SHA; re-pinned 2026-09-23
+  from 842 when the census grew the command_center, human_surface, zoe_demo,
+  codec_props and event_replay_state suites), so gutting a suite
   without deleting its file also fails. The summary parser handles the
   ExUnit >= 1.19 `Result: N passed (…)` / `Result: X/Y passed` lines and
   the classic `N tests, M failures` line; an unparsable summary fails
@@ -136,8 +139,8 @@ collaborators:
      (`sha256("need_42:diverged")`, `sha256("need_42:selected")`) so the
      observation/world-state contract cannot silently change shape.
   3. `test/ash_surface/projector/expo_test.exs` — the Expo projector must
-     manufacture the exact six-file artifact set
-     (`zoela_surface.schemas/actions/events/receipts/tanstack.mjs`,
+     manufacture the exact eight-file artifact set
+     (`zoela_surface.schemas/actions/events/receipts/human/demo/tanstack.mjs`,
      `zoela_surface.mjs`) and every file must pass `node --check`; a new,
      renamed, or broken artifact breaks the golden list.
 
@@ -175,7 +178,9 @@ extension, never a mock of its Info functions:
 - **Deps law for the delegation batteries.** `ash_a2a` and `ash_r2rml` enter
   as real deps, never as vendored copies: `mix.exs` pins `ash_r2rml` to git
   ref `7d958a8` (`override: true`, its version satisfying `ash_a2a`'s hex
-  requirement) and `ash_a2a` to git ref `e25ed6e`, both `runtime: false` so
+  requirement) and `ash_a2a` to the released tag `v26.9.22` (repinned
+  2026-09-23, commit be95b3e; was git ref `e25ed6e`; the tag pulls
+  `rdf ~> 3.0` and the wasmex NIF), both `runtime: false` so
   neither enters the boot path. This is the v23-canonical shape, landed at
   this SHA.
 
@@ -208,7 +213,7 @@ Legend:
 | `lib/ash_surface.ex` (`AshSurface`, `Surface`, `Projector` structs + build/verify/project/digest, `from_manifest/2`, `from_app/1`, `action_id/1`, `runtime_source/0`) | `test/ash_surface_test.exs`; `test/ash_surface/from_manifest_test.exs`; `test/ash_surface/from_app_test.exs`; `test/ash_surface/project_test.exs`; `test/ash_surface/action_id_test.exs`; `test/ash_surface/runtime_source_test.exs` |
 | Manifest/surface serialization envelope + cross-language digest law + version sync (`mix.exs` @version, runtime `SURFACE_RUNTIME_VERSION`, `package.json`) | `test/ash_surface/manifest_serializer_test.exs`; `test/ash_surface/digest_test.exs`; `test/ash_surface/version_sync_test.exs`; `test/js/digest_cross_language.test.mjs`; `test/js/digest_cross_language_v2.test.mjs`; `test/js/version_sync.test.mjs` |
 | `lib/ash_surface/ir.ex` — `AshSurface.IR`, five sections `ash \| semantic \| capability \| presentation \| schema` (+ `version`, `digest`) and the v10 delegated-facts block; `lib/ash_surface/ir/capability.ex` | `test/ash_surface/ir_test.exs`; `test/ash_surface/ir_struct_test.exs` |
-| `lib/ash_surface/ir/codec.ex` — IR serialization + content-addressing codec over `AshSurface.IR.Surface` | `test/ash_surface/ir_codec_test.exs`; `test/ash_surface/ir_codec_golden_test.exs` |
+| `lib/ash_surface/ir/codec.ex` — IR serialization + content-addressing codec over the admitted five-section `AshSurface.IR` (`AshSurface.IR.Surface` was deleted 2026-09-16, commit 2be0e73 — no parallel canon module remains; a tripwire asserts `Code.ensure_loaded` fails for it) | `test/ash_surface/ir_codec_test.exs`; `test/ash_surface/ir_codec_golden_test.exs` |
 | `lib/ash_surface/compiler.ex` — DiscoverOnce compiler orchestrator (`compile/2` with `:sections` injection); `lib/ash_surface/section.ex` — `AshSurface.Compiler.Section` behaviour | `test/ash_surface/compiler_test.exs`; `test/ash_surface/compiler_discovery_test.exs` (echo section: `test/support/compiler_echo_section.ex`) |
 | Compiler section builders (`lib/ash_surface/compiler/section/{ash,capability,presentation,schema,semantic}.ex`) + section readers/facts (`lib/ash_surface/compiler/{aria,capability,presentation,schema,semantic,ash_truth,ir}.ex`) | `test/ash_surface/compiler/ash_section_test.exs`; `test/ash_surface/compiler/capability_section_test.exs` (the delegation exemplar, see section 3); `test/ash_surface/compiler/presentation_section_test.exs`; `test/ash_surface/compiler/schema_section_test.exs`; `test/ash_surface/compiler/semantic_section_test.exs`; `test/ash_surface/compiler/aria_section_test.exs`; companions: `test/ash_surface/ash_section_truth_test.exs`; `test/ash_surface/capability_delegation_test.exs`; `test/ash_surface/semantic_delegation_test.exs`; `test/ash_surface/schema_section_test.exs`; `test/ash_surface/presentation_section_test.exs` |
 | Intent group (`lib/ash_surface/intent.ex`, `lib/ash_surface/intent/{candidate,dispatch}.ex`) | `test/ash_surface/intent_test.exs`; `test/ash_surface/intent/candidate_test.exs`; `test/ash_surface/intent/dispatch_test.exs`; `test/ash_surface/intent_path_test.exs`; `test/ash_surface/intent_round_trip_test.exs` |
@@ -222,7 +227,7 @@ Legend:
 | `lib/ash_surface/event.ex` | `test/ash_surface/event_test.exs` **[NEW]**; `test/ash_surface/event_deep_test.exs` **[DEEP]**; `test/js/event_observation.test.mjs` **[NEW]** |
 | `lib/ash_surface/observation.ex` | `test/ash_surface/observation_test.exs` **[NEW]**; `test/ash_surface/observation_deep_test.exs` **[DEEP]** |
 | `lib/ash_surface/planning_episode.ex` | `test/ash_surface/planning_episode_test.exs` **[NEW]**; `test/ash_surface/planning_episode_deep_test.exs` **[DEEP]**; `test/js/planning_episode.test.mjs` **[NEW]** |
-| `lib/ash_surface/projector/expo.ex` (six-file artifact set, schemas/actions/events/receipts emissions, client factory, determinism) | `test/ash_surface/projector/expo_test.exs` **[NEW]**; `test/ash_surface/projector/expo_schemas_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_actions_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_events_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_receipts_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_client_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_determinism_test.exs` **[DEEP]** |
+| `lib/ash_surface/projector/expo.ex` (eight-file artifact set, schemas/actions/events/receipts emissions, client factory, determinism) | `test/ash_surface/projector/expo_test.exs` **[NEW]**; `test/ash_surface/projector/expo_schemas_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_actions_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_events_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_receipts_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_client_test.exs` **[DEEP]**; `test/ash_surface/projector/expo_determinism_test.exs` **[DEEP]** |
 | Whole closed loop (`Observation` + `PlanningEpisode` + `Event` over the fixture domain) | `test/ash_surface/mx_closed_loop_episode_test.exs` **[NEW]**; `test/ash_surface/mx_closed_loop_deep_test.exs` **[DEEP]** |
 | `lib/ash_surface/formatter.ex` **[RETIRED]** (chicago-formatter-retire-033: decorative plugin for the never-existing `AshSurface.Resource`; decision ledgered HANDWRITTEN+UNSUPPORTED) | canary against the pattern's return: `test/ash_surface/formatter_registration_canary_test.exs`; the formatting gate itself remains `mix format --check-formatted` |
 | `lib/ash_surface/resource/validator.ex` | `test/ash_surface/resource/validator_test.exs`; `test/ash_surface/resource/validator_adversarial_test.exs` **[DEEP]** |

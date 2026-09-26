@@ -8,6 +8,11 @@
   `ash_a2a` release numbers this doc conflated. Every "26.9.14" below is
   corrected to 26.9.13 (the same conflation stood in the
   `migration-doc-009` ticket title; corrected by appended note there).
+- **Audit correction (2026-09-24):** the "nothing between" claim above no
+  longer holds — `0966309` (2026-09-21) advanced `@version` to 26.9.21 and
+  merge `1fc2506` (2026-09-23) reverted it to 26.9.17; current canon is
+  26.9.17 (`mix.exs:4`, matching `lib/ash_surface/compiler.ex` `@ir_version`
+  and `priv/static/ash_surface_runtime.mjs` `SURFACE_RUNTIME_VERSION`).
 - **Wave:** docs/jira/v26.9.16/ — one ticket per worktree, standing ledger `V_WAVE.md` (owner: `exp/v50`).
 - **Canon:** consumer-side receipt index follows zoela's `MIGRATION.md` canon
   (`/Users/sac/zoela/MIGRATION.md`): per-change scope, owning files, gates as
@@ -124,8 +129,10 @@ The IR is a five-section record — every field except `version` and `digest` is
 owned by one `Section` implementation (`ash | semantic | capability |
 presentation | schema`); the compiler itself owns only orchestration, the single
 discovery pass, and the digest. Section bindings are overridable via
-`compile/2` (`sections:`). Default section modules resolve at call time and
-fail closed while sibling branches land.
+`compile/2` (`sections:`). Default section modules resolve at call time.
+**Corrected 2026-09-23:** this guide originally said defaults "fail closed
+while sibling branches land" — the five default `Compiler.Section.*` adapters
+have since landed (5eae54f), so default `compile/1` no longer fails closed.
 
 **Breaking for consumers:** bespoke per-section discovery loops are replaced by
 `compile/1`; new sections implement the `Section` behaviour rather than

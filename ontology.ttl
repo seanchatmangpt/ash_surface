@@ -224,7 +224,7 @@ surf:UnsupportedLedgerRow02 a surf:UnsupportedRow ;
     surf:ledgerPath "mix.exs" ;
     surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
     surf:unsupportedElement "mix.exs deps-block template emission with SHA pinning + conflict-driven override/only reconciliation" ;
-    surf:ledgerDate "2026-09-16" ;
+    surf:ledgerDate "2026-09-24" ;
     surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
 surf:UnsupportedLedgerRow03 a surf:UnsupportedRow ;
     surf:ledgerPath "docs/TESTING_QUICKSTART.md" ;

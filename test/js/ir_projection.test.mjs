@@ -19,6 +19,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // Hermetic: the suite re-runs the targeted mix test to (re)manufacture the
 // bridge before importing it; a failure there fails here — never a fabricated
 // pass.
+//
+// Cross-runtime gate (same class as the playwright observation gate in
+// playwright_accessibility.test.mjs and the FLOCK_TEST runtime gate): bridge
+// manufacture requires the BEAM toolchain (`mix`). CI's node-only javascript
+// job (no erlang/elixir installed) type-refuses to SKIP instead of failing on
+// spawnSync ENOENT; the elixir job (`mix test.all` -> `test.js` -> `npm test`)
+// and the zero-config-v2 battery run the suite for real with mix on PATH.
 // ---------------------------------------------------------------------------
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -33,19 +40,49 @@ function ensureBridge() {
   return mixTest;
 }
 
-const mixOutput = ensureBridge();
+function mixAvailable() {
+  try {
+    execFileSync("mix", ["--version"], { cwd: repoRoot, stdio: "pipe" });
+    return true;
+  } catch (err) {
+    if (err?.code === "ENOENT") return false;
+    throw err; // mix exists but would not run: not a skip case, fail loudly
+  }
+}
 
-const fixture = JSON.parse(readFileSync(path.join(bridgeDir, "fixture.json"), "utf8"));
-const artifactPath = path.join(bridgeDir, `${fixture.prefix}.mjs`);
-const artifactSource = readFileSync(artifactPath, "utf8");
+const mixReady = mixAvailable();
+const runtimeSkip = {
+  skip: mixReady
+    ? false
+    : "mix (BEAM toolchain) not installed; cross-language bridge manufacture requires it — runs under `mix test.all` / zero-config-v2",
+};
 
-// Importing the artifact IS the parse proof: a syntax error fails the suite.
-const artifact = await import(pathToFileURL(artifactPath).href);
+let mixOutput = null;
+let fixture = null;
+let artifactSource = null;
+let artifactPath = null;
+let ACTIONS = null;
+let SCHEMAS = null;
+let NAMESPACES = null;
+let getAction = null;
+let dispatchIntent = null;
+let fixtureActions = null;
 
-const { ACTIONS, SCHEMAS, NAMESPACES, getAction, dispatchIntent } = artifact;
-const fixtureActions = fixture.actions;
+if (mixReady) {
+  mixOutput = ensureBridge();
 
-test("bridge was manufactured by a passing targeted mix run", () => {
+  fixture = JSON.parse(readFileSync(path.join(bridgeDir, "fixture.json"), "utf8"));
+  artifactPath = path.join(bridgeDir, `${fixture.prefix}.mjs`);
+  artifactSource = readFileSync(artifactPath, "utf8");
+
+  // Importing the artifact IS the parse proof: a syntax error fails the suite.
+  const artifact = await import(pathToFileURL(artifactPath).href);
+
+  ({ ACTIONS, SCHEMAS, NAMESPACES, getAction, dispatchIntent } = artifact);
+  fixtureActions = fixture.actions;
+}
+
+test("bridge was manufactured by a passing targeted mix run", runtimeSkip, () => {
   // execFileSync already fails this suite on a non-zero mix exit; the Result
   // line additionally proves tests ran and passed (no "Failed:" summary line
   // exists on a clean run).
@@ -53,7 +90,7 @@ test("bridge was manufactured by a passing targeted mix run", () => {
   assert.doesNotMatch(mixOutput, /Failed:/);
 });
 
-test("artifact source embeds IR.Schema.zod strings verbatim", () => {
+test("artifact source embeds IR.Schema.zod strings verbatim", runtimeSkip, () => {
   for (const action of fixtureActions) {
     if (action.zod !== null) {
       assert.ok(
@@ -64,12 +101,12 @@ test("artifact source embeds IR.Schema.zod strings verbatim", () => {
   }
 });
 
-test("ACTIONS lists every fixture action, id-sorted, nothing else", () => {
+test("ACTIONS lists every fixture action, id-sorted, nothing else", runtimeSkip, () => {
   const expected = fixtureActions.map((a) => a.id).sort();
   assert.deepEqual(ACTIONS.map((a) => a.id), expected);
 });
 
-test("descriptors describe the fixture IR truthfully", () => {
+test("descriptors describe the fixture IR truthfully", runtimeSkip, () => {
   for (const truth of fixtureActions) {
     const descriptor = getAction(truth.id);
     assert.notEqual(descriptor, null, `getAction(${truth.id}) must resolve`);
@@ -85,7 +122,7 @@ test("descriptors describe the fixture IR truthfully", () => {
   }
 });
 
-test("descriptors are pure data: no execution members on any descriptor", () => {
+test("descriptors are pure data: no execution members on any descriptor", runtimeSkip, () => {
   const dataFields = [
     "id",
     "resource",
@@ -105,7 +142,7 @@ test("descriptors are pure data: no execution members on any descriptor", () => 
   }
 });
 
-test("namespaces group descriptors by resource with shared identity", () => {
+test("namespaces group descriptors by resource with shared identity", runtimeSkip, () => {
   assert.deepEqual(Object.keys(NAMESPACES).sort(), [
     ...new Set(fixtureActions.map((a) => a.resource)),
   ].sort());
@@ -116,7 +153,7 @@ test("namespaces group descriptors by resource with shared identity", () => {
   }
 });
 
-test("SCHEMAS carries exactly the fixture actions that delegated a zod string", () => {
+test("SCHEMAS carries exactly the fixture actions that delegated a zod string", runtimeSkip, () => {
   const withZod = fixtureActions.filter((a) => a.zod !== null).map((a) => a.id).sort();
   assert.deepEqual(Object.keys(SCHEMAS).sort(), withZod);
 
@@ -125,7 +162,7 @@ test("SCHEMAS carries exactly the fixture actions that delegated a zod string", 
   }
 });
 
-test("zod schemas parse valid fixture inputs and reject invalid ones", () => {
+test("zod schemas parse valid fixture inputs and reject invalid ones", runtimeSkip, () => {
   for (const truth of fixtureActions) {
     if (truth.zod === null) {
       continue;
@@ -143,7 +180,7 @@ test("zod schemas parse valid fixture inputs and reject invalid ones", () => {
   }
 });
 
-test("DO-boundary actions mint frozen dispatch intents (data only)", () => {
+test("DO-boundary actions mint frozen dispatch intents (data only)", runtimeSkip, () => {
   const doActions = fixtureActions.filter((a) => a.descriptorKind === "DISPATCH_INTENT");
   assert.equal(doActions.length, 1);
 
@@ -158,7 +195,7 @@ test("DO-boundary actions mint frozen dispatch intents (data only)", () => {
   }
 });
 
-test("non-DO actions refuse dispatch intents", () => {
+test("non-DO actions refuse dispatch intents", runtimeSkip, () => {
   for (const truth of fixtureActions.filter((a) => a.descriptorKind !== "DISPATCH_INTENT")) {
     assert.throws(
       () => dispatchIntent(truth.id, truth.validInput ?? {}),
@@ -167,11 +204,11 @@ test("non-DO actions refuse dispatch intents", () => {
   }
 });
 
-test("unknown actions refuse dispatch intents", () => {
+test("unknown actions refuse dispatch intents", runtimeSkip, () => {
   assert.throws(() => dispatchIntent("Nope.missing", {}), /REFUSED_UNKNOWN_ACTION/);
 });
 
-test("invalid input surfaces ZodError at the dispatch-intent boundary", () => {
+test("invalid input surfaces ZodError at the dispatch-intent boundary", runtimeSkip, () => {
   const [doAction] = fixtureActions.filter((a) => a.descriptorKind === "DISPATCH_INTENT");
   assert.throws(
     () => dispatchIntent(doAction.id, doAction.invalidInput),
