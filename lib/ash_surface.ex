@@ -9,14 +9,14 @@ defmodule AshSurface do
 
   Ash's JSON manifest serializer intentionally omits extension `custom` data and
   entrypoint config. The cross-language wrapper therefore carries only the missing
-  *derived identity and projection metadata* in its own `surface` envelope while
+  *delegated identity and projection metadata* in its own `surface` envelope while
   all resource/type/action semantics remain owned by the serialized Ash manifest.
   """
 
   alias Ash.Info.Manifest
 
-  @surface_schema_version "26.9.13"
-  @generator_identity "ash_surface:v26.9.13"
+  @surface_schema_version "26.9.17"
+  @generator_identity "ash_surface:v26.9.17"
 
   defmodule Surface do
     @moduledoc "A verified Ash surface contract and its exact normalized manifest."
@@ -62,6 +62,20 @@ defmodule AshSurface do
   `:profile` is projection metadata only. Its optional `"actions"` map is keyed by
   `action_id/1`; unknown action ids are refused instead of silently becoming a
   second application model.
+
+  ## Examples
+
+      iex> alias Ash.Info.Manifest
+      iex> manifest = %Manifest{entrypoints: []}
+      iex> {:ok, surface} = AshSurface.from_manifest(manifest, profile: %{"tier" => "gold"})
+      iex> {surface.action_ids, surface.contract["surface"]["profile"], byte_size(surface.digest)}
+      {[], %{"tier" => "gold"}, 64}
+
+      A profile keyed by an unknown action id is refused, never silently kept:
+
+      iex> manifest = %Ash.Info.Manifest{entrypoints: []}
+      iex> AshSurface.from_manifest(manifest, profile: %{"actions" => %{"Nope#x" => %{}}})
+      {:error, {:unknown_action_profile, ["Nope#x"]}}
   """
   @spec from_manifest(Manifest.t(), keyword()) :: {:ok, Surface.t()} | {:error, term()}
   def from_manifest(%Manifest{} = manifest, opts \\ []) do
@@ -102,6 +116,21 @@ defmodule AshSurface do
     "#{module_name(resource)}##{action.name}"
   end
 
+  @doc """
+  Reads a delegated fact for a manifest entrypoint from its `custom.ash_surface`
+  IR section.
+
+  Delegated facts are `"semanticId"`, `"authorityBoundary"`, `"doAuthority"`,
+  and `"receiptRequired"` (see `AshSurface.IR.delegated_facts/0`). The value
+  comes from the manifest's `custom.ash_surface` metadata when a delegating
+  authority stored it there and is `nil` otherwise. AshSurface never
+  re-derives delegated facts.
+  """
+  @spec delegated(Ash.Info.Manifest.Entrypoint.t(), String.t()) :: term() | nil
+  def delegated(%Ash.Info.Manifest.Entrypoint{} = entrypoint, fact) do
+    AshSurface.IR.delegated(entrypoint, fact)
+  end
+
   @doc "Returns the path to the framework-neutral JavaScript runtime adapter."
   @spec runtime_path() :: String.t()
   def runtime_path do
@@ -121,7 +150,7 @@ defmodule AshSurface do
       "ashManifestSchemaVersion" => Manifest.schema_version(),
       "generatorIdentity" => @generator_identity,
       "manifestDigest" => manifest_digest,
-      "marketplaceIdentity" => "ggen-marketplace:v26.9.13",
+      "marketplaceIdentity" => "ggen-marketplace:v26.9.17",
       "manifest" => serialized_manifest,
       "surface" => surface_envelope(manifest, profile)
     }
@@ -136,24 +165,18 @@ defmodule AshSurface do
         id = action_id(entrypoint)
         act_prof = Map.get(actions_profile, id, %{})
 
-        # Infer authority boundary default from action type
-        default_boundary =
-          case entrypoint.action.type do
-            :read -> "OBSERVE"
-            _ -> "DO"
-          end
-
-        authority_boundary = Map.get(act_prof, "authorityBoundary", default_boundary)
-        do_authority = Map.get(act_prof, "doAuthority", authority_boundary == "DO")
-
+        # v26.9.17 delegation: semanticId, authorityBoundary, doAuthority, and
+        # receiptRequired are delegated facts read from the IR section
+        # (custom.ash_surface). They are nil when not delegated — never
+        # re-derived here.
         %{
           "id" => id,
-          "semanticId" => Map.get(act_prof, "semanticId", "ash:#{id}"),
+          "semanticId" => AshSurface.IR.delegated(entrypoint, "semanticId"),
           "resource" => module_name(entrypoint.resource),
           "action" => to_string(entrypoint.action.name),
-          "authorityBoundary" => authority_boundary,
-          "doAuthority" => do_authority,
-          "receiptRequired" => Map.get(act_prof, "receiptRequired", true),
+          "authorityBoundary" => AshSurface.IR.delegated(entrypoint, "authorityBoundary"),
+          "doAuthority" => AshSurface.IR.delegated(entrypoint, "doAuthority"),
+          "receiptRequired" => AshSurface.IR.delegated(entrypoint, "receiptRequired"),
           "evidenceRequired" => Map.get(act_prof, "evidenceRequired", false),
           "possibleRefusals" => Map.get(act_prof, "possibleRefusals", []),
           "profile" => act_prof
@@ -181,12 +204,17 @@ defmodule AshSurface do
           "profile" => action_profile
         }
 
-        custom = Map.put(action.custom || %{}, :ash_surface, surface_custom)
+        # Ash.Info.Manifest.Action.custom is contractually map() (struct
+        # default %{}); no nil fallback exists or is needed (dialyzer
+        # guard_fail, gapfix-dialyzer-010).
+        custom = Map.put(action.custom, :ash_surface, surface_custom)
         %{entrypoint | action: %{action | custom: custom}}
       end)
 
+    # Manifest.custom is contractually map() (struct default %{}); same
+    # no-nil-fallback reasoning as the action custom above.
     root_custom =
-      Map.put(manifest.custom || %{}, :ash_surface, %{
+      Map.put(manifest.custom, :ash_surface, %{
         "schemaVersion" => @surface_schema_version,
         "profile" => Map.delete(profile, "actions")
       })

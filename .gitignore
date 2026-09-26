@@ -2,3 +2,11 @@
 /deps/
 /node_modules/
 .DS_Store
+tmp/
+# Dialyzer/Erlang crash dumps are local diagnostics, never repo artifacts
+# (gapfix-dialyzer-010: the committed 65MB erl_crash.dump was a crashed
+# dialyzer attempt; untracked here so a failed analysis cannot bloat the repo).
+erl_crash.dump
+*.dump
+# mix test --cover HTML output
+/cover/

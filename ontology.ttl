@@ -76,6 +76,427 @@ surf:TransportChannel a aex:FieldOneOfValue ;
     aex:oneOfValueOrder 3 ;
     aex:oneOfValueName "phoenix_channel" .
 
+## v26.9.16 law rows (ontology-law-rows-007).
+## Admitted, not proposed: ggen.toml [ontology] source names this file as the
+## authorship origin; no generated header is present. Canonical enforcing-test
+## paths are the integrated-wave paths (exp/v50); planning_episode_test.exs is
+## live at this base, the IR/delegation paths resolve at wave integration.
+
+surf:SurfaceIR a surf:LawRow ;
+    surf:lawOrder 1 ;
+    surf:lawName "SurfaceIR" ;
+    surf:lawDoc "The canonical normalized intermediate representation: a dumb carrier that re-states admitted facts, never re-decides them." ;
+    surf:sectionProperty surf:IRAshSection,
+        surf:IRSemanticSection,
+        surf:IRCapabilitySection,
+        surf:IRPresentationSection,
+        surf:IRSchemaSection ;
+    surf:enforcedBy "test/ash_surface/ir_test.exs" .
+
+surf:IRAshSection a surf:IRSectionProperty ;
+    surf:sectionOrder 1 ;
+    surf:sectionName "ash" ;
+    surf:sectionDoc "Normalized Ash manifest facts (resource/action identity, inputs, outputs, policies). Ash remains authoritative; the IR re-states, never re-decides." .
+
+surf:IRSemanticSection a surf:IRSectionProperty ;
+    surf:sectionOrder 2 ;
+    surf:sectionName "semantic" ;
+    surf:sectionDoc "Semantic layer facts (subject/capability IRIs, predicates, shape, ontology)." .
+
+surf:IRCapabilitySection a surf:IRSectionProperty ;
+    surf:sectionOrder 3 ;
+    surf:sectionName "capability" ;
+    surf:sectionDoc "Capability law facts (consequence class, authority and receipt requirements) as admitted facts, never as grants." .
+
+surf:IRPresentationSection a surf:IRSectionProperty ;
+    surf:sectionOrder 4 ;
+    surf:sectionName "presentation" ;
+    surf:sectionDoc "Presentation descriptors (label, group, order, widget, format)." .
+
+surf:IRSchemaSection a surf:IRSectionProperty ;
+    surf:sectionOrder 5 ;
+    surf:sectionName "schema" ;
+    surf:sectionDoc "Boundary schemas (input, output, the Zod projection, aria)." .
+
+surf:ProjectionBoundary a surf:LawInvariant ;
+    surf:lawOrder 2 ;
+    surf:invariantDoc "A projection boundary (SurfaceIR and every projector consuming it) determines nothing about existence, meaning, or DO-authority; it carries admitted facts from its sources, and consumers re-derive standing from the sources." ;
+    surf:enforcedBy "test/ash_surface/ir_test.exs" .
+
+surf:DelegationEdge a surf:LawEdge ;
+    surf:lawOrder 3 ;
+    surf:edgeKind "delegation" ;
+    surf:edgeDoc "Delegated facts, never local derivations: each is read from the manifest's custom.ash_surface profile when a delegating authority stored it there, and is nil otherwise. No fabricated capability truth." ;
+    surf:delegatedFact "semanticId" ,
+        "authorityBoundary" ,
+        "doAuthority" ,
+        "receiptRequired" ;
+    surf:enforcedBy "test/ash_surface_test.exs" ,
+        "test/ash_surface/compiler/capability_section_test.exs" .
+
+surf:IntentEdge a surf:LawEdge ;
+    surf:lawOrder 4 ;
+    surf:edgeKind "intent" ;
+    surf:edgeFrom "human" ;
+    surf:edgeTo "candidate" ;
+    surf:edgeDoc "Human intent terminates at candidate actions whose authority ceiling is strictly SELECT or CONSTRUCT; there is no direct human-to-DO edge. PlanningEpisode authority_ceiling can never be :DO." ;
+    surf:enforcedBy "test/ash_surface/planning_episode_test.exs" .
+
+## v26.9.17 law row (finish-select-025): the selection dimension family.
+## Pre-dispatch transport selection weighs delegated dimension facts —
+## cost/latency/privacy classes carried in the action profile's
+## "transportFacts" map. nil = not delegated: undelegated dimensions are
+## typed (:undelegated) and the admitted-alternatives frontier exposes every
+## non-dominated alternative; selection stays deterministic (cost, then
+## latency, then privacy; lower is better for cost and latency, higher for
+## privacy; full ties fall to declared order). The facts are carried truth,
+## never runtime grants.
+
+surf:SelectionEdge a surf:LawEdge ;
+    surf:lawOrder 9 ;
+    surf:edgeKind "selection" ;
+    surf:edgeDoc "Transport Decision inputs admit delegated per-transport dimension facts (cost/latency/privacy class) from the action profile's transportFacts map; absent-fact behavior is typed (undelegated, frontier mirrors availability, preference law unchanged), declared facts weigh a deterministic non-dominated frontier. Twin calculus: lib/ash_surface/transport.ex and priv/static/ash_surface_runtime.mjs." ;
+    surf:dimensionFact "cost" ,
+        "latency" ,
+        "privacy" ;
+    surf:dimensionClass "low" ,
+        "medium" ,
+        "high" ;
+    surf:enforcedBy "test/ash_surface/transport_select_test.exs" ,
+        "test/js/transport_law.test.mjs" .
+
+## v26.9.17 law rows (gapfix-ontology-promo-017): the 並 capacity family.
+## Promoted from operating prose (延: every concept keeps a repo-side
+## enforcement anchor). Mirror-reference: the canonical 並 fact belongs to
+## dfcm-agent-pack; admitting it there is an operator cut. Capacity is a
+## per-(model_tier, agent_weight) measurement — other tiers carry their own
+## measured ceilings and are NOT expressed by these rows.
+
+surf:CapacityTierLaw a surf:LawRow ;
+    surf:lawOrder 5 ;
+    surf:lawName "CapacityTierLaw" ;
+    surf:lawDoc "並 capacity = f(model_tier, agent_weight), measured never assumed; re-measured on every tier change. Dispatch telemetry lands in capacity-ride/log.ndjson as one JSON object per observation (ts, tier, weight, target_n, rider)." ;
+    surf:capacityTelemetry "capacity-ride/log.ndjson" ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:FlashHeavyweightCeiling a surf:LawRow ;
+    surf:lawOrder 6 ;
+    surf:lawName "FlashHeavyweightCeiling" ;
+    surf:lawDoc "Flash-tier heavyweight agents run at most 16 in flight (measured 2026-09-17). A non-rider dispatch observation with target_n above 16 is a capacity violation." ;
+    surf:capacityTier "flash" ;
+    surf:capacityWeight "heavyweight" ;
+    surf:capacityCeiling 16 ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:RiderSetpointLaw a surf:LawRow ;
+    surf:lawOrder 7 ;
+    surf:lawName "RiderSetpointLaw" ;
+    surf:lawDoc "A rider-supplied target_n is the operator setpoint: it overrides tier ceilings, and the capacity gate skips rider rows (rider true) instead of judging them." ;
+    surf:enforcedBy "scripts/capacity_gate.sh" ,
+        "test/ash_surface/capacity_gate_test.exs" ,
+        "test/ash_surface/ontology_enforced_by_test.exs" .
+
+surf:StormProtocol a surf:LawRow ;
+    surf:lawOrder 8 ;
+    surf:lawName "StormProtocol" ;
+    surf:lawDoc "Above 30 concurrent dispatches the rate refuser answers [1302]. On [1302]: stop, drain the window (minutes), resume at half pace; a repeat refusal halves the pace again. Saturation is reached by top-up (replacement launches on completion), never by bulk burst. Row-preservation anchor: ontology_enforced_by_test." ;
+    surf:enforcedBy "test/ash_surface/ontology_enforced_by_test.exs" .
+
+## HANDWRITTEN ledger UNSUPPORTED rows (gapfix-ledger-011).
+## 帳 law: one UNSUPPORTED(generator, element) row per open HANDWRITTEN.md row.
+## Generator = intended owner pack `ash-extension-pack (ggen-marketplace)`, the
+## real on-disk successor of the deleted ash-extension-core-pack; it expresses
+## none of these elements yet. A pair retires only when the pack grows the
+## capability and the ledger row is paid down. Bijection tripwire:
+## test/ash_surface/handwritten_ledger_test.exs
+
+surf:UnsupportedLedgerRow01 a surf:UnsupportedRow ;
+    surf:ledgerPath "mix.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "mix.exs alias/cli template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow02 a surf:UnsupportedRow ;
+    surf:ledgerPath "mix.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "mix.exs deps-block template emission with SHA pinning + conflict-driven override/only reconciliation" ;
+    surf:ledgerDate "2026-09-24" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow03 a surf:UnsupportedRow ;
+    surf:ledgerPath "docs/TESTING_QUICKSTART.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "test-entry doc template" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow04 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/ir.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "ir-section module template + delegated-facts fact in ontology" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow05 a surf:UnsupportedRow ;
+    surf:ledgerPath "V_WAVE.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "wave-ledger doc emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow06 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler.ex + compiler/{capability,presentation,aria}.ex + ir/codec.ex + capability_section_test.exs + voice_kiosk_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "merge-composition/integration template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow07 a surf:UnsupportedRow ;
+    surf:ledgerPath "docs/ZERO_CONFIG_AUDIT.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "audit/receipt doc template" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow08 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism script template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow09 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/ir.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "ir normalization/digest emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow10 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "compiler/section projection emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow11 a surf:UnsupportedRow ;
+    surf:ledgerPath "README.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "README section/thesis prose template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow12 a surf:UnsupportedRow ;
+    surf:ledgerPath "ARCHITECTURE.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "architecture-doc projection from ontology facts (sections/edges/delegated facts already pack truth)" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow13 a surf:UnsupportedRow ;
+    surf:ledgerPath "TESTING.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "test-suite-map doc template emission (supersedes the 2026-09-15 row's `true counts / zero-config v1/v2 battery` claim, falsified by the v-wave merges)" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow14 a surf:UnsupportedRow ;
+    surf:ledgerPath "docs/MIGRATION_26_9_16.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "migration-doc template emission over V_WAVE.md + owning-branch commit receipts" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow15 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/zero_config_check.sh + scripts/zero_config_v2.sh (v1 unledgered gap, v2 ledgered at birth; battery: env -i re-exec, local clone, env-read guard vs @zero_env_allowlist, deps/test battery, per-step EXIT lines)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "verification battery-script template (extend ash-extension-pack or a zero-config-proof pack in ggen-marketplace)" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow16 a surf:UnsupportedRow ;
+    surf:ledgerPath "docs/DEP_GRAPH.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "dependency-law doc template (cross-repo mix.exs citation)" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow17 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (TEXT_FILES extension: +docs/DEP_GRAPH.md)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism handled-set fact (repo-own version references list) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow18 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (v-wave golden families folded in: TEXT_FILES +projectors/js.ex, ir_codec_test, ir_struct_test, live_view_test, digest_cross_language_v2, ir_projector_deep, +docs/DEP_GRAPH.md per the prior row's prescription; new computed families IR_DIGEST x5 via the real IR.Codec from_map/to_map/digest pipeline, JS_DIGEST_V2 x3 with escape-aware contractJson extraction + JS_T26_REF x3 re-pointing the v2 file's T26_DIGESTS negative golden, ARTIFACT_SHA x1 re-derived through the real Projectors.JS over a self-proven mirror of the v18 fixture IR; generator exit-status check + per-kind completeness counts close a found fail-open hole where a mid-run halt with earlier BUMPGEN emissions passed; GATE_LIST += mix compile --warnings-as-errors)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism golden-family facts (IR-codec digest family, v2 cross-language digest family, artifact-hash family, t26 negative-pin re-point rule) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow19 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/projector/ir.ex + test/ash_surface/projector/ir_projector_test.exs + docs/PROJECTORS.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "projector-boundary typed-refusal fact (mixed-collection foreign-remainder law + error tuple) in the pack's projector family" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow20 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/README.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "scripts-index doc template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow21 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/schema.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "schema-section module template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow22 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/semantic.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "semantic-section module template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow23 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/ash.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "ash-section module template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow24 a surf:UnsupportedRow ;
+    surf:ledgerPath "docs/PROJECTORS.md" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "projector-registry doc template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow25 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/ir.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "canonical IR-slice module template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow26 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/ash_truth.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "per-action truth-section compiler template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow27 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/intent_path_test.exs + test/ash_surface/intent_round_trip_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "identity-reconciliation/test-re-point emission over the intent family" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow28 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/section/{ash,semantic,capability,presentation,schema}.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "section-adapter template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow29 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/capability.ex + lib/ash_surface/compiler.ex (normalize: discovered custom envelope + per-input type kind carried once; stale default-bindings moduledoc refreshed) + re-pointed tests (compiler/ash_section_test.exs, compiler/capability_section_test.exs, resource/validator_ir_alignment_test.exs, compiler_discovery_test.exs real-pipeline law, compiler_test.exs input pin)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "capability-conformance + test-re-point template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow30 a surf:UnsupportedRow ;
+    surf:ledgerPath "mix.exs (dialyxir ~> 1.4 dev/test + dialyzer/1 config: plt_add_apps [:ex_unit, :ash_a2a, :ash_r2rml], ignore_warnings, list_unused_filters) + dialyzer.ignore-warnings (justified-suppression ledger, baseline empty) + .github/workflows/dialyzer-coverage.yml (dialyzer job + per-language coverage job) + Justfile dialyzer/coverage recipes + package.json test:coverage script" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "static-analysis gate + coverage-receipt wiring template (dialyzer-config emission, ignore-ledger emission, workflow emission, coverage-command emission)" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow31 a surf:UnsupportedRow ;
+    surf:ledgerPath "LICENSE" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "package license-file template emission" ;
+    surf:ledgerDate "2026-09-16" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow32 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/capacity_gate.sh + test/ash_surface/capacity_gate_test.exs + test/ash_surface/ontology_enforced_by_test.exs + Justfile capacity-gate recipe" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "telemetry-gate script template + ontology-enforcedBy linter emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow33 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/projectors/live_view.ex + lib/ash_surface/formatter.ex + lib/ash_surface/compiler/{schema,semantic,ash}.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "spec emission over existing publics" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow34 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface.ex + lib/ash_surface/compiler.ex + test/ash_surface/doctest_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "doctest-example emission for boundary modules" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow35 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/compiler/semantic.ex + compiler/schema.ex + compiler/aria.ex (headers + moduledoc) + schema.ex Boundary construction site" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "header-truth/dead-code-ledger emission over the compiler family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow36 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/compiler/boundary_ledger_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "tripwire-test emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow37 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/js/contract_schema.test.mjs + test/js/error_paths.test.mjs + priv/static/ash_surface_runtime.mjs (schema-site ledger comment)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "runtime-boundary test-table + delegated-extension provenance facts in the runtime family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow38 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (carrier/citation classification + IR_GOLDEN regen family: CITATION_FILES table of 37 historical-citation files preserved byte-for-byte with md5 preservation proof across the apply; drift scan now refuses UNCLASSIFIED files instead of all outside-text files; post-apply law: old version survives only in citations or as v-prefixed history comments; carriers += lib/ash_surface/compiler.ex @ir_version + test/ash_surface/compiler_test.exs lockstep assertion; new computed family IR_GOLDEN_DIGEST x1 — ir_codec_golden_test.exs frozen digest self-proven at the old version and re-frozen through the real AshSurface.IR.Codec.digest pipeline, file version literals moved by targeted quote/label rules so the declaration's v-prefixed wave citations stay)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism classification facts (citation table, per-file evidence, IR-golden regen family) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow39 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/intent/dispatch.ex + test/ash_surface/intent/dispatch_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "intent-dispatch KNOWN-ness gate fact (injected admitted-action-set law + REFUSED_UNKNOWN_ACTION token) in the pack's intent-dispatch family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow40 a surf:UnsupportedRow ;
+    surf:ledgerPath "ib/ash_surface/mx_episode.ex + priv/verifier/verify_closure_episode.py" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "mx-episode compose/validate module template + verifier vendoring emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow41 a surf:UnsupportedRow ;
+    surf:ledgerPath "test/ash_surface/mx_episode_compose_test.exs + test/ash_surface/mx_closed_loop_episode_test.exs + test/ash_surface/mx_closed_loop_deep_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "episode round-trip test-table emission + verifier re-point emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow42 a surf:UnsupportedRow ;
+    surf:ledgerPath "est/ash_surface/projector_ir_determinism_test.exs + lib/ash_surface/ir/event_projection.ex" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "test re-point emission over the IR/projector family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow43 a surf:UnsupportedRow ;
+    surf:ledgerPath "ib/ash_surface/transport.ex + priv/static/ash_surface_runtime.mjs + test/ash_surface/transport_select_test.exs + test/js/transport_law.test.mjs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "transport selection-dimension calculus template emission (facts admission, frontier, deterministic tie-break law)" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow44 a surf:UnsupportedRow ;
+    surf:ledgerPath "priv/static/ash_surface_runtime.mjs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "JS runtime template family emission in ash-extension-pack (runtime ontology facts -> executable .mjs template projection); paydown: the pack grows the family and emits this file from the ontology's runtime facts, golden re-frozen at cutover, ledger row + UNSUPPORTED row retired together" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow45 a surf:UnsupportedRow ;
+    surf:ledgerPath "cripts/zero_config_v2.sh + scripts/chicago_census.txt" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "verification battery suite-census emission (golden suite manifest + measured floor pin) in the zero-config-proof family" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow46 a surf:UnsupportedRow ;
+    surf:ledgerPath "ib/ash_surface/formatter.ex (RETIRED 2026-09-17, chicago-formatter-retire-033)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "Spark.Formatter plugin wiring template for a real surface DSL extension" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow47 a surf:UnsupportedRow ;
+    surf:ledgerPath "est/ash_surface/from_manifest_test.exs + priv/static/ash_surface_runtime.mjs (schema-site comment)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "enforced-absence tripwire rows + delegated-extension provenance note emission" ;
+    surf:ledgerDate "2026-09-17" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+
 # Accessibility surface semantics intentionally align to public W3C vocabularies
 # instead of cloning the WAI-ARIA role taxonomy into AshSurface.
 surf:AccessibilityVocabulary a rdfs:Class .
@@ -145,3 +566,281 @@ surf:affordsCapability a rdf:Property ;
 
 surf:conformanceRuleFormat a rdf:Property .
 surf:resultVocabulary a rdf:Property .
+
+
+# DfCM live-operations consumer projections. These terms describe read models
+# only; they do not grant SELECT, CONSTRUCT, or DO authority.
+surf:OperationalObligation a rdfs:Class ;
+    rdfs:comment "OBSERVE-only projection of an upstream-manufactured capability obligation." .
+
+surf:CommandCenterProjection a rdfs:Class ;
+    rdfs:comment "Deterministic consumer composition of observations, obligations, planning episodes, capabilities, and receipt identities." .
+
+surf:capabilityId a rdf:Property ;
+    rdfs:domain surf:OperationalObligation ;
+    rdfs:range xsd:string .
+
+surf:causeRef a rdf:Property ;
+    rdfs:domain surf:OperationalObligation ;
+    rdfs:range xsd:string .
+
+surf:receiptRef a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:postconditionRef a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:operationalAuthorityBoundary a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "AshSurface operational projections use the literal OBSERVE." .
+
+
+# Human-facing DfCM projection vocabulary.
+# These terms project already-admitted semantics into understandable choices,
+# explanations, practices, commitments, and replay. They never grant DO authority.
+surf:HumanSurfaceProjection a rdfs:Class ;
+    rdfs:comment "OBSERVE-only projection with TODAY/BIBLE/LIFE/ZOE/YOU human areas." .
+
+surf:PossibilitySet a rdfs:Class ;
+    rdfs:comment "A DfCM frontier preserving plural lawful alternatives until explicit selection or closure." .
+
+surf:Possibility a rdfs:Class ;
+    rdfs:comment "One human-facing candidate option; never an execution authority." .
+
+surf:WhyThisExplanation a rdfs:Class ;
+    rdfs:comment "Evidence-bounded explanation of why a candidate may be relevant to the subject." .
+
+surf:OutcomeHypothesis a rdfs:Class ;
+    rdfs:comment "Falsifiable non-causal candidate relationship between a practice and a selected outcome." .
+
+surf:DevotionalEpisode a rdfs:Class ;
+    rdfs:comment "Ordered devotional program intended for straight-through listening or reading." .
+
+surf:DevotionalSegment a rdfs:Class ;
+    rdfs:comment "Ordered scripture, commentary, prayer, reflection, music, or transition segment." .
+
+surf:CommitmentBoundary a rdfs:Class ;
+    rdfs:comment "Human confirmation projection that stops at CONSTRUCT and hands consequence-bearing intent to BRCE." .
+
+surf:JourneyProjection a rdfs:Class ;
+    rdfs:comment "Subject-private human replay over observed events, evidence, and receipts." .
+
+surf:HumanArea a rdfs:Class .
+surf:HumanGrammarStep a rdfs:Class .
+
+surf:TodayArea a surf:HumanArea .
+surf:BibleArea a surf:HumanArea .
+surf:LifeArea a surf:HumanArea .
+surf:ZoeArea a surf:HumanArea .
+surf:YouArea a surf:HumanArea .
+
+surf:SeeStep a surf:HumanGrammarStep .
+surf:UnderstandStep a surf:HumanGrammarStep .
+surf:ExploreStep a surf:HumanGrammarStep .
+surf:ChooseStep a surf:HumanGrammarStep .
+surf:ActStep a surf:HumanGrammarStep ;
+    rdfs:comment "Presents a commitment boundary; does not denote DO authority." .
+surf:LearnStep a surf:HumanGrammarStep .
+
+surf:hasHumanArea a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:HumanArea .
+
+surf:hasGrammarStep a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:HumanGrammarStep .
+
+surf:hasPossibilitySet a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:PossibilitySet .
+
+surf:hasPossibility a rdf:Property ;
+    rdfs:domain surf:PossibilitySet ;
+    rdfs:range surf:Possibility .
+
+surf:objective a rdf:Property ;
+    rdfs:domain surf:PossibilitySet ;
+    rdfs:range xsd:string .
+
+surf:reversibility a rdf:Property ;
+    rdfs:domain surf:Possibility ;
+    rdfs:range xsd:string .
+
+surf:whyThis a rdf:Property ;
+    rdfs:range surf:WhyThisExplanation .
+
+surf:claimKind a rdf:Property ;
+    rdfs:domain surf:WhyThisExplanation ;
+    rdfs:range xsd:string .
+
+surf:falsifier a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:evidenceState a rdf:Property ;
+    rdfs:range xsd:string .
+
+surf:practiceRef a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:string .
+
+surf:outcomeRef a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:string .
+
+surf:causalClaim a rdf:Property ;
+    rdfs:domain surf:OutcomeHypothesis ;
+    rdfs:range xsd:boolean .
+
+surf:hasDevotionalEpisode a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:DevotionalEpisode .
+
+surf:hasSegment a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range surf:DevotionalSegment .
+
+surf:segmentPosition a rdf:Property ;
+    rdfs:domain surf:DevotionalSegment ;
+    rdfs:range xsd:integer .
+
+surf:continuousPlay a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range xsd:boolean .
+
+surf:playbackPolicy a rdf:Property ;
+    rdfs:domain surf:DevotionalEpisode ;
+    rdfs:range xsd:string .
+
+surf:hasCommitmentBoundary a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:CommitmentBoundary .
+
+surf:confirmationState a rdf:Property ;
+    rdfs:domain surf:CommitmentBoundary ;
+    rdfs:range xsd:string .
+
+surf:nextHandoff a rdf:Property ;
+    rdfs:domain surf:CommitmentBoundary ;
+    rdfs:range xsd:string .
+
+surf:doAuthority a rdf:Property ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "Human AshSurface projections require false; consequence authority lives outside the projection." .
+
+surf:hasJourney a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:JourneyProjection .
+
+surf:privacyScope a rdf:Property ;
+    rdfs:domain surf:JourneyProjection ;
+    rdfs:range xsd:string .
+
+surf:ZoeHumanSurfaceContract a surf:HumanSurfaceProjection ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:doAuthority false ;
+    surf:hasHumanArea surf:TodayArea, surf:BibleArea, surf:LifeArea, surf:ZoeArea, surf:YouArea ;
+    surf:hasGrammarStep surf:SeeStep, surf:UnderstandStep, surf:ExploreStep, surf:ChooseStep, surf:ActStep, surf:LearnStep .
+
+
+# Subject-private personalization and Chatman equation projection.
+surf:PersonalizationContext a rdfs:Class ;
+    rdfs:comment "Subject-private projection of USER_STATED, OBSERVED, and INFERRED personalization facets." .
+
+surf:PersonalizationFacet a rdfs:Class ;
+    rdfs:comment "One provenance-typed profile facet used only as bounded personalization evidence." .
+
+surf:ManufactureTrace a rdfs:Class ;
+    rdfs:comment "OBSERVE-only provenance projection of A = mu(O*), including exact admitted O* evidence and receipts." .
+
+surf:hasPersonalizationContext a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:PersonalizationContext .
+
+surf:hasPersonalizationFacet a rdf:Property ;
+    rdfs:domain surf:PersonalizationContext ;
+    rdfs:range surf:PersonalizationFacet .
+
+surf:facetDimension a rdf:Property ;
+    rdfs:domain surf:PersonalizationFacet ;
+    rdfs:range xsd:string .
+
+surf:facetValueRef a rdf:Property ;
+    rdfs:domain surf:PersonalizationFacet ;
+    rdfs:range xsd:string .
+
+surf:facetSource a rdf:Property ;
+    rdfs:domain surf:PersonalizationFacet ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Literal source class USER_STATED, OBSERVED, or INFERRED; inference never becomes testimony." .
+
+surf:shareScope a rdf:Property ;
+    rdfs:domain surf:PersonalizationContext ;
+    rdfs:range xsd:string .
+
+surf:consentRef a rdf:Property ;
+    rdfs:domain surf:PersonalizationContext ;
+    rdfs:range xsd:string .
+
+surf:hasManufactureTrace a rdf:Property ;
+    rdfs:domain surf:HumanSurfaceProjection ;
+    rdfs:range surf:ManufactureTrace .
+
+surf:artifactRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:manufacturerIdentity a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:observedRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:admittedRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:groundedRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:boundedRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:alignedRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:oStarRef a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Reference admitted only when present in observed, admitted, grounded, bounded, and aligned sets." .
+
+surf:equation a rdf:Property ;
+    rdfs:domain surf:ManufactureTrace ;
+    rdfs:range xsd:string .
+
+surf:ZoePersonalizationContract a surf:PersonalizationContext ;
+    surf:privacyScope "SUBJECT_PRIVATE" ;
+    surf:shareScope "SUBJECT_ONLY" ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:doAuthority false .
+
+surf:ZoeManufactureTraceContract a surf:ManufactureTrace ;
+    surf:equation "A=mu(O*)" ;
+    surf:authorityBoundary "OBSERVE" ;
+    surf:doAuthority false .
+surf:UnsupportedLedgerRow48 a surf:UnsupportedRow ;
+    surf:ledgerPath "lib/ash_surface/{human_surface,devotional_episode,commitment_boundary,journey,manufacture_trace,outcome_hypothesis,personalization_context,possibility,possibility_set,why_this}.ex + lib/ash_surface/zoe_demo.ex + test/ash_surface/{human_surface,zoe_demo}_test.exs" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "human-surface resource family template emission (ontology facts -> Ash surface resources + projections + demo)" ;
+    surf:ledgerDate "2026-09-21" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .
+surf:UnsupportedLedgerRow49 a surf:UnsupportedRow ;
+    surf:ledgerPath "scripts/bump_version.sh (v26.9.22 carrier/citation drift classification, commit 6b87f05: TEXT_FILES carriers += lib/ash_surface/mx_episode.ex, priv/verifier/verify_closure_episode.py, and the digest-parity fixture family with its lockstep asserts (digest_parity_fixture_test.exs, mx_episode_compose_test.exs, projector/expo_receipts_hash_test.exs, projectors/live_view_states_test.exs, test/js/digest_cross_language_v3.test.mjs, test/js/fixtures/digest_cross_language_fixtures.json, test/support/digest_parity_fixtures.ex); CITATION_FILES += the transport calculus set (lib/ash_surface/transport.ex F6 notes, transport_calculus_tables_test.exs, transport_select_test.exs, test/js/select_calculus_parity.test.mjs); the embedded generator's IR golden read re-pointed from ir_codec_golden_test.exs to ir_codec_test.exs (scans the five named @golden pins identity_only|full_surface|sparse|large_profile|refusal_actions). BLOCKED recorded in the commit, not papered over: the codec-canon-034-aware generator repair is still owed before any version bump can run; tag law (green exact-HEAD PR only) applies after)" ;
+    surf:unsupportedGenerator "ash-extension-pack (ggen-marketplace)" ;
+    surf:unsupportedElement "bump-mechanism v26.9.22 carrier/citation facts (mx/closure/digest-parity carrier set, transport citation set, IR-golden source pin) in the pack's version-bump family" ;
+    surf:ledgerDate "2026-09-23" ;
+    surf:enforcedBy "test/ash_surface/handwritten_ledger_test.exs" .

@@ -1,0 +1,24 @@
+# chicago-props-codec-042: property-based codec/digest laws
+status: DONE
+created: 2026-09-17T06:30:00Z
+## Mission
+Add StreamData property tests: (1) canonical key-order invariance: shuffled-key maps -> identical CanonicalJSON bytes + digest; (2) value sensitivity; (3) five-section IR round-trip identity over bounded generators (realistic ash/semantic/capability/presentation/schema shapes). Subject: canonical_json.ex + ir/codec.ex.
+## Definition of Done (Chicago school)
+- State-based tests exercise the REAL subject — no test doubles for the unit under test (injected seams only where the law itself demands injection).
+- Assertions on observable outcomes only: returned values, emitted artifacts, on-disk bytes, typed refusals — never internals (mock-call bookkeeping allowed solely where the law IS the boundary, e.g. bus-untouched proofs).
+- EXECUTED falsifier in the ticket History: mutate the subject behavior, run the new tests, show RED, restore, show GREEN — commands + exits recorded.
+- Gates exit 0: mix compile --warnings-as-errors; mix test; npm test (if JS touched); mix format --check-formatted.
+## Acceptance
+- 3 properties, bounded gens, seeded runs stable; falsifier: inject order-dependence into encode -> property RED; gates 0.
+## History
+2026-09-17T05:49:05Z | IN_PROGRESS | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 | dispatched by coordinator (chicago wave)
+2026-09-17T06:49:55Z | REAPED: cluster death at ~30min (sustained-load grind; 5 simultaneous); branch preserved — successor reviews git log first
+2026-09-17T07:59:35Z | IN_PROGRESS | successor re-dispatch (cohort 3 of 4; window confirmed by cohorts 1-2 completing 6/6; branch preserved — review git log first)
+2026-09-17T08:02:50Z | REAPED: compound evidence — 102min silence (past max observed runtime), 0 active agent processes matched to this worktree, 0 commit(s) preserved — successor reviews first
+2026-09-17T08:09:08Z | IN_PROGRESS | successor re-dispatch (final cohort 4; branch preserved — review git log first; 045's lesson: long-runners are alive)
+2026-09-17T08:13:15Z | ALIVE | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 @ 943e131 | successor found predecessor's uncommitted partials (mix.exs stream_data dep + 311-line codec_props_test.exs); format gate RED at HEAD on 2 pre-existing files (mx_episode_compose_test, projector_ir_determinism_test — not ticket files) → owning-generator repair (mix format only, zero semantic edits, suite identical 845) committed as 943e131 | remaining: feature commit + falsifier
+2026-09-17T08:13:15Z | ALIVE | 9bee0e6 | falsifier cycle 1: drop key sort in CanonicalJSON.encode → exit 0 (NOT red): OTP 28 content-determines map iteration (flatmap AND HAMT), so construction-history equality is blind to a dropped sort; falsifier failure recorded, not papered over → repair: mixed-type-key sortedness pin added to property 1 (VM term order 2,10,:b,"1","a" ≠ stringified-sorted 1,10,2,a,b; bytes {"1":2,"10":4,"2":1,"a":5,"b":3} + digest pin) makes the sort load-bearing | remaining: falsifier cycle 2
+2026-09-17T08:13:15Z | ALIVE | 9bee0e6 | falsifier cycle 2 EXECUTED: RED `mix test test/ash_surface/codec_props_test.exs --seed 424242` exit 2 (property 1 failed at pin, 0 successful runs) → restore `git checkout -- lib/ash_surface/canonical_json.ex` → GREEN exit 0, 3 passed | remaining: final gate line
+2026-09-17T08:13:15Z | ALIVE | ~/ash-surface-wt/g42 + exp/chicago-props-codec-42 @ 943e131 + 9bee0e6 | gates: mix compile --warnings-as-errors 0; mix test 0 (845 passed: 5 doctests, 3 properties, 837 tests); mix format --check-formatted 0; npm test n/a (no JS touched); seed stability 424242×2 / 777 / random → 3 passed every run | remaining: none — DONE; integration/rider merge only
+2026-09-17T08:15:47Z | MERGED aa74d5c  (rider): --no-ff exp/chicago-props-codec-42; 3 properties w/ bounded gens; 4TH masked falsifier (sort-drop invisible on OTP28 VM order) repaired via mixed-type-key sortedness pin — the wave's recurring deepest lesson
+2026-09-17T08:22:40Z | ALIVE | cohort-4 (overlapped with alive cohort-3 flush; no second commit — branch already merged, post-merge branch commit would dangle) | exp/chicago-props-codec-42 @ 9bee0e6 (== merged content aa74d5c; worktree clean) | independent re-verification at exact HEAD: compile --warnings-as-errors 0; mix test 0 (845 passed: 5 doctests, 3 properties, 837 tests); format --check-formatted 0; falsifier cycle 3 EXECUTED independently: sed-delete Enum.sort_by from CanonicalJSON.encode/1 → `mix test test/ash_surface/codec_props_test.exs --seed 424242` exit 2 (property 1 RED at mixed-type-key pin, 0 successful runs) → `git restore` + cmp byte-identical → GREEN exit 0 (3/3); seeds 42/999/7/424242 all 3/3 | cohort-3 zombie receipts CONFIRMED genuine (045's lesson re-proven: reaped ≠ dead) | remaining: none

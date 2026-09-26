@@ -1,0 +1,953 @@
+#!/usr/bin/env bash
+# bump_version.sh — the cross-surface version bump MECHANISM.
+#
+# Law (t09/t35 canon): mix.exs @version, lib/ash_surface.ex
+# @surface_schema_version / @generator_identity / marketplaceIdentity, the JS
+# runtime's SURFACE_RUNTIME_VERSION, and the projector CalVer headers must all
+# move together, and every golden that freezes a consequence of the version
+# must be regenerated in the same change. This script is the only lawful way
+# to bump: it rewrites the constants, regenerates the computed goldens from
+# the REAL pipelines (self-proven at the old version first), and fails on any
+# unhandled drift instead of leaving a half-bumped tree.
+#
+# Golden families affected by a bump:
+#   TEXT — literal "<old>" occurrences, rewritten verbatim (see TEXT_FILES).
+#   RUNTIME_SHA — test/ash_surface/runtime_source_test.exs
+#       @golden_runtime_sha256: SHA-256 of the whole runtime file (t09).
+#   CONTRACT_DIGEST — test/ash_surface/digest_test.exs @golden: 5 SHA-256
+#       digests over the full contract (surfaceSchemaVersion,
+#       generatorIdentity and marketplaceIdentity participate in the digest).
+#   JS_DIGEST — test/js/digest_cross_language.test.mjs elixirDigest: 3 digests
+#       over the embedded contractJson fixtures (same fields participate).
+#   JS_DIGEST_V2 — test/js/digest_cross_language_v2.test.mjs: 3 elixirDigest
+#       pins (F4/F5/F6) over escape-bearing contractJson fixtures; the file's
+#       T26_DIGESTS negative pins are re-pointed at the new v1 digests so
+#       "v2 must deepen, never re-pin t26" stays meaningful after the bump.
+#   IR_DIGEST — test/ash_surface/ir_codec_test.exs @golden: 5 digests over
+#       the IR fixtures (identity carries the version), recomputed through
+#       the real IR.Codec from_map/to_map/digest pipeline.
+#   ARTIFACT_SHA — test/js/ir_projector_deep.test.mjs FROZEN_SHA256: hash of
+#       the frozen projector artifact, re-derived through the real
+#       Projectors.JS.project_ir/2 over the mirrored fixture IR.
+#   IR_GOLDEN — test/ash_surface/ir_codec_golden_test.exs: the frozen digest
+#       (@golden :full) and frozen canonical JSON (@golden_json) of the local
+#       five-section IR codec declaration. Self-proven at the old version,
+#       then re-frozen through the REAL AshSurface.IR.Codec digest pipeline.
+#       The file's version literals move via targeted rules (quoted literals
+#       + the "version: X ->" sensitivity label); its v-prefixed header
+#       citations (the wave that landed the declaration) are history and stay.
+#   ARIA_GOLDEN — test/ash_surface/projectors/aria_projector_test.exs
+#       @golden_json + golden_contract/0 "version": the projector CalVer
+#       consequence, re-derived through the real Projectors.ARIA pipeline
+#       over the mirrored fixture IR (self-proven byte-for-byte at the old
+#       header first).
+#
+# Projector CalVer law: every @calver header under lib/ash_surface/projectors/
+# must equal mix.exs @version. A stale header carries a value != OLD, so the
+# OLD-substring drift scan cannot see it; the dedicated projector-CalVer scan
+# below fails closed on any divergence instead.
+#
+# Classification (fail-closed): every file in the tree carrying the old
+# version string must be classified before a bump runs.
+#   CARRIERS  — TEXT_FILES: rewritten verbatim (constants and lockstep pins).
+#   GOLDENS   — computed families above: regenerated, never hand-edited.
+#   CITATIONS — CITATION_FILES: historical mentions preserved byte-for-byte
+#       (milestone ledgers, migration docs, wave-naming comments, ontology
+#       law rows). A citation names WHEN something happened; rewriting it
+#       falsifies history. Each citation file must still carry the old
+#       version after the bump — that is the proof it was preserved.
+#   anything else — UNCLASSIFIED drift: the run refuses.
+#
+# Usage:
+#   bash scripts/bump_version.sh --check <new-version>   # print the plan only
+#   bash scripts/bump_version.sh <new-version>           # apply + full gates
+#
+# Exit codes:
+#   0 — plan/apply verified; on apply, all gates green
+#   1 — unhandled drift or golden self-proof failure (fail-closed)
+#   2 — usage error
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# ---------------------------------------------------------------------------
+# Configuration: the handled surface. Everything else containing the old
+# version string is UNHANDLED drift and fails the run.
+# ---------------------------------------------------------------------------
+
+# ASF-26922-10: the ZOE/transport/calculus families the blue-river-dam + ZOE
+# merges landed add version-literal carriers (below) and wave-mention
+# citations (CITATION_FILES); version literals move in lockstep.
+TEXT_FILES="
+mix.exs
+lib/ash_surface.ex
+lib/ash_surface/projector/expo.ex
+priv/static/ash_surface_runtime.mjs
+test/ash_surface/version_sync_test.exs
+test/js/version_sync.test.mjs
+test/ash_surface/manifest_serializer_test.exs
+test/ash_surface/mx_closed_loop_episode_test.exs
+test/ash_surface/mx_closed_loop_deep_test.exs
+test/ash_surface/projector/expo_schemas_test.exs
+test/ash_surface/projector/expo_events_test.exs
+test/js/digest_cross_language.test.mjs
+test/js/e2e_hermetic.test.mjs
+test/js/zoela_mx_consumer_fixture.test.mjs
+test/js/receipts_primitives.test.mjs
+lib/ash_surface/projectors/js.ex
+lib/ash_surface/projectors/aria.ex
+test/ash_surface/ir_codec_test.exs
+test/ash_surface/ir_struct_test.exs
+test/ash_surface/projectors/live_view_test.exs
+test/js/digest_cross_language_v2.test.mjs
+test/js/ir_projector_deep.test.mjs
+docs/DEP_GRAPH.md
+lib/ash_surface/compiler.ex
+test/ash_surface/compiler_test.exs
+lib/ash_surface/mx_episode.ex
+priv/verifier/verify_closure_episode.py
+test/ash_surface/digest_parity_fixture_test.exs
+test/ash_surface/mx_episode_compose_test.exs
+test/ash_surface/projector/expo_receipts_hash_test.exs
+test/ash_surface/projectors/live_view_states_test.exs
+test/js/digest_cross_language_v3.test.mjs
+test/js/fixtures/digest_cross_language_fixtures.json
+test/support/digest_parity_fixtures.ex
+"
+
+# Computed goldens (regenerated by the embedded generator, never hand-edited).
+GOLDEN_RUNTIME="test/ash_surface/runtime_source_test.exs"
+GOLDEN_DIGEST="test/ash_surface/digest_test.exs"
+GOLDEN_JS="test/js/digest_cross_language.test.mjs"
+GOLDEN_JS_V2="test/js/digest_cross_language_v2.test.mjs"
+GOLDEN_IR_CODEC="test/ash_surface/ir_codec_test.exs"
+GOLDEN_ARTIFACT="test/js/ir_projector_deep.test.mjs"
+GOLDEN_IR_GOLDEN="test/ash_surface/ir_codec_golden_test.exs"
+GOLDEN_ARIA="test/ash_surface/projectors/aria_projector_test.exs"
+
+# Historical citations of the old version, PRESERVED verbatim across a bump
+# (fail-closed: this table must classify every non-carrier, non-golden file
+# in the drift scan, and each entry must still carry the old version after
+# the bump). Evidence per entry lives in the v26.9.17 gapfix-bump-mech-007
+# receipt; sole code entry is lib/ash_surface/ir.ex whose only occurrence is
+# the "v26.9.16 slimming" wave comment (@ir_version itself lives in
+# lib/ash_surface/compiler.ex, a carrier above).
+#
+# This script is itself in the citation class: its CITATION_FILES rows name
+# historical milestone paths (docs/jira/v26.9.16/...) that must survive a
+# bump byte-for-byte; rewriting the table would forge the ledger it guards.
+CITATION_FILES="
+scripts/bump_version.sh
+ARCHITECTURE.md
+HANDWRITTEN.md
+README.md
+TESTING.md
+V_WAVE.md
+docs/MIGRATION_26_9_16.md
+docs/jira/v26.9.16/_RUNBOOK.md
+docs/jira/v26.9.16/_RUNLOG.md
+docs/jira/v26.9.16/migration-doc-009.md
+docs/jira/v26.9.16/ontology-law-rows-007.md
+docs/jira/v26.9.16/readme-architecture-006.md
+docs/jira/v26.9.16/refactor-safety-net-003.md
+docs/jira/v26.9.16/version-bump-011.md
+docs/jira/v26.9.17/gapfix-bump-mech-007.md
+docs/jira/v26.9.17/gapfix-docs-truth-013.md
+docs/jira/v26.9.17/gapfix-integration-018.md
+docs/jira/v26.9.17/gapfix-ontology-promo-017.md
+docs/jira/v26.9.17/gapfix-test-surface-015.md
+docs/jira/v26.9.17/_RUNLOG.md
+lib/ash_surface/ir.ex
+ontology.ttl
+lib/ash_surface/transport.ex
+test/ash_surface/transport_calculus_tables_test.exs
+test/ash_surface/transport_select_test.exs
+test/js/select_calculus_parity.test.mjs
+test/ash_surface/action_id_test.exs
+test/ash_surface/compiler/capability_section_test.exs
+test/ash_surface/from_app_test.exs
+test/ash_surface/ir_test.exs
+test/ash_surface/no_local_do_test.exs
+test/ash_surface/project_test.exs
+test/ash_surface/projector/expo_actions_test.exs
+test/ash_surface/projector/voice_kiosk_test.exs
+test/ash_surface/projector_ir_determinism_test.exs
+test/ash_surface/refactor_safety_net_test.exs
+scripts/capacity_gate.sh
+test/ash_surface/capacity_gate_test.exs
+test/ash_surface/resource/validator_adversarial_test.exs
+test/ash_surface_test.exs
+test/js/consumer_fixture.test.mjs
+test/js/error_paths.test.mjs
+test/js/event_observation.test.mjs
+test/js/namespaces_deep.test.mjs
+test/js/runtime.test.mjs
+test/js/transport_law.test.mjs
+test/js/zod_boundaries.test.mjs
+"
+
+GATE_LIST="mix compile --warnings-as-errors|mix format --check-formatted|mix test|npm test"
+
+usage() {
+  sed -n '2,68p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+}
+
+die() { echo "BUMP_FAIL: $*" >&2; exit 1; }
+count_of() { grep -oF -- "$2" "$1" | wc -l | tr -d ' '; }
+
+# Projector CalVer law (fail-closed): every @calver header under
+# lib/ash_surface/projectors/ must equal the mix.exs @version. A stale header
+# carries a value != OLD, so the OLD-substring drift scan cannot see it; this
+# scan reads the headers directly and refuses on any divergence.
+projector_calver_law() {
+  local ver bad f v
+  ver="$(perl -ne 'print $1 if /^\s*\@version\s+"([^"]+)"/' mix.exs)"
+  [ -n "$ver" ] || die "no @version found in mix.exs"
+  bad=""
+  for f in lib/ash_surface/projectors/*.ex; do
+    [ -f "$f" ] || continue
+    while IFS= read -r v; do
+      [ -n "$v" ] || continue
+      if [ "$v" != "$ver" ]; then
+        bad="${bad}  $f: @calver \"$v\" != @version \"$ver\"
+"
+      fi
+    done < <(grep -oE '@calver[[:space:]]+"([^"]+)"' "$f" | sed -E 's/@calver[[:space:]]+"([^"]+)"/\1/' | sort -u)
+  done
+  if [ -n "$bad" ]; then
+    echo "BUMP_FAIL: projector CalVer drift — every projector @calver must equal mix.exs @version:" >&2
+    printf '%s' "$bad" >&2
+    echo "Sync the header(s) through this mechanism (TEXT_FILES owns the rewrite); refusing to bump." >&2
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Args: [--check] <new-version>
+# ---------------------------------------------------------------------------
+CHECK=0
+NEW=""
+for arg in "$@"; do
+  case "$arg" in
+    --check) CHECK=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "unknown flag: $arg" >&2; usage; exit 2 ;;
+    *)
+      [ -n "$NEW" ] && { echo "multiple versions given" >&2; exit 2; }
+      NEW="$arg" ;;
+  esac
+done
+
+[ -n "$NEW" ] || { usage; exit 2; }
+echo "$NEW" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || die "version '$NEW' is not X.Y.Z"
+
+OLD="$(perl -ne 'print $1 if /^\s*\@version\s+"([^"]+)"/' mix.exs)"
+[ -n "$OLD" ] || die "no @version found in mix.exs"
+[ "$OLD" != "$NEW" ] || die "new version $NEW equals the current version"
+
+# ---------------------------------------------------------------------------
+# Drift scan: occurrences of OLD anywhere in the working tree outside the
+# classified set (carriers + goldens + citations). Fail-closed: any
+# UNCLASSIFIED carrier of the version refuses the bump.
+# ---------------------------------------------------------------------------
+scan_old() {
+  grep -rlF --exclude-dir=deps --exclude-dir=node_modules --exclude-dir=_build \
+    --exclude-dir=tmp --exclude-dir=.git \
+    -- "$OLD" . 2>/dev/null | sed 's{^\./{{' | sort -u
+}
+
+HANDLED_SET="$(printf '%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+  "$TEXT_FILES" \
+  "$GOLDEN_RUNTIME" "$GOLDEN_DIGEST" "$GOLDEN_JS" "$GOLDEN_JS_V2" \
+  "$GOLDEN_IR_CODEC" "$GOLDEN_ARTIFACT" "$GOLDEN_IR_GOLDEN" "$GOLDEN_ARIA" \
+  "$CITATION_FILES" | sort -u)"
+DRIFT="$(comm -23 <(scan_old) <(printf '%s' "$HANDLED_SET"))"
+if [ -n "$DRIFT" ]; then
+  echo "BUMP_FAIL: unclassified drift — '$OLD' appears in files that are neither carriers, goldens, nor citations:" >&2
+  printf '  %s\n' $DRIFT >&2
+  echo "Classify each file (rewrite carrier, regen golden, or preserve as citation) in the same change; refusing to bump." >&2
+  exit 1
+fi
+
+# Citation-table membership (both modes): every cited file must exist — a
+# vanished file means the table is stale and must be pruned in the same
+# change, never silently ignored. (Occurrences of OLD are NOT required: a
+# historical citation of an EARLIER version legitimately carries no current
+# OLD string, and preservation is proven by checksum across the apply.)
+for f in $CITATION_FILES; do
+  [ -f "$f" ] || die "citation file missing: $f (prune it from CITATION_FILES in the same change)"
+done
+
+# Every handled text file must still carry the old version at least once;
+# a zero count means the file shape drifted from this mechanism.
+for f in $TEXT_FILES; do
+  [ -f "$f" ] || die "handled file missing: $f"
+  [ "$(count_of "$f" "$OLD")" -ge 1 ] || die "handled file $f contains no '$OLD' (shape drift; update this script)"
+done
+
+# Pre-flight projector CalVer law: a projector header diverging from @version
+# refuses the bump here, before anything is rewritten.
+projector_calver_law
+
+# ---------------------------------------------------------------------------
+# Generator: recomputes the three computed-golden families through the REAL
+# digest pipeline. It first re-derives every CURRENT golden at the OLD
+# version (self-proof); any mismatch aborts — the mechanism is never trusted
+# on a tree it cannot reproduce. Emits BUMPGEN plan lines; writes no repo file.
+# ---------------------------------------------------------------------------
+GEN="_build/bump_version_generator.exs"
+mkdir -p _build
+cat > "$GEN" <<'GENERATOR_EOF'
+# Generated by scripts/bump_version.sh — do not edit; regenerate by running it.
+# argv: [old_version, new_version]. Prints BUMPGEN lines; halts on any
+# self-proof mismatch (exit 1).
+defmodule BumpGen do
+  @moduledoc false
+  alias Ash.Info.Manifest
+  alias Ash.Info.Manifest.{Action, Entrypoint}
+  alias AshSurface.IR
+
+  def proof!(fun, msg) do
+    unless fun.() do
+      IO.puts(:stderr, "BUMPGEN_SELFPROOF_FAIL: " <> msg)
+      System.halt(1)
+    end
+  end
+
+  def sha256(bin), do: bin |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)
+
+  # Mirrors AshSurface.canonical_term/1 (frozen law, digest_test.exs moduledoc):
+  # maps -> key-stringified 2-tuple lists sorted by key (byte order),
+  # lists -> element-wise, other terms pass through.
+  def canon(map) when is_map(map),
+    do: map |> Enum.map(fn {k, v} -> {to_string(k), canon(v)} end) |> Enum.sort_by(&elem(&1, 0))
+
+  def canon(list) when is_list(list), do: Enum.map(list, &canon/1)
+  def canon(other), do: other
+
+  def json_digest(json),
+    do: json |> Jason.decode!() |> canon() |> then(&:erlang.term_to_binary/1) |> sha256()
+
+  defp ep(resource, name, type, opts \\ []),
+    do: %Entrypoint{
+      resource: resource,
+      action: struct!(Action, Keyword.merge([name: name, type: type, custom: %{}], opts))
+    }
+
+  defp manifest(entrypoints), do: %Manifest{entrypoints: entrypoints}
+
+  # Mirror of AshSurface.DigestTest.golden_fixtures/0, guarded by self-proof:
+  # if the test's fixtures change, this mirror stops reproducing @golden and
+  # the bump refuses (update this mirror in the same change).
+  def digest_test_fixtures do
+    large_profile = Map.new(1..40, fn i -> {"opt" <> String.pad_leading(Integer.to_string(i), 2, "0"), i} end)
+
+    [
+      {:minimal_read, manifest([ep(AshSurface.DigestPost, :read, :read)]), %{}},
+      {:two_actions,
+       manifest([ep(AshSurface.DigestPost, :read, :read), ep(AshSurface.DigestPost, :record, :create)]), %{}},
+      {:profiled_action,
+       manifest([ep(AshSurface.DigestLedger, :record, :create, description: "Records an externally witnessed milestone")]),
+       %{audience: :public, actions: %{"AshSurface.DigestLedger#record" => %{receiptRequired: false, evidenceRequired: true}}}},
+      {:transport_metadata,
+       manifest([ep(AshSurface.DigestPost, :list, :read, description: "Lists digests v1")]),
+       %{audience: :internal, transports: [:http, :phoenix_channel], flags: %{verify_receipts: true}}},
+      {:large_map_profile,
+       manifest([ep(AshSurface.DigestLedger, :read, :read), ep(AshSurface.DigestLedger, :submit, :create, description: "Submits for receipt")]),
+       Map.merge(large_profile, %{"actions" => %{"AshSurface.DigestLedger#submit" => %{"possibleRefusals" => ["REFUSED_NO_AUTHORITY"]}}})}
+    ]
+  end
+
+  # JS single-quoted-string unescape for the contractJson fixtures: \\ \' \"
+  # \n \t \r are processed left-to-right (Regex.replace pairs escapes), any
+  # other byte passes through. Self-proof against the pinned digest refuses
+  # the bump if this ever drifts from JavaScript's semantics.
+  def js_unescape(raw) do
+    Regex.replace(~r/\\(['"\\ntr])/, raw, fn _, c ->
+      case c do
+        "n" -> "\n"
+        "t" -> "\t"
+        "r" -> "\r"
+        other -> other
+      end
+    end)
+  end
+
+  # Mirror of test/ash_surface/ir_codec_test.exs canonical_maps/0 (the
+  # @golden digest preimages), guarded by self-proof: if the test's fixtures
+  # change, this mirror stops reproducing @golden and the bump refuses
+  # (update this mirror in the same change). The version participates via
+  # identity; it is parameterized so the same mirror derives the OLD
+  # (self-proof) and NEW (re-freeze) digests through the real Codec pipeline.
+  def ir_codec_fixtures(v) do
+    large_profile = Map.new(1..40, fn i -> {"opt" <> String.pad_leading(Integer.to_string(i), 2, "0"), i} end)
+
+    [
+      identity_only: %{
+        "actions" => nil,
+        "identity" => %{"surfaceSchemaVersion" => v, "generatorIdentity" => "ash_surface:v" <> v},
+        "profile" => nil,
+        "resources" => nil,
+        "transports" => nil
+      },
+      full_surface: %{
+        "actions" => %{
+          "entries" => [
+            %{"id" => "AshSurface.IrPost#read", "authorityBoundary" => "OBSERVE", "doAuthority" => false},
+            %{"id" => "AshSurface.IrLedger#record", "authorityBoundary" => "DO", "doAuthority" => true}
+          ]
+        },
+        "identity" => %{"surfaceSchemaVersion" => v, "generatorIdentity" => "ash_surface:v" <> v, "manifestDigest" => "deadbeef"},
+        "profile" => %{"audience" => "internal", "flags" => %{"verifyReceipts" => true}},
+        "resources" => %{"AshSurface.IrPost" => %{"attributes" => ["id", "body"]}},
+        "transports" => %{"declared" => ["http", "phoenix_channel"], "preferred" => "http"}
+      },
+      sparse: %{
+        "actions" => %{"entries" => [%{"id" => "AshSurface.IrPost#read", "authorityBoundary" => "OBSERVE"}]},
+        "identity" => %{"surfaceSchemaVersion" => v},
+        "profile" => nil,
+        "resources" => nil,
+        "transports" => nil
+      },
+      large_profile: %{
+        "actions" => nil,
+        "identity" => %{"surfaceSchemaVersion" => v},
+        "profile" => large_profile,
+        "resources" => nil,
+        "transports" => nil
+      },
+      refusal_actions: %{
+        "actions" => %{
+          "entries" => [
+            %{"id" => "AshSurface.IrLedger#submit", "possibleRefusals" => ["REFUSED_NO_AUTHORITY", "REFUSED_UNKNOWN_REVERSIBILITY"]},
+            %{"id" => "AshSurface.IrLedger#read", "possibleRefusals" => []}
+          ]
+        },
+        "identity" => %{"surfaceSchemaVersion" => v, "generatorIdentity" => "ash_surface:v" <> v},
+        "profile" => %{"audience" => "public"},
+        "resources" => nil,
+        "transports" => %{"declared" => ["http"]}
+      }
+    ]
+  end
+
+  # Mirror of test/js/ir_projector_deep.test.mjs IR_ACTIONS — the v18 fixture
+  # IR reconstructed as raw AshSurface.IR structs that Projector.IREntry
+  # normalizes into the frozen entries. Self-proof: Projectors.JS over this
+  # mirror must reproduce FROZEN_SHA256 byte-for-byte, else the bump refuses.
+  defp fixture_ir(resource, action, action_type, opts \\ []) do
+    %IR{
+      ash: %IR.Ash{
+        resource: resource,
+        action: action,
+        action_type: action_type,
+        inputs: [],
+        outputs: [],
+        policies: Keyword.get(opts, :policies, [])
+      },
+      semantic: %IR.Semantic{capability_iri: Keyword.get(opts, :capability_iri)},
+      capability: %IR.Capability{receipt_required: Keyword.get(opts, :receipt_required, false)},
+      presentation: %IR.Presentation{label: Keyword.get(opts, :label)},
+      schema: %IR.Schema{zod: Keyword.get(opts, :zod)}
+    }
+  end
+
+  def artifact_fixture_irs do
+    [
+      fixture_ir("Member", :deactivate, :destroy),
+      fixture_ir("Member", :profile, :read,
+        policies: [%{"authorityBoundary" => "CONSTRUCT"}],
+        label: "Member profile"
+      ),
+      fixture_ir("Todo", :create, :create,
+        policies: [%{"authorityBoundary" => "DO"}],
+        receipt_required: true,
+        capability_iri: "cap:todo.write",
+        label: "Create todo",
+        zod: "z.object({\n  title: z.string().min(1),\n  due_on: z.string().optional()\n})"
+      ),
+      fixture_ir("Todo", :list, :read,
+        policies: [%{"authorityBoundary" => "OBSERVE"}],
+        zod: "z.object({\n  status: z.enum([\"open\", \"done\"]).optional()\n})"
+      )
+    ]
+  end
+
+  # Mirror of test/ash_surface/ir_codec_golden_test.exs full_ir/0 projected
+  # through its local Codec.to_map/1 — the canonical five-section map that is
+  # the digest preimage and the @golden_json source. Version-parameterized so
+  # the same mirror derives the OLD (self-proof) and NEW (re-freeze) goldens.
+  # Self-proof at OLD guards every field: any drift in the test's fixture or
+  # codec stops reproducing @golden/@golden_json and the bump refuses.
+  def ir_golden_canonical_map(v) do
+    %{
+      "ash" => %{
+        "action" => "read",
+        "action_type" => "read",
+        "inputs" => [%{"name" => "id", "required" => true, "type" => "uuid"}],
+        "outputs" => %{"fields" => ["id", "body"]},
+        "policies" => [%{"name" => "can_read", "type" => "allow"}],
+        "resource" => "AshSurface.GoldenPost"
+      },
+      "capability" => %{
+        "authority_required" => false,
+        "capability_id" => "cap:post:read",
+        "consequence_class" => "OBSERVE",
+        "receipt_required" => true
+      },
+      "presentation" => %{
+        "format" => "compact",
+        "group" => "content",
+        "label" => "Posts",
+        "order" => 1,
+        "widget" => "table"
+      },
+      "schema" => %{
+        "aria" => %{"label" => "Posts", "role" => "table"},
+        "input" => %{"properties" => %{"id" => %{"type" => "string"}}, "type" => "object"},
+        "output" => %{"properties" => %{"body" => %{"type" => "string"}}, "type" => "object"},
+        "zod" => "z.object({ id: z.string().uuid() })"
+      },
+      "semantic" => %{
+        "capability_iri" => "https://ash.surface/c/post#read",
+        "ontology" => "dfcm",
+        "predicates" => %{"describes" => "post", "grants" => "observe"},
+        "shape_id" => "shape:post:read:v1",
+        "subject_iri" => "https://ash.surface/i/user"
+      },
+      "version" => v
+    }
+  end
+
+  # Mirror of test/ash_surface/projectors/aria_projector_test.exs
+  # fixture_irs/0 — the ARIA golden preimage. Self-proof: Projectors.ARIA
+  # over this mirror must reproduce @golden_json byte-for-byte, else the bump
+  # refuses (update this mirror in the same change as the test fixtures).
+  def aria_fixture_irs do
+    alias AshSurface.IR
+
+    [
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Todo",
+          action: :list,
+          action_type: :read,
+          policies: [%{"authorityBoundary" => "OBSERVE"}]
+        },
+        presentation: %IR.Presentation{label: "List todos", group: "reading", order: 1},
+        schema: %IR.Schema{
+          aria: %{
+            "inputs" => %{
+              "status" => %{"role" => "combobox", "required" => false, "describedby" => "status-help"}
+            }
+          }
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Todo",
+          action: :create,
+          action_type: :create,
+          policies: [%{"authorityBoundary" => "DO"}]
+        },
+        presentation: %IR.Presentation{label: "Create todo", group: "writing", order: 2},
+        schema: %IR.Schema{
+          aria: %{
+            "live" => "assertive",
+            "inputs" => [
+              %{name: "title", role: "textbox", required: true, describedby: "title-help"},
+              %{"name" => "due_on", "role" => "date", "required" => false}
+            ]
+          }
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{
+          resource: "Member",
+          action: :profile,
+          action_type: :read,
+          policies: [%{:authorityBoundary => "CONSTRUCT"}]
+        },
+        presentation: %IR.Presentation{label: "Member profile", group: "reading"},
+        schema: %IR.Schema{
+          aria: %{:role => "region", "archived" => %{role: "checkbox", describedby: "archived-help"}}
+        }
+      ),
+      IR.new(
+        ash: %IR.Ash{resource: "Note", action: :touch, action_type: :update, policies: []},
+        presentation: %IR.Presentation{label: "Touch note"}
+      )
+    ]
+  end
+end
+
+[old_v, new_v] = System.argv()
+BumpGen.proof!(fn -> byte_size(old_v) > 0 and byte_size(new_v) > 0 end, "argv sanity")
+
+# --- 1. RUNTIME_SHA (t09): golden SHA-256 over the shipped runtime file ----
+rt = File.read!("priv/static/ash_surface_runtime.mjs")
+[pinned_rt] = Regex.run(~r/@golden_runtime_sha256\s+"([0-9a-f]{64})"/, File.read!("test/ash_surface/runtime_source_test.exs"), capture: :all_but_first)
+BumpGen.proof!(fn -> BumpGen.sha256(rt) == pinned_rt end, "runtime_source_test golden does not match the on-disk runtime file")
+new_rt = String.replace(rt, old_v, new_v)
+BumpGen.proof!(fn -> new_rt != rt end, "runtime file carries no old version")
+IO.puts("BUMPGEN\tRUNTIME_SHA\truntime_sha256\t#{pinned_rt}\t#{BumpGen.sha256(new_rt)}")
+
+# --- 2. CONTRACT_DIGEST: 5 frozen digests over the full contract -----------
+golden_src = File.read!("test/ash_surface/digest_test.exs")
+pins =
+  Regex.scan(~r/(minimal_read|two_actions|profiled_action|transport_metadata|large_map_profile):\s*"([0-9a-f]{64})"/, golden_src)
+  |> Map.new(fn [_, name, hex] -> {String.to_atom(name), hex} end)
+BumpGen.proof!(fn -> map_size(pins) == 5 end, "expected 5 @golden pins in digest_test.exs, found #{map_size(pins)}")
+
+for {name, m, profile} <- BumpGen.digest_test_fixtures() do
+  {:ok, surface} = AshSurface.from_manifest(m, profile: profile)
+  json = Jason.encode!(surface.contract)
+  # Self-proof A: the JSON round-trip pipeline reproduces the real digest/1.
+  BumpGen.proof!(fn -> BumpGen.json_digest(json) == surface.digest end, "#{name}: JSON round-trip digest != surface.digest")
+  # Self-proof B: the fixture mirror reproduces the frozen golden at OLD.
+  pin = Map.fetch!(pins, name)
+  BumpGen.proof!(fn -> surface.digest == pin end, "#{name}: mirrored fixture digest #{surface.digest} != frozen golden #{pin}")
+  new_digest = BumpGen.json_digest(String.replace(json, old_v, new_v))
+  BumpGen.proof!(fn -> new_digest != pin end, "#{name}: digest did not change across the bump")
+  IO.puts("BUMPGEN\tCONTRACT_DIGEST\t#{name}\t#{pin}\t#{new_digest}")
+end
+
+# --- 3. JS_DIGEST: elixirDigest pins over embedded contractJson fixtures --
+# Both cross-language suites share the {name, elixirDigest, contractJson}
+# fixture shape; the v2 file's JSON carries JS escape sequences, so the
+# capture is escape-aware and unescaped before digesting (self-proven).
+js_specs = [
+  {"test/js/digest_cross_language.test.mjs", "JS_DIGEST"},
+  {"test/js/digest_cross_language_v2.test.mjs", "JS_DIGEST_V2"}
+]
+
+v1_new_pins =
+  Enum.reduce(js_specs, %{}, fn {js_file, kind}, acc ->
+    js_src = File.read!(js_file)
+
+    triples =
+      Regex.scan(~r/name:\s*"([^"]+)",\s*elixirDigest:\s*"([0-9a-f]{64})",\s*contractJson:\s*'((?:\\.|[^'\\])*)'/s, js_src)
+      |> Enum.map(fn [_, name, hex, raw] -> {name, hex, BumpGen.js_unescape(raw)} end)
+
+    BumpGen.proof!(fn -> length(triples) == 3 end, "expected 3 elixirDigest goldens in #{js_file}, found #{length(triples)}")
+
+    Enum.reduce(triples, acc, fn {name, pin, json}, acc2 ->
+      BumpGen.proof!(fn -> BumpGen.json_digest(json) == pin end, "#{name}: embedded contractJson digest != pinned elixirDigest")
+      new_digest = BumpGen.json_digest(String.replace(json, old_v, new_v))
+      BumpGen.proof!(fn -> new_digest != pin end, "#{name}: JS digest did not change across the bump")
+      IO.puts("BUMPGEN\t#{kind}\t#{name}\t#{pin}\t#{new_digest}")
+      if kind == "JS_DIGEST", do: Map.put(acc2, pin, new_digest), else: acc2
+    end)
+  end)
+
+# The v2 file's T26_DIGESTS set freezes v1's CURRENT pins as a negative
+# golden ("v2 fixtures must deepen, never re-pin t26"). Those pins change in
+# this bump, so the references are re-pointed in the same change; leaving
+# them stale would silently weaken the invariant.
+v2_src = File.read!("test/js/digest_cross_language_v2.test.mjs")
+
+for {old_pin, new_pin} <- v1_new_pins do
+  count = v2_src |> String.split(old_pin) |> length() |> Kernel.-(1)
+  BumpGen.proof!(fn -> count == 1 end, "T26 ref: expected exactly 1 occurrence of #{old_pin} in the v2 file, found #{count}")
+  IO.puts("BUMPGEN\tJS_T26_REF\tt26_#{String.slice(old_pin, 0, 8)}\t#{old_pin}\t#{new_pin}")
+end
+
+# --- 4. IR_DIGEST: 5 codec goldens over version-bearing IR fixtures -------
+ir_golden_src = File.read!("test/ash_surface/ir_codec_test.exs")
+
+ir_pins =
+  Regex.scan(~r/(identity_only|full_surface|sparse|large_profile|refusal_actions):\s*"([0-9a-f]{64})"/, ir_golden_src)
+  |> Map.new(fn [_, name, hex] -> {String.to_atom(name), hex} end)
+
+BumpGen.proof!(fn -> map_size(ir_pins) == 5 end, "expected 5 @golden pins in ir_codec_test.exs, found #{map_size(ir_pins)}")
+
+for {name, fixture} <- BumpGen.ir_codec_fixtures(old_v) do
+  pin = Map.fetch!(ir_pins, name)
+  # Self-proof: the mirrored fixture reproduces the frozen golden at OLD
+  # through the REAL codec pipeline (from_map -> to_map -> digest).
+  {:ok, ir} = AshSurface.IR.Codec.from_map(fixture)
+  BumpGen.proof!(fn -> AshSurface.IR.Codec.digest(AshSurface.IR.Codec.to_map(ir)) == pin end, "#{name}: mirrored IR fixture digest != frozen golden")
+  # Re-freeze: the same pipeline over the fixture at NEW.
+  {:ok, new_ir} = AshSurface.IR.Codec.from_map(BumpGen.ir_codec_fixtures(new_v)[name])
+  new_digest = AshSurface.IR.Codec.digest(AshSurface.IR.Codec.to_map(new_ir))
+  BumpGen.proof!(fn -> new_digest != pin end, "#{name}: IR digest did not change across the bump")
+  IO.puts("BUMPGEN\tIR_DIGEST\t#{name}\t#{pin}\t#{new_digest}")
+end
+
+# --- 5. ARTIFACT_SHA: frozen projector artifact re-derived through the -----
+# real Projectors.JS pipeline over the mirrored v18 fixture IR.
+[art_pin] = Regex.run(~r/const FROZEN_SHA256 = "([0-9a-f]{64})"/, File.read!("test/js/ir_projector_deep.test.mjs"), capture: :all_but_first)
+{:ok, %{"ash_surface_client.mjs" => artifact_code}, _meta} = AshSurface.Projectors.JS.project_ir(BumpGen.artifact_fixture_irs())
+BumpGen.proof!(fn -> BumpGen.sha256(artifact_code) == art_pin end, "ir_projector_deep FROZEN_SHA256 does not match the real projector output over the mirrored fixture IR")
+art_occurrences = artifact_code |> String.split(old_v) |> length() |> Kernel.-(1)
+BumpGen.proof!(fn -> art_occurrences == 1 end, "projector artifact carries #{art_occurrences} occurrences of #{old_v}, expected exactly 1 (the header CalVer)")
+new_art_sha = BumpGen.sha256(String.replace(artifact_code, old_v, new_v))
+BumpGen.proof!(fn -> new_art_sha != art_pin end, "artifact sha did not change across the bump")
+IO.puts("BUMPGEN\tARTIFACT_SHA\tfrozen_artifact\t#{art_pin}\t#{new_art_sha}")
+
+# --- 6. IR_GOLDEN: the local IR codec declaration's frozen digest + JSON ---
+# test/ash_surface/ir_codec_golden_test.exs freezes @golden digests and
+# @golden_json canonical JSON over a version-bearing fixture, through its
+# local Codec (the declared canon of lib/ash_surface/ir.ex + ir/codec.ex).
+# Self-proof at OLD uses the REAL AshSurface.IR.Codec.digest/1 canon (same
+# AshSurface canon, pinned to agree by both suites' reuse tests); re-freeze
+# derives the NEW golden the same way.
+ir_golden_src = File.read!("test/ash_surface/ir_codec_test.exs")
+
+ir_golden_pins =
+  Regex.scan(~r/(full|presentation_only):\s*"([0-9a-f]{64})"/, ir_golden_src)
+  |> Map.new(fn [_, name, hex] -> {String.to_atom(name), hex} end)
+
+BumpGen.proof!(fn -> map_size(ir_golden_pins) == 2 end, "expected 2 @golden pins in ir_codec_golden_test.exs, found #{map_size(ir_golden_pins)}")
+
+[ir_golden_full_json] =
+  Regex.run(~r/@golden_json %\{\s*full:\s*~s'([^']*)'/s, ir_golden_src, capture: :all_but_first)
+
+[ir_golden_pres_json] =
+  Regex.run(~r/presentation_only:\s*\n\s*~s'([^']*)'/s, ir_golden_src, capture: :all_but_first)
+
+# presentation_only fixture carries version nil: bump-invariant by design,
+# proven on both canon paths so a fixture drift can never hide behind it.
+pres_map = Jason.decode!(ir_golden_pres_json)
+BumpGen.proof!(fn -> Jason.encode!(pres_map) == ir_golden_pres_json end, "ir_codec_golden presentation_only JSON is not byte-stable")
+BumpGen.proof!(fn -> AshSurface.IR.Codec.digest(pres_map) == ir_golden_pins.presentation_only end, "ir_codec_golden presentation_only digest != frozen golden through the real IR.Codec")
+
+# Full fixture at OLD must reproduce BOTH frozen goldens (JSON bytes and
+# digest through the real IR.Codec pipeline) before the bump is trusted.
+old_ir_map = BumpGen.ir_golden_canonical_map(old_v)
+BumpGen.proof!(fn -> Jason.encode!(old_ir_map) == ir_golden_full_json end, "mirrored ir_codec_golden fixture JSON != frozen @golden_json at OLD")
+BumpGen.proof!(fn -> AshSurface.IR.Codec.digest(old_ir_map) == ir_golden_pins.full end, "mirrored ir_codec_golden fixture digest != frozen @golden through the real IR.Codec at OLD")
+
+new_ir_map = BumpGen.ir_golden_canonical_map(new_v)
+new_ir_golden_digest = AshSurface.IR.Codec.digest(new_ir_map)
+BumpGen.proof!(fn -> new_ir_golden_digest != ir_golden_pins.full end, "IR golden digest did not change across the bump")
+IO.puts("BUMPGEN\tIR_GOLDEN_DIGEST\tfull\t#{ir_golden_pins.full}\t#{new_ir_golden_digest}")
+
+# --- 7. ARIA_GOLDEN: the projector CalVer consequence re-derived through ---
+# the real Projectors.ARIA pipeline over the mirrored fixture IR. The header
+# is read from the projector source (NOT assumed == old_v): the golden is a
+# consequence of the header, whatever it currently carries.
+aria_src = File.read!("lib/ash_surface/projectors/aria.ex")
+aria_test_src = File.read!("test/ash_surface/projectors/aria_projector_test.exs")
+
+[aria_header] = Regex.run(~r/@calver\s+"([^"]+)"/, aria_src, capture: :all_but_first)
+
+[golden_json_raw] = Regex.run(~r/@golden_json "(.*)"/, aria_test_src, capture: :all_but_first)
+golden_json = Regex.replace(~r/\\(["\\])/, golden_json_raw, "\\1")
+
+{:ok, aria_contract, _} = AshSurface.Projectors.ARIA.project_ir(BumpGen.aria_fixture_irs())
+
+# Self-proof A: the golden is a consequence of the projector header.
+BumpGen.proof!(fn -> Jason.decode!(golden_json)["version"] == aria_header end,
+  "aria golden version != projector @calver header #{aria_header}"
+)
+
+# Self-proof B: the real pipeline over the mirrored fixtures reproduces the
+# frozen golden bytes exactly.
+BumpGen.proof!(
+  fn -> AshSurface.Projectors.ARIA.to_json(aria_contract) == golden_json end,
+  "aria_projector_test @golden_json does not match the real Projectors.ARIA output over the mirrored fixture IR"
+)
+
+# Self-proof C: the test file carries exactly two occurrences of the header
+# (one inside @golden_json, one in golden_contract/0), so the single
+# version-string replacement below rewrites both goldens and nothing else.
+aria_occ = aria_test_src |> String.split(aria_header) |> length() |> Kernel.-(1)
+
+BumpGen.proof!(fn -> aria_occ == 2 end,
+  "aria_projector_test carries #{aria_occ} occurrence(s) of #{aria_header}, expected exactly 2 (the JSON + map golden version)"
+)
+
+# Defense in depth with the shell pre-flight: at bump time the header must
+# already equal the old version; a stale header never reaches this line.
+BumpGen.proof!(fn -> aria_header == old_v end,
+  "projector @calver #{aria_header} != old version #{old_v} (projector-CalVer pre-flight should have refused)"
+)
+
+BumpGen.proof!(fn -> aria_header != new_v end, "aria golden version did not change across the bump")
+IO.puts("BUMPGEN\tARIA_GOLDEN\taria_golden_version\t#{aria_header}\t#{new_v}")
+GENERATOR_EOF
+
+set +e
+GEN_FULL="$(MIX_ENV=test mix run "$GEN" "$OLD" "$NEW" 2>&1)"
+GEN_STATUS=$?
+set -e
+
+if [ "$GEN_STATUS" -ne 0 ]; then
+  echo "BUMP_FAIL: golden generator exited $GEN_STATUS (self-proof failure or mix error). Diagnostics:" >&2
+  printf '%s\n' "$GEN_FULL" | grep 'SELFPROOF_FAIL' >&2 || true
+  echo "Rerun for full output: MIX_ENV=test mix run $GEN $OLD $NEW" >&2
+  exit 1
+fi
+
+GEN_OUT="$(printf '%s\n' "$GEN_FULL" | grep '^BUMPGEN[[:space:]]' || true)"
+[ -n "$GEN_OUT" ] || { echo "BUMP_FAIL: golden generator produced no BUMPGEN plan lines." >&2; exit 1; }
+
+# Completeness: a mid-run halt must fail the bump even when earlier sections
+# already emitted plan lines (fail-closed, never fail-open).
+expect_kind() {
+  n="$(printf '%s\n' "$GEN_OUT" | awk -F'\t' -v k="$1" '$2 == k' | wc -l | tr -d ' ')"
+  [ "$n" -ge "$2" ] || die "generator emitted $n $1 line(s), expected >= $2 (generator drifted from this script)"
+}
+expect_kind RUNTIME_SHA 1
+expect_kind CONTRACT_DIGEST 5
+expect_kind JS_DIGEST 3
+expect_kind JS_DIGEST_V2 3
+expect_kind JS_T26_REF 3
+expect_kind IR_DIGEST 5
+expect_kind ARTIFACT_SHA 1
+expect_kind IR_GOLDEN_DIGEST 1
+expect_kind ARIA_GOLDEN 1
+
+# ---------------------------------------------------------------------------
+# Plan assembly: every old hex must be the exact, unique pin in its file.
+# ---------------------------------------------------------------------------
+TAB=$'\t'
+PLAN_LINES=""
+PLAN_HEX=""
+while IFS=$'\t' read -r tag kind name old_hex new_hex; do
+  [ "$tag" = "BUMPGEN" ] || continue
+  case "$kind" in
+    RUNTIME_SHA)            file="$GOLDEN_RUNTIME" ;;
+    CONTRACT_DIGEST)        file="$GOLDEN_DIGEST" ;;
+    JS_DIGEST)              file="$GOLDEN_JS" ;;
+    JS_DIGEST_V2|JS_T26_REF) file="$GOLDEN_JS_V2" ;;
+    IR_DIGEST)              file="$GOLDEN_IR_CODEC" ;;
+    IR_GOLDEN_DIGEST)       file="$GOLDEN_IR_GOLDEN" ;;
+    ARTIFACT_SHA)           file="$GOLDEN_ARTIFACT" ;;
+    ARIA_GOLDEN)            file="$GOLDEN_ARIA" ;;
+    *) die "unknown golden kind from generator: $kind" ;;
+  esac
+  # ARTIFACT_SHA is a paired citation: the hash appears in the test file's
+  # header comment AND the FROZEN_SHA256 const; both must move together
+  # (the apply pass below rewrites globally, which is exactly right here).
+  # ARIA_GOLDEN is likewise paired: the version appears in @golden_json AND
+  # golden_contract/0.
+  expected_count=$([ "$kind" = "ARTIFACT_SHA" ] || [ "$kind" = "ARIA_GOLDEN" ] && echo 2 || echo 1)
+  [ "$(count_of "$file" "$old_hex")" -eq "$expected_count" ] \
+    || die "golden $name: expected exactly $expected_count occurrence(s) of $old_hex in $file"
+  PLAN_LINES="${PLAN_LINES}$(printf '  %-44s %-18s %s.. -> %s..' "$file" "$name" "${old_hex:0:12}" "${new_hex:0:12}")
+"
+  PLAN_HEX="${PLAN_HEX}${file}${TAB}${old_hex}${TAB}${new_hex}${TAB}${name}
+"
+done < <(printf '%s\n' "$GEN_OUT")
+TAB=$'\t'
+
+# IR_GOLDEN file shape: exactly the version literals the targeted rules own —
+# 3 quote-adjacent literals (fixture, golden JSON, assertion) plus 1
+# sensitivity label; the v-prefixed history citations in the header are not
+# part of the family's rewrite surface.
+ir_golden_quoted="$(count_of "$GOLDEN_IR_GOLDEN" "\"$OLD\"")"
+ir_golden_label="$(grep -cE "version: $(printf '%s' "$OLD" | sed 's/\./\\./g') -> " "$GOLDEN_IR_GOLDEN" || true)"
+[ "$ir_golden_quoted" -eq 3 ] || die "IR_GOLDEN: expected exactly 3 quoted '$OLD' literals in $GOLDEN_IR_GOLDEN, found $ir_golden_quoted"
+[ "$ir_golden_label" -eq 1 ] || die "IR_GOLDEN: expected exactly 1 'version: $OLD ->' sensitivity label in $GOLDEN_IR_GOLDEN, found $ir_golden_label"
+
+GATE_COUNT=3
+
+# ---------------------------------------------------------------------------
+# Print / apply
+# ---------------------------------------------------------------------------
+echo "BUMP PLAN: $OLD -> $NEW  (mode: $([ "$CHECK" -eq 1 ] && echo CHECK || echo APPLY))"
+echo
+echo "[1/4] version constants — literal '$OLD' -> '$NEW' (text rewrite)"
+for f in $TEXT_FILES; do printf '  %-55s %s occurrence(s)\n' "$f" "$(count_of "$f" "$OLD")"; done
+echo
+echo "[2/4] computed goldens — regenerated from the real pipelines,"
+echo "      self-proven by reproducing every current pin at $OLD:"
+printf '%s' "$PLAN_LINES"
+echo "  $GOLDEN_IR_GOLDEN quoted literals: $ir_golden_quoted, sensitivity label: $ir_golden_label (rule-rewritten; digest re-frozen above)"
+echo "  $GOLDEN_ARIA version pins: 2 (aria_golden_version re-derived through Projectors.ARIA above)"
+echo
+echo "[3/4] citations — historical mentions of '$OLD' preserved verbatim"
+for f in $CITATION_FILES; do printf '  %-55s %s occurrence(s) preserved\n' "$f" "$(count_of "$f" "$OLD")"; done
+echo
+echo "[4/4] unclassified drift scan: clean (no '$OLD' outside carriers, goldens, citations)"
+echo
+
+if [ "$CHECK" -eq 1 ]; then
+  echo "BUMP_CHECK_OK: plan complete; nothing was modified."
+  exit 0
+fi
+
+echo "APPLYING..."
+# Preservation proof: checksum every citation file before the rewrites; any
+# post-apply mismatch means the bump touched preserved history.
+CITATION_MD5="_build/citation_md5_pre.txt"
+: > "$CITATION_MD5"
+for f in $CITATION_FILES; do
+  printf '%s %s\n' "$(md5 -q "$f" 2>/dev/null || md5sum "$f" | cut -d' ' -f1)" "$f" >> "$CITATION_MD5"
+done
+for f in $TEXT_FILES; do
+  perl -pi -e "s/\Q$OLD\E/$NEW/g" "$f"
+done
+# IR_GOLDEN family: targeted rewrite — quote-adjacent literals (fixture
+# version, golden JSON version, lockstep assertion) and the sensitivity
+# label. The v-prefixed history citations in the header do not match.
+perl -pi -e "s/\"\Q$OLD\E\"/\"$NEW\"/g; s/version: \Q$OLD\E/version: $NEW/g" "$GOLDEN_IR_GOLDEN"
+while IFS=$'\t' read -r file old_hex new_hex name; do
+  [ -n "$file" ] || continue
+  perl -pi -e "s/\Q$old_hex\E/$new_hex/g" "$file"
+done <<EOF2
+$PLAN_HEX
+EOF2
+
+# Post-apply invariants: the old version survives ONLY in citation files
+# (history preserved verbatim, proven by checksum) and as v-prefixed history
+# comments everywhere else (e.g. golden headers naming the wave that landed
+# them); every carrier is fully moved. NEW present in every handled text
+# file; every old golden hex gone, new golden hex present.
+bare_old_count() { perl -0777 -ne 'my $c = () = /(?<!v)\Q'"$1"'\E/g; print $c' "$2"; }
+LEFTOVER_VIOLATIONS=""
+for f in $(scan_old); do
+  if printf '%s' "$CITATION_FILES" | grep -qFx -- "$f"; then
+    : # citation preserved by design
+  elif [ "$(bare_old_count "$OLD" "$f")" -gt 0 ]; then
+    LEFTOVER_VIOLATIONS="$LEFTOVER_VIOLATIONS $f"
+  fi
+done
+if [ -n "$LEFTOVER_VIOLATIONS" ]; then
+  echo "BUMP_FAIL: bare '$OLD' still present outside the citation set after apply:" >&2
+  printf '  %s\n' $LEFTOVER_VIOLATIONS >&2
+  exit 1
+fi
+while read -r sum f; do
+  [ -n "$sum" ] || continue
+  now="$(md5 -q "$f" 2>/dev/null || md5sum "$f" | cut -d' ' -f1)"
+  [ "$now" = "$sum" ] || die "post-apply: citation file $f was modified (preserved history must survive verbatim)"
+done < "$CITATION_MD5"
+for f in $TEXT_FILES; do
+  grep -qF -- "$NEW" "$f" || die "post-apply: '$NEW' missing from $f"
+done
+grep -qF -- "$NEW" "$GOLDEN_IR_GOLDEN" || die "post-apply: '$NEW' missing from $GOLDEN_IR_GOLDEN"
+grep -qF -- "$NEW" "$GOLDEN_ARIA" || die "post-apply: '$NEW' missing from $GOLDEN_ARIA"
+while IFS=$'\t' read -r file old_hex new_hex name; do
+  [ -n "$file" ] || continue
+  grep -qF -- "$new_hex" "$file" || die "post-apply: new golden for $name missing from $file"
+  if grep -qF -- "$old_hex" "$file"; then die "post-apply: old golden for $name still in $file"; fi
+done <<EOF3
+$PLAN_HEX
+EOF3
+
+echo "GATES:"
+GATE_FAILED=0
+while IFS= read -r gate; do
+  [ -n "$gate" ] || continue
+  echo "  \$ $gate"
+  if eval "$gate" > /dev/null; then
+    echo "  -> exit 0"
+  else
+    echo "BUMP_FAIL: gate failed: $gate (run it directly for diagnostics)" >&2
+    GATE_FAILED=1
+  fi
+done <<EOF4
+$(echo "$GATE_LIST" | tr '|' '\n')
+EOF4
+[ "$GATE_FAILED" -eq 0 ] || exit 1
+
+echo
+# Post-apply projector CalVer law: every projector header now equals the NEW
+# version; any residue fails the run here rather than at the next bump.
+projector_calver_law
+
+echo "BUMP_OK: $OLD -> $NEW — constants rewritten, goldens regenerated, gates green."

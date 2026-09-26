@@ -9,31 +9,58 @@ jobs:
   elixir:
     runs-on: ubuntu-latest
     steps:
+      # Full history (fetch-depth: 0): the LIVE lineage court tests
+      # (test/ash_surface/lineage_court_test.exs) re-judge the real PR #7
+      # ancestry claim and the checked-out head; a shallow clone makes them a
+      # named skip, so CI would never judge the claim.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28);
+      # drift here is a receipted defect class (ticket gapfix-ci-009).
+      - name: Assert exact subject
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3"
-          elixir-version: "1.18.4"
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      # Key hashes mix.lock too: lockfile-only changes must bust the cache.
       - uses: actions/cache@v4
         with:
           path: deps
-          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: mix deps.get
-      - run: mix hex.audit
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - run: npm install
       - run: mix format --check-formatted
       - run: mix compile --warnings-as-errors
-      - run: mix test
+      # Zero-config gate battery (TESTING.md §1): test.all = test + test.js,
+      # test.zero re-runs test.all under literal `env -i` (HOME/PATH only).
+      - run: mix test.all
+      - run: mix test.zero
+      - run: mix hex.audit
 
   javascript:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact subject
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -45,3 +72,87 @@ jobs:
       - run: node --check priv/static/ash_surface_runtime.mjs
       - run: node --check priv/static/ash_surface_playwright.mjs
       - run: npm test
+
+  # Bounded falsifier (ticket chicago-ci-falsifier-049): a guard that cannot
+  # fail guards nothing. scripts/ci_falsifier.sh runs the tripwire canaries on
+  # pristine HEAD, then for each recipe in scripts/mutation_recipes.md mutates
+  # the REAL subject (runtime artifact, digest producer, IR codec golden),
+  # demands the guarding tests turn RED, restores, and demands GREEN. Any
+  # mutation a guard survives = dead guard = this job RED (proven with a
+  # mis-wired-recipe variant: guard survives -> FALSIFIER_FAIL, exit 1).
+  # Bounded by design: one compile + seven narrow `mix test` invocations
+  # (~10s of test work warm); timeout-minutes: 5 encodes the <5min law.
+  # The subset deliberately avoids the two zod-importing e2e tests, so this
+  # job needs no npm bootstrap (see zero-config bootstrap-order discovery).
+  # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28).
+  falsifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      - run: bash scripts/ci_falsifier.sh
+
+  # Fresh-clone proof (zero-config gate law, v1): a pristine local clone of
+  # HEAD must build and pass the full battery with zero configuration.
+  zero-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: bash scripts/zero_config_check.sh
+
+  # Fresh-clone proof (zero-config gate law, v2, ticket gapfix-v2-ci-019):
+  # zero_config_v2.sh re-execs itself under env -i (PATH+HOME only), local
+  # clones HEAD (git never touches the network), and runs the FULL battery:
+  # env-read guard, mix deps.get, npm install, mix test, npm test, and
+  # mix test.zero — every step printing EXIT[label]=code before ZERO_CONFIG_OK.
+  # Same pins as .tool-versions (28.3 / 1.20.3); sibling job so v1 and v2
+  # fail independently. timeout-minutes covers two from-scratch compiles
+  # (test.zero re-runs test.all). Cache: hex archives/packages and the npm
+  # cache live under HOME, survive the hermetic re-exec, and are keyed on
+  # both lockfiles — cache-friendly without weakening the zero-config proof.
+  # Wired after gapfix-v2-receipt-008 landed DONE green (six EXITs 0 +
+  # ZERO_CONFIG_OK @a7a6b40).
+  zero-config-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.mix
+            ~/.hex
+            ~/.npm
+          key: >-
+            zero-config-v2-${{ runner.os }}-${{
+            hashFiles('mix.lock', 'package-lock.json') }}
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: bash scripts/zero_config_v2.sh

@@ -8,23 +8,66 @@ import { z } from "zod";
  * emitted, or consumed.
  */
 
-export const SURFACE_RUNTIME_VERSION = "26.9.13";
+export const SURFACE_RUNTIME_VERSION = "26.9.17";
 const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
+// v26.9.17 F6 selection-frontier vocabulary: delegated per-transport dimension
+// facts (cost/latency lower is better; privacy higher is better). Twin of
+// lib/ash_surface/transport.ex (@dimensions / @dimension_classes).
+const KNOWN_DIMENSIONS = Object.freeze(["cost", "latency", "privacy"]);
+const KNOWN_DIMENSION_CLASSES = Object.freeze(["low", "medium", "high"]);
+const DIMENSION_PRIORITY = Object.freeze(["cost", "latency", "privacy"]);
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
+
+// F3 (tightened by chicago-standing-table-029): one canonical standing
+// vocabulary, owned lib-side by AshSurface.Standing
+// (lib/ash_surface/standing.ex). The five base standings are the closed
+// z.enum() core; the open REFUSED class ("REFUSED_"-prefixed refusal
+// standings, e.g. "REFUSED_NO_AUTHORITY") is the regex branch. Bare "REFUSED"
+// is NOT a standing — a refusal must name its reason — and "UNKNOWN" is
+// deliberately not a standing: it is a post-dispatch outcome.
+export const STANDING_VALUES = Object.freeze([
+  "ALIVE",
+  "PARTIAL_ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED",
+]);
+
+const standingSchema = z.union([
+  z.enum(STANDING_VALUES),
+  // The open REFUSED class: at least one reason char beyond the prefix —
+  // bare "REFUSED" and the empty reason "REFUSED_" are not refusals (mirrors
+  // lib/ash_surface/standing.ex "REFUSED_" <> _ rest law).
+  z.string().regex(/^REFUSED_.+/),
+]);
+
+// F3 refusal guard: every declared possible refusal is a "REFUSED_"-prefixed
+// code with a named reason (mirrors the Elixir REFUSED_* refusal vocabulary,
+// e.g. "REFUSED_UNKNOWN_ACTION"). Off-vocabulary names and the unnamed
+// "REFUSED"/"REFUSED_" are refused at the boundary.
+const refusalCodeSchema = z.string().regex(/^REFUSED_.+/);
 
 export const surfaceActionSchema = z
   .object({
     id: z.string().min(1),
-    semanticId: z.string().min(1).default("ash:Action"),
+    // v26.9.17 delegation: semanticId, authorityBoundary, doAuthority, and
+    // receiptRequired are delegated facts. They arrive from the manifest's
+    // custom.ash_surface metadata or are null — an absent key means "not
+    // delegated" and surfaces as null; values are never defaulted or
+    // re-derived client-side.
+    semanticId: z.string().min(1).nullable().default(null),
     resource: z.string().min(1),
     action: z.string().min(1),
-    authorityBoundary: z.enum(["OBSERVE", "SELECT", "CONSTRUCT", "DO"]).default("DO"),
-    doAuthority: z.boolean().default(true),
-    receiptRequired: z.boolean().default(true),
+    authorityBoundary: z
+      .enum(["OBSERVE", "SELECT", "CONSTRUCT", "DO"])
+      .nullable()
+      .default(null),
+    doAuthority: z.boolean().nullable().default(null),
+    receiptRequired: z.boolean().nullable().default(null),
     evidenceRequired: z.boolean().default(false),
-    possibleRefusals: z.array(z.string()).default([]),
+    possibleRefusals: z.array(refusalCodeSchema).default([]),
     profile: jsonRecordSchema.default({}),
   })
   .passthrough();
@@ -37,7 +80,7 @@ export const observationProjectionSchema = z
     stateDigest: z.string().min(1),
     facts: jsonRecordSchema,
     evidenceRefs: z.array(z.string()).default([]),
-    standing: z.string().default("ALIVE"),
+    standing: standingSchema.default("ALIVE"),
     projectionPurpose: z.string().default("consumer_state_observation"),
     authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
   })
@@ -71,12 +114,335 @@ export const eventProjectionSchema = z
   })
   .passthrough();
 
+const evidenceStandingSchema = z.enum(["UNKNOWN", "PARTIAL_ALIVE", "ALIVE", "BLOCKED", "REFUSED"]);
+
+export const possibilitySchema = z
+  .object({
+    possibilityId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    capabilityId: z.string().min(1),
+    label: z.string().min(1),
+    summary: z.string().nullable().optional(),
+    actionRef: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    status: z.enum(["CANDIDATE", "PRESERVED", "BLOCKED", "REFUSED"]),
+    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
+    stateDigest: z.string().min(1),
+    costSummary: z.string().nullable().optional(),
+    consequenceSummary: z.string().nullable().optional(),
+    requirements: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    expiresAt: z.string().nullable().optional(),
+    authorityCeiling: z.enum(["OBSERVE", "SELECT", "CONSTRUCT"]).default("SELECT"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const possibilitySetSchema = z
+  .object({
+    setId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    objective: z.string().min(1),
+    horizon: z.string().nullable().optional(),
+    selectionRef: z.string().nullable().optional(),
+    closureReason: z.string().nullable().optional(),
+    possibilities: z.array(possibilitySchema),
+    constraints: z.array(z.string()).default([]),
+    sourceEpisodeRefs: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema.default("PARTIAL_ALIVE"),
+    mode: z.literal("MAXIMAL_REVERSIBLE_FRONTIER"),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.standing === "ALIVE" && value.possibilities.length === 0) {
+      ctx.addIssue({ code: "custom", message: "ALIVE possibility set requires at least one option" });
+    }
+    if (new Set(value.possibilities.map((item) => item.possibilityId)).size !== value.possibilities.length) {
+      ctx.addIssue({ code: "custom", message: "possibility ids must be unique" });
+    }
+  });
+
+export const whyThisSchema = z
+  .object({
+    explanationId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    title: z.string().min(1),
+    summary: z.string().min(1),
+    claimKind: z.enum(["HYPOTHESIS", "OBSERVATION", "USER_STATED", "DOCTRINAL"]),
+    evidenceState: evidenceStandingSchema,
+    falsifier: z.string().nullable().optional(),
+    basis: z.array(z.string()).default([]),
+    caveats: z.array(z.string()).default([]),
+    profileRefs: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    hypothesisRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.claimKind === "HYPOTHESIS" && !value.falsifier) {
+      ctx.addIssue({ code: "custom", message: "HYPOTHESIS explanation requires falsifier" });
+    }
+  });
+
+export const outcomeHypothesisSchema = z
+  .object({
+    hypothesisId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    practiceRef: z.string().min(1),
+    outcomeRef: z.string().min(1),
+    relationship: z.enum(["MAY_SUPPORT", "MAY_HINDER", "ASSOCIATED", "UNKNOWN"]),
+    evidenceState: evidenceStandingSchema,
+    falsifier: z.string().min(1),
+    horizon: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    observationRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    causalClaim: z.literal(false),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const devotionalSegmentSchema = z
+  .object({
+    position: z.number().int().nonnegative(),
+    kind: z.enum(["SCRIPTURE", "COMMENTARY", "PRAYER", "REFLECTION", "MUSIC", "TRANSITION"]),
+    ref: z.string().min(1),
+    label: z.string().min(1),
+    durationSeconds: z.number().int().nonnegative(),
+    audioRef: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const devotionalEpisodeSchema = z
+  .object({
+    episodeId: z.string().min(1),
+    title: z.string().min(1),
+    subtitle: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    status: z.enum(["READY", "IN_PROGRESS", "COMPLETED", "BLOCKED"]),
+    durationSeconds: z.number().int().nonnegative(),
+    completionReceiptRef: z.string().nullable().optional(),
+    stateDigest: z.string().min(1),
+    segments: z.array(devotionalSegmentSchema),
+    hypothesisRefs: z.array(z.string()).default([]),
+    sourceRefs: z.array(z.string()).default([]),
+    playbackPolicy: z.literal("STRAIGHT_THROUGH"),
+    continuousPlay: z.literal(true),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "COMPLETED" && !value.completionReceiptRef) {
+      ctx.addIssue({ code: "custom", message: "COMPLETED devotional requires completion receipt" });
+    }
+  });
+
+export const commitmentBoundarySchema = z
+  .object({
+    boundaryId: z.string().min(1),
+    subjectRef: z.string().min(1),
+    actionRef: z.string().min(1),
+    consequenceSummary: z.string().min(1),
+    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
+    confirmationState: z.enum(["UNCONFIRMED", "CONFIRMED", "DECLINED", "EXPIRED"]),
+    constructRef: z.string().nullable().optional(),
+    whyThisRef: z.string().nullable().optional(),
+    expiresAt: z.string().nullable().optional(),
+    externalEffects: z.array(z.string()).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    stateDigest: z.string().min(1),
+    confirmationRequired: z.literal(true),
+    nextHandoff: z.literal("BRCE"),
+    authorityCeiling: z.literal("CONSTRUCT"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export const journeyEntrySchema = z
+  .object({
+    entryId: z.string().min(1),
+    kind: z.enum(["PRACTICE", "SERVICE", "ATTENDANCE", "COMMITMENT", "REFLECTION", "OUTCOME", "RECEIPT"]),
+    subjectRef: z.string().min(1),
+    label: z.string().min(1),
+    occurredAt: z.string().min(1),
+    receiptRef: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+  })
+  .passthrough();
+
+export const journeySchema = z
+  .object({
+    journeyId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    entries: z.array(journeyEntrySchema),
+    evidenceRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    privacyScope: z.literal("SUBJECT_PRIVATE"),
+    standing: evidenceStandingSchema,
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
+    doAuthority: z.literal(false).default(false),
+  })
+  .passthrough();
+
+export const personalizationFacetSchema = z
+  .object({
+    facetId: z.string().min(1),
+    dimension: z.string().min(1),
+    valueRef: z.string().min(1),
+    source: z.enum(["USER_STATED", "OBSERVED", "INFERRED"]),
+    standing: evidenceStandingSchema,
+    falsifier: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.source === "INFERRED" && !value.falsifier) {
+      ctx.addIssue({ code: "custom", message: "INFERRED personalization facet requires falsifier" });
+    }
+  });
+
+export const personalizationContextSchema = z
+  .object({
+    contextId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    facets: z.array(personalizationFacetSchema),
+    consentRef: z.string().nullable().optional(),
+    evidenceRefs: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+    privacyScope: z.literal("SUBJECT_PRIVATE"),
+    shareScope: z.literal("SUBJECT_ONLY"),
+    stateDigest: z.string().min(1),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export const manufactureTraceSchema = z
+  .object({
+    traceId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    artifactRef: z.string().min(1),
+    manufacturerIdentity: z.string().min(1),
+    humanSummary: z.string().nullable().optional(),
+    observedRefs: z.array(z.string()).default([]),
+    admittedRefs: z.array(z.string()).default([]),
+    groundedRefs: z.array(z.string()).default([]),
+    boundedRefs: z.array(z.string()).default([]),
+    alignedRefs: z.array(z.string()).default([]),
+    oStarRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    falsifiers: z.array(z.string()).default([]),
+    standing: evidenceStandingSchema,
+    stateDigest: z.string().min(1),
+    equation: z.literal("A=mu(O*)"),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .superRefine((value, ctx) => {
+    const sources = [
+      new Set(value.observedRefs),
+      new Set(value.admittedRefs),
+      new Set(value.groundedRefs),
+      new Set(value.boundedRefs),
+      new Set(value.alignedRefs),
+    ];
+
+    for (const ref of value.oStarRefs) {
+      if (!sources.every((set) => set.has(ref))) {
+        ctx.addIssue({
+          code: "custom",
+          message: "every O* reference must be observed, admitted, grounded, bounded, and aligned",
+        });
+      }
+    }
+
+    if (value.standing === "ALIVE" && value.receiptRefs.length === 0) {
+      ctx.addIssue({ code: "custom", message: "ALIVE manufacture trace requires receipt" });
+    }
+  });
+
+export const humanSurfaceSchema = z
+  .object({
+    surfaceId: z.string().min(1),
+    exactSubject: z.string().min(1),
+    stateDigest: z.string().min(1),
+    standing: evidenceStandingSchema,
+    grammar: z.tuple([
+      z.literal("SEE"),
+      z.literal("UNDERSTAND"),
+      z.literal("EXPLORE"),
+      z.literal("CHOOSE"),
+      z.literal("ACT"),
+      z.literal("LEARN"),
+    ]),
+    areas: z.tuple([
+      z.literal("TODAY"),
+      z.literal("BIBLE"),
+      z.literal("LIFE"),
+      z.literal("ZOE"),
+      z.literal("YOU"),
+    ]),
+    today: jsonRecordSchema,
+    bible: jsonRecordSchema,
+    life: jsonRecordSchema,
+    zoe: jsonRecordSchema,
+    you: jsonRecordSchema,
+    possibilitySets: z.array(possibilitySetSchema).default([]),
+    explanations: z.array(whyThisSchema).default([]),
+    devotionalEpisodes: z.array(devotionalEpisodeSchema).default([]),
+    outcomeHypotheses: z.array(outcomeHypothesisSchema).default([]),
+    commitmentBoundaries: z.array(commitmentBoundarySchema).default([]),
+    journeys: z.array(journeySchema).default([]),
+    personalizationContexts: z.array(personalizationContextSchema).default([]),
+    manufactureTraces: z.array(manufactureTraceSchema).default([]),
+    evidenceRefs: z.array(z.string()).default([]),
+    receiptRefs: z.array(z.string()).default([]),
+    authorityBoundary: z.literal("OBSERVE"),
+    doAuthority: z.literal(false),
+  })
+  .passthrough();
+
+export function parseHumanSurfaceProjection(value) {
+  const parsed = humanSurfaceSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new SurfaceRuntimeError(
+      "INVALID_HUMAN_SURFACE",
+      "AshSurface human projection failed Zod validation",
+      { issues: parsed.error.issues },
+    );
+  }
+  return parsed.data;
+}
+
 export const ashSurfaceContractSchema = z
   .object({
     surfaceSchemaVersion: z.string().min(1),
     ashManifestSchemaVersion: z.string().min(1),
     generatorIdentity: z.string().optional(),
     manifestDigest: z.string().optional(),
+    // Delegated IR-era envelope extensions (gapfix-test-surface-015 ledger;
+    // re-adjudicated by chicago-ontology-producer-039 on the post-F4 tree):
+    // ontologyDigest / applicationReleaseIdentity have NO live producer in
+    // the Elixir surface pipeline (AshSurface.contract/2 never emits them);
+    // their witnessed producer is upstream generation (the frozen F5 fixture
+    // in digest_cross_language_v2.test.mjs). 039 verdict: the honest-producer
+    // side is refused BY LAW — F4's MXEpisode binds surface.digest and the
+    // subject repo/head at the episode layer from operator-supplied inputs
+    // (no surface input); surface.digest would be circular (it digests the
+    // contract that would carry the field); generator identity already has
+    // its own field, and environment reads would break the frozen digest
+    // goldens. The absence is now ENFORCED: presence of either field in
+    // contract/2 output is RED at the tripwire
+    // test/ash_surface/from_manifest_test.exs. Kept as typed optional rows —
+    // present (upstream-witnessed) values are validated, absent values stay
+    // absent (never defaulted).
     ontologyDigest: z.string().optional(),
     marketplaceIdentity: z.string().optional(),
     applicationReleaseIdentity: z.string().optional(),
@@ -93,15 +459,22 @@ export const ashSurfaceContractSchema = z
 /**
  * @typedef {Object} SurfaceAction
  * @property {string} id Stable Ash action identity.
- * @property {string} semanticId Formal semantic URI.
+ * @property {string|null} semanticId Delegated semantic URI; null when not delegated (v26.9.17 delegation).
  * @property {string} resource Fully-qualified Ash resource module name.
  * @property {string} action Ash action name.
- * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"} authorityBoundary
- * @property {boolean} doAuthority
- * @property {boolean} receiptRequired
+ * @property {"OBSERVE"|"SELECT"|"CONSTRUCT"|"DO"|null} authorityBoundary Delegated; null when not delegated.
+ * @property {boolean|null} doAuthority Delegated; null when not delegated.
+ * @property {boolean|null} receiptRequired Delegated; null when not delegated.
  * @property {boolean} evidenceRequired
- * @property {string[]} possibleRefusals
+ * @property {string[]} possibleRefusals "REFUSED_"-prefixed refusal codes (F3 guard).
  * @property {Record<string, unknown>} profile Projection-only metadata.
+ */
+
+/**
+ * @typedef {("ALIVE"|"PARTIAL_ALIVE"|"BLOCKED"|"BUILD_BROKEN"|"UNSUPPORTED"|string)} Standing
+ * A canonical standing: one of `STANDING_VALUES` or a "REFUSED_"-prefixed
+ * refusal standing (bare "REFUSED" is not a standing — a refusal must name
+ * its reason). Mirrors `AshSurface.Standing` (lib/ash_surface/standing.ex).
  */
 
 /**
@@ -133,9 +506,11 @@ export const ashSurfaceContractSchema = z
  * @property {string[]} available
  * @property {"http"|"phoenix_channel"} selected
  * @property {"http"|"phoenix_channel"} preferred
- * @property {"preferred_available"|"preferred_unavailable"} reason
+ * @property {"preferred_available"|"preferred_unavailable"|"dimension_weighed"} reason
  * @property {"pre_dispatch_only"} fallback
  * @property {"not_dispatched"|"completed"|"unknown_after_dispatch"} dispatchState
+ * @property {"undelegated"|"declared"} dimensions Typed presence of delegated dimension facts.
+ * @property {Array<"http"|"phoenix_channel">} frontier Non-dominated available transports, declared order.
  */
 
 export class SurfaceRuntimeError extends Error {
@@ -298,7 +673,13 @@ function parseContract(contract) {
 function inspectAction(action, contract, transports, prefer) {
   const declared = declaredTransports(action);
   const available = availableTransports(action, contract, transports, declared);
-  const decision = selectTransport(action.id, declared, available, prefer);
+  const decision = selectTransport(
+    action.id,
+    declared,
+    available,
+    prefer,
+    factsFromProfile(action),
+  );
 
   return Object.freeze({
     id: action.id,
@@ -336,7 +717,13 @@ async function invokeWithReceipt(
 
   const declared = declaredTransports(action);
   const available = availableTransports(action, contract, transports, declared);
-  const decision = selectTransport(action.id, declared, available, prefer);
+  const decision = selectTransport(
+    action.id,
+    declared,
+    available,
+    prefer,
+    factsFromProfile(action),
+  );
   const adapter = transports[decision.selected];
 
   const commandId = options.commandId || `cmd_${Math.random().toString(36).substring(2, 11)}`;
@@ -391,6 +778,8 @@ function buildMXReceipt(decision, action, commandId, dispatchState, result) {
     dispatchState,
     declared: [...decision.declared],
     available: [...decision.available],
+    dimensions: decision.dimensions,
+    frontier: [...(decision.frontier || [])],
   });
 
   return Object.freeze({
@@ -433,12 +822,136 @@ function availableTransports(action, contract, transports, declared) {
   });
 }
 
-function selectTransport(actionId, declared, available, preferred) {
-  const selected = available.includes(preferred)
-    ? preferred
-    : declared.find((candidate) => available.includes(candidate));
+/**
+ * Reads the delegated transport dimension facts out of an action's profile
+ * (the contract's `surface.actions[].profile` shape). An absent or null
+ * "transportFacts" key normalizes to an empty facts map — not delegated,
+ * never defaulted. Unknown transports, dimensions, or classes are typed
+ * pre-dispatch refusals, never silent drops.
+ */
+function factsFromProfile(action) {
+  const raw = action.profile?.transportFacts;
 
-  if (!selected) {
+  if (raw === undefined || raw === null) return {};
+  assertPlainObject(raw, "transportFacts");
+
+  const facts = {};
+
+  for (const [transport, dimensions] of Object.entries(raw)) {
+    if (!KNOWN_TRANSPORTS.includes(transport)) {
+      throw new SurfaceRuntimeError(
+        "UNKNOWN_TRANSPORT",
+        `unknown transport fact key: ${transport}`,
+      );
+    }
+
+    assertPlainObject(dimensions, `transportFacts.${transport}`);
+
+    const admitted = {};
+
+    for (const [dimension, value] of Object.entries(dimensions)) {
+      if (value === undefined || value === null) continue; // nil = not delegated
+      if (!KNOWN_DIMENSIONS.includes(dimension)) {
+        throw new SurfaceRuntimeError(
+          "UNKNOWN_DIMENSION",
+          `unknown dimension fact ${dimension} for ${transport}`,
+        );
+      }
+      if (!KNOWN_DIMENSION_CLASSES.includes(value)) {
+        throw new SurfaceRuntimeError(
+          "UNKNOWN_DIMENSION_CLASS",
+          `unknown ${dimension} class ${String(value)} for ${transport}`,
+        );
+      }
+      admitted[dimension] = value;
+    }
+
+    facts[transport] = admitted;
+  }
+
+  return facts;
+}
+
+function assertPlainObject(value, label) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new SurfaceRuntimeError(
+      "TRANSPORT_FACTS_MUST_BE_A_MAP",
+      `${label} must be a plain object`,
+    );
+  }
+}
+
+function dimensionFact(facts, transport, dimension) {
+  return facts[transport]?.[dimension] ?? null;
+}
+
+// Lower is better for cost and latency; higher is better for privacy.
+const DIMENSION_RANK = Object.freeze({ low: 0, medium: 1, high: 2 });
+
+function dimensionBetter(dimension, a, b) {
+  return dimension === "privacy"
+    ? DIMENSION_RANK[a] > DIMENSION_RANK[b]
+    : DIMENSION_RANK[a] < DIMENSION_RANK[b];
+}
+
+// :better | :worse | :equal | :incomparable — an axis is comparable only
+// where both transports declare a class.
+function compareDimension(dimension, a, b, facts) {
+  const classA = dimensionFact(facts, a, dimension);
+  const classB = dimensionFact(facts, b, dimension);
+
+  if (classA === null || classB === null) return "incomparable";
+  if (classA === classB) return "equal";
+  return dimensionBetter(dimension, classA, classB) ? "better" : "worse";
+}
+
+// a dominates b iff a is at least as good on every comparable axis and
+// strictly better on at least one.
+function dominates(a, b, facts) {
+  let better = false;
+
+  for (const dimension of DIMENSION_PRIORITY) {
+    const verdict = compareDimension(dimension, a, b, facts);
+    if (verdict === "worse") return false;
+    if (verdict === "better") better = true;
+  }
+
+  return better;
+}
+
+// The admitted-alternatives frontier: every available transport (in declared
+// order) that no other available transport dominates.
+function transportFrontier(declared, available, facts) {
+  const ordered = declared.filter((transport) => available.includes(transport));
+
+  return ordered.filter(
+    (transport) =>
+      !ordered.some((other) => other !== transport && dominates(other, transport, facts)),
+  );
+}
+
+// Deterministic frontier winner: compared pairwise in declared order, the
+// first comparable axis with differing classes decides; a full tie falls to
+// declared order.
+function frontierBest(frontier, declared, facts) {
+  return frontier.reduce((champion, candidate) => {
+    for (const dimension of DIMENSION_PRIORITY) {
+      const verdict = compareDimension(dimension, candidate, champion, facts);
+      if (verdict === "better") return candidate;
+      if (verdict === "worse") return champion;
+    }
+
+    return declared.indexOf(candidate) <= declared.indexOf(champion) ? candidate : champion;
+  });
+}
+
+function selectTransport(actionId, declared, available, preferred, facts = {}) {
+  const declaredDimensions = Object.values(facts).some(
+    (dimensions) => Object.keys(dimensions).length > 0,
+  );
+  const dimensions = declaredDimensions ? "declared" : "undelegated";
+
+  if (available.length === 0) {
     throw new SurfaceRuntimeError(
       "UNSUPPORTED_TRANSPORT",
       `no admitted transport implementation is available for ${actionId}`,
@@ -452,21 +965,43 @@ function selectTransport(actionId, declared, available, preferred) {
           reason: "no_available_transport",
           fallback: "pre_dispatch_only",
           dispatchState: "not_dispatched",
+          dimensions,
+          frontier: [],
         },
       },
     );
   }
 
-  return {
+  const frontier = transportFrontier(declared, available, facts);
+  const decision = (selected, reason) => ({
     actionId,
     declared: [...declared],
     available: [...available],
     selected,
     preferred,
-    reason: selected === preferred ? "preferred_available" : "preferred_unavailable",
+    reason,
     fallback: "pre_dispatch_only",
     dispatchState: "not_dispatched",
-  };
+    dimensions,
+    frontier: [...frontier],
+  });
+
+  if (declaredDimensions) {
+    if (available.includes(preferred) && frontier.includes(preferred)) {
+      return decision(preferred, "preferred_available");
+    }
+
+    return decision(frontierBest(frontier, declared, facts), "dimension_weighed");
+  }
+
+  const selected = available.includes(preferred)
+    ? preferred
+    : declared.find((candidate) => available.includes(candidate));
+
+  return decision(
+    selected,
+    selected === preferred ? "preferred_available" : "preferred_unavailable",
+  );
 }
 
 function assertPreferred(prefer) {

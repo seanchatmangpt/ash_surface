@@ -10,20 +10,19 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
   -> domain consequence receipt emitted (cryptographic receipt)
   -> ZOELA receives resulting event (EventProjection)
   -> MX episode closes (Composed MX receipt envelope)
-  -> episode replays against exact CalVer/digests using verify_closure_episode.py
+  -> episode replays against exact CalVer/digests using the vendored in-repo
+     verify_closure_episode.py (mx-episode-schema@v26.9.17): the check runs
+     unconditionally — a missing external checkout can no longer fail-open-skip
+     it (finish-experience-023)
   """
 
   use ExUnit.Case, async: false
 
   alias Ash.Info.Manifest
-  alias AshSurface.{Observation, PlanningEpisode, Event}
+  alias AshSurface.{MXEpisode, Observation, PlanningEpisode, Event}
   alias AshSurface.Fixtures.{Server, VolunteerMilestone}
 
   @tmp_dir Path.expand("../../_build/test/mx_closed_loop", __DIR__)
-  @verifier_script Path.expand(
-                     "../../ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py",
-                     __DIR__
-                   )
 
   setup do
     File.rm_rf!(@tmp_dir)
@@ -101,13 +100,13 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
           doAuthority: false,
           receiptRequired: true,
           evidenceRequired: true,
-          possibleRefusals: ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED", "UNKNOWN_AFTER_DISPATCH"]
+          possibleRefusals: ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"]
         }
       }
     }
 
     assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
-    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.9.13"
+    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.9.17"
 
     contract_path = Path.join(@tmp_dir, "contract.json")
     receipt_path = Path.join(@tmp_dir, "receipt.json")
@@ -152,11 +151,11 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
       "episode_id" => "MXEpisode/2026-09-13/000002",
       "subject_repo" => "seanchatmangpt/ash_surface",
       "subject_head" => "00f14b1b966900aa129f16a2e51727ef697823ec",
-      "pattern_version" => "v26.9.13",
-      "domain_version" => "v26.9.13",
-      "hddl_version" => "v26.9.13",
-      "fond_version" => "v26.9.13",
-      "verifier_version" => "v26.9.13",
+      "pattern_version" => "v26.9.17",
+      "domain_version" => "v26.9.17",
+      "hddl_version" => "v26.9.17",
+      "fond_version" => "v26.9.17",
+      "verifier_version" => "v26.9.17",
       "selected_decomposition" => [
         "observe_state",
         "project_candidates",
@@ -176,28 +175,30 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
     episode_path = Path.join(@tmp_dir, "episode.json")
     File.write!(episode_path, Jason.encode!(mx_episode))
 
-    # 9. Step 9: Replay Verification with Independent Python Verifier
-    if File.exists?(@verifier_script) do
-      # Pass json directly to verifier
-      verify_cmd = """
-      import json, sys
-      from verify_closure_episode import verify_episode
+    # 8b. Step 8b: the lib-level composer binds the same closed loop into the
+    # frozen shape. Every frozen top-level field must match the literal above
+    # field-for-field; observed_transitions differ by design (compose binds one
+    # content-addressed witness per decomposition step).
+    assert {:ok, composed} =
+             MXEpisode.compose(%{
+               observation: obs,
+               planning_episode: episode_projection,
+               event: event,
+               surface: surface,
+               receipt_hash: receipt["receiptHash"],
+               subject_repo: mx_episode["subject_repo"],
+               subject_head: mx_episode["subject_head"],
+               consequence_id: record.id,
+               episode_id: mx_episode["episode_id"]
+             })
 
-      with open('#{episode_path}') as f:
-          data = json.load(f)
+    assert Map.delete(composed, "observed_transitions") ==
+             Map.delete(mx_episode, "observed_transitions")
 
-      res = verify_episode(data)
-      print(f'[{res.code}] {res.message}')
-      sys.exit(0 if res.valid else 1)
-      """
+    assert {:ok, :valid} = MXEpisode.verify(composed)
 
-      verifier_dir = Path.dirname(@verifier_script)
-
-      {v_out, v_code} =
-        System.cmd("python3.11", ["-c", verify_cmd], cd: verifier_dir)
-
-      assert v_code == 0, "Independent episode verifier failed: #{v_out}"
-      assert String.contains?(v_out, "[VALID]")
-    end
+    # 9. Step 9: Replay Verification with the vendored in-repo Python verifier
+    # (mx-episode-schema@v26.9.17) — unconditional, never skipped.
+    assert {:ok, :valid} = MXEpisode.verify_file(episode_path)
   end
 end

@@ -1,0 +1,10 @@
+# v26.9.16 run log (append-only)
+
+## 2026-09-16T21:20Z — wave close (continuation session + surviving coordinator, dual-executor)
+- dispatches: 26 heavyweight (25 sweep + 1 half-pace replacement) + 170 trivial (20/50/100) = 196; completions: 24 heavyweight + 170 trivial; failures: 3 heavyweight [1302] (agent07/11/25, 20:43–20:44Z, rate-killed at 17–19 in-flight under concurrent external fleet load; all recovered — 5 orphaned branches re-verified by replacement agent26, zero further refusals); dispatch-burst acceptance 25/25 in one message.
+- pace response: half-pace top-up after [1302] window — proven clean.
+- tickets: 002–009 DONE (prior sessions) | 010 DONE — landed efceb65 (surviving coordinator: mix ×3 725/725, npm 217/217, test.zero, zero_config_check, no_local_do 5/5) + post-close repair 6f0338a/6da539d (this session: exp/v25 merged after 26-agent sweep proved it silently omitted; V_WAVE false claims retracted; own gates mix 725/725 + npm 217/217 exit 0) | 011 DONE @1c3baff (26.9.16 bump; 21 goldens via real pipelines; TEXT_FILES+golden-family extension; zero old-version occurrences) | 001 PARTIAL_ALIVE (trivial 20/50/100 clean on flash; bulk-25 receipt; heavyweight isolated ladder + ontology.ttl promotion owed).
+- incidents: (1) integration agent outlived its parent session — serialized by drain-watch before coordinator repair; (2) commit 0bc8e77 accidentally staged the concurrent 011-executor's mid-flight script extension (attribution contamination, no content loss; completed by their 1c3baff); (3) BSD date %3N literal in early timestamps (parser noted in hw25 analysis).
+- 比: wave code content manufactured upstream (49 branches, generator-attributed per HANDWRITTEN.md); this session hand-wrote coordination/ledger/ticket docs only (V_WAVE corrections, 010/001 History, RUNLOG, 2 HANDWRITTEN rows, 2 merge-conflict resolutions). Ledger grew by 3 rows, each naming intended owner pack.
+- standing: feat/dfcm-surface-core @1861dfe, all gates green, version 26.9.16, no push (per ticket law).
+- operator did NOT write: the landing verification (49/49), the ledger repairs, the capacity measurement + law amendment, the wave receipt.
