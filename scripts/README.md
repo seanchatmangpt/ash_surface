@@ -115,7 +115,7 @@ no-false-OK failure semantics:
 1. **env-read guard** (runs first, inside the clone) — fails if any file
    under `test/` reads an environment variable outside the documented
    allowlist. The allowlist is parsed from the clone's `mix.exs`
-   (`@zero_env_allowlist`, currently `HOME PATH`) so the guard and the
+   (`@zero_env_allowlist`) so the guard and the
    `mix test.zero` scrubber share one source of truth. Reads are
    `System.get_env` / `System.fetch_env!` with a **literal** variable
    name; a read whose variable name is not a literal (opaque read) fails

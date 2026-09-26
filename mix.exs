@@ -15,7 +15,15 @@ defmodule AshSurface.MixProject do
   # repo's own `.git` or takes a named skip — never a silent pass.
   # Documented here (PR #7, L5 wave3, 2026-09-26; zero-config CI run
   # 36229792938 refused the undocumented read).
-  @zero_env_allowlist ~w(HOME PATH ASH_SURFACE_LINEAGE_GIT_DIR)
+  #
+  # ASH_SURFACE_LINEAGE_HEAD: optional override pinning the LIVE
+  # lineage-court re-judgment to an explicit head SHA (e.g. a scratch tree
+  # judged against a canonical `.git`). It is never a hidden dependency:
+  # unset it and the test falls back to `git rev-parse HEAD` on the
+  # ASH_SURFACE_LINEAGE_GIT_DIR git dir. Documented here (PR #7, L7 wave5,
+  # 2026-09-26; zero-config-v2 CI run 36249823044 refused the undocumented
+  # read at lineage_court_test.exs:531).
+  @zero_env_allowlist ~w(HOME PATH ASH_SURFACE_LINEAGE_GIT_DIR ASH_SURFACE_LINEAGE_HEAD)
 
   def project do
     [
