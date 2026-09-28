@@ -17,9 +17,15 @@ defmodule AshSurface.Projectors.LiveView do
     - table columns from `schema.input` of the resource's primary read IR;
     - form fields from `schema.input` of create/update IRs, with widgets from
       `presentation.widget`;
-    - relationships from `semantic.predicates["relationships"]`;
+    - relationships from `semantic.predicates["relationships"]` when the
+      semantic section carries predicates as a map; the compiler's list form
+      (flat predicate IRIs) declares no relationships;
     - one action control per IR, gated by `capability.authority_required`.
       Controls are INTENT references (`surface_action_id`), never direct calls.
+
+  Every section but `ash` may be `nil` (compiled IR carries `nil` for a
+  section no delegating owner admitted); a nil section reads as all-UNKNOWN
+  facts, never as a crash.
 
   Every collection is explicitly ordered (order, then name/id) so the
   projection is byte-stable under input permutation.
@@ -124,14 +130,14 @@ defmodule AshSurface.Projectors.LiveView do
       read ->
         %{
           "surface_action_id" => surface_action_id(read),
-          "format" => read.presentation.format,
+          "format" => presentation(read).format,
           "columns" => columns(read)
         }
     end
   end
 
   defp columns(%AshSurface.IR{} = ir) do
-    ir.schema.input
+    schema(ir).input
     |> input_fields()
     |> Enum.map(fn {name, type, required} ->
       %{"name" => name, "type" => type, "required" => required}
@@ -149,16 +155,16 @@ defmodule AshSurface.Projectors.LiveView do
         "action_type" => ir.ash.action_type |> to_string(),
         "label" => presentation_label(ir),
         "order" => effective_order(ir),
-        "format" => ir.presentation.format,
+        "format" => presentation(ir).format,
         "fields" => form_fields(ir)
       }
     end)
   end
 
   defp form_fields(%AshSurface.IR{} = ir) do
-    widget = ir.presentation.widget
+    widget = presentation(ir).widget
 
-    ir.schema.input
+    schema(ir).input
     |> input_fields()
     |> Enum.map(fn {name, type, required} ->
       %{
@@ -217,8 +223,8 @@ defmodule AshSurface.Projectors.LiveView do
   defp action_control(%AshSurface.IR{} = ir) do
     id = surface_action_id(ir)
 
-    gated =
-      AshSurface.IR.Capability.authority_required(ir.capability || %AshSurface.IR.Capability{})
+    capability = capability(ir)
+    gated = AshSurface.IR.Capability.authority_required(capability)
 
     %{
       "surface_action_id" => id,
@@ -226,9 +232,9 @@ defmodule AshSurface.Projectors.LiveView do
       "action_type" => ir.ash.action_type |> to_string(),
       "label" => presentation_label(ir),
       "order" => effective_order(ir),
-      "consequence_class" => ir.capability.consequence_class,
+      "consequence_class" => capability.consequence_class,
       "authority_required" => gated,
-      "receipt_required" => !!ir.capability.receipt_required,
+      "receipt_required" => !!capability.receipt_required,
       # INTENT target only: no module, function, or route-to-code reference.
       "control" => %{
         "kind" => "intent",
@@ -272,6 +278,24 @@ defmodule AshSurface.Projectors.LiveView do
 
   ## IR accessors (nil-safe: sub-structs default to empty facts)
 
+  # Compiled IR honestly carries `nil` for a section no delegating owner
+  # admitted (no R2RML mapping -> `semantic: nil`; no AshA2A extension ->
+  # `capability: nil`). Every read of the presentation, capability, semantic
+  # and schema sections goes through these accessors, mirroring
+  # `AshSurface.Projector.IREntry.describe/1`: a nil section reads as the
+  # empty struct (all facts UNKNOWN), never as a crash.
+  defp presentation(%AshSurface.IR{presentation: nil}), do: %AshSurface.IR.Presentation{}
+  defp presentation(%AshSurface.IR{presentation: presentation}), do: presentation
+
+  defp capability(%AshSurface.IR{capability: nil}), do: %AshSurface.IR.Capability{}
+  defp capability(%AshSurface.IR{capability: capability}), do: capability
+
+  defp semantic(%AshSurface.IR{semantic: nil}), do: %AshSurface.IR.Semantic{}
+  defp semantic(%AshSurface.IR{semantic: semantic}), do: semantic
+
+  defp schema(%AshSurface.IR{schema: nil}), do: %AshSurface.IR.Schema{}
+  defp schema(%AshSurface.IR{schema: schema}), do: schema
+
   defp representative(resource_irs) do
     Enum.min_by(resource_irs, &{effective_order(&1), surface_action_id(&1)})
   end
@@ -280,12 +304,12 @@ defmodule AshSurface.Projectors.LiveView do
     do: Enum.sort_by(resource_irs, &{effective_order(&1), surface_action_id(&1)})
 
   defp effective_order(%AshSurface.IR{} = ir),
-    do: ir.presentation.order || @default_order
+    do: presentation(ir).order || @default_order
 
   defp presentation_group(%AshSurface.IR{} = ir),
-    do: ir.presentation.group || @default_group
+    do: presentation(ir).group || @default_group
 
-  defp presentation_label(%AshSurface.IR{} = ir), do: ir.presentation.label
+  defp presentation_label(%AshSurface.IR{} = ir), do: presentation(ir).label
 
   defp action_name(%AshSurface.IR{} = ir), do: to_string(ir.ash.action)
 
@@ -315,14 +339,25 @@ defmodule AshSurface.Projectors.LiveView do
   defp field_required(_), do: false
 
   defp declared_relationships(%AshSurface.IR{} = ir) do
-    ir.semantic.predicates |> normalize_predicates() |> Map.get("relationships", [])
+    ir |> semantic() |> Map.get(:predicates) |> relationship_facts()
   end
 
-  defp normalize_predicates(nil), do: %{}
-
-  defp normalize_predicates(predicates) when is_map(predicates) do
-    Map.new(predicates, fn {k, v} -> {to_string(k), v} end)
+  # Relationships are read ONLY from the map predicate shape
+  # (`%{"relationships" => [...]}`), which a delegating author states
+  # explicitly. The compiler's R2RML-delegated semantic section carries
+  # `predicates` as a flat LIST of predicate IRIs (datatype-property then
+  # object-property IRIs, `AshSurface.Compiler.Semantic.predicates/1`): the
+  # list carries neither a relationship name nor a destination resource, so
+  # no relationship can be read out of it, and re-reading the R2RML mapping
+  # here would be a second discovery. A list therefore declares NO
+  # relationships (honest UNKNOWN), as does `nil`.
+  defp relationship_facts(predicates) when is_map(predicates) do
+    predicates
+    |> Map.new(fn {k, v} -> {to_string(k), v} end)
+    |> Map.get("relationships", [])
   end
+
+  defp relationship_facts(_list_or_nil), do: []
 
   defp nav_path(resource_name) when is_binary(resource_name) do
     "/" <> (resource_name |> String.replace(~r/[^a-zA-Z0-9]+/, "-") |> String.downcase())
@@ -355,9 +390,8 @@ defmodule AshSurface.Projectors.LiveView do
   end
 
   defp malformed_relationship(%AshSurface.IR{} = ir) do
-    ir.semantic.predicates
-    |> normalize_predicates()
-    |> Map.get("relationships", [])
+    ir
+    |> declared_relationships()
     |> Enum.find(fn rel ->
       not (is_map(rel) and is_binary(rel["name"]) and rel["name"] != "" and
              is_binary(rel["destination"]) and rel["destination"] != "")

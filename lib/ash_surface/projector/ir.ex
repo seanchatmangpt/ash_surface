@@ -152,7 +152,9 @@ defmodule AshSurface.Projector.IR do
 
   Accepts an adapter from `from_manifest_projector/1` or any module
   implementing the `project_ir/2` callback. Anything else is refused with a
-  typed `{:unknown_projector_kind, _}` error.
+  typed `{:unknown_projector_kind, _}` error — including a module that
+  declares only the legacy `AshSurface.Projector` behaviour, whose own
+  `project_ir/2` (if any) is not this callback.
   """
   @spec project(ManifestProjector.t() | module(), ir() | [ir()], keyword()) ::
           {:ok, term(), map()} | {:error, term()}
@@ -162,7 +164,7 @@ defmodule AshSurface.Projector.IR do
   def project(projector, irs, opts) when is_atom(projector) do
     Code.ensure_loaded(projector)
 
-    if function_exported?(projector, :project_ir, 2) do
+    if function_exported?(projector, :project_ir, 2) and not legacy_only?(projector) do
       projector.project_ir(irs, opts)
     else
       {:error, {:unknown_projector_kind, projector}}
@@ -170,6 +172,22 @@ defmodule AshSurface.Projector.IR do
   end
 
   def project(other, _irs, _opts), do: {:error, {:unknown_projector_kind, other}}
+
+  # A module declaring only the legacy `AshSurface.Projector` behaviour may
+  # export a `project_ir/2` of its OWN subject contract (e.g.
+  # `AshSurface.Projector.VoiceKiosk.project_ir/2` takes a verified
+  # `AshSurface.Surface` and returns a bare map). That function is not this
+  # behaviour's callback: dispatching IR to it crashed with a
+  # FunctionClauseError. Such a module is an unknown IR kind here — wrap it
+  # with `from_manifest_projector/1` to run it over IR.
+  defp legacy_only?(projector) do
+    behaviours =
+      projector.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    AshSurface.Projector in behaviours and __MODULE__ not in behaviours
+  end
 
   defp validate_ir_elements(irs) do
     case Enum.find(irs, &(not is_map(&1))) do
