@@ -151,12 +151,12 @@ defmodule AshSurface.Projector.ExpoReceiptsTest do
 
       # Observation only: a GET to the server-owned reconcile endpoint.
       assert client =~
-               ~S|fetch(`${reconcileEndpoint}?commandId=${encodeURIComponent(commandId)}`)|
+               ~S|fetch(`${reconcileEndpoint}?commandId=${encodeURIComponent(commandId)}`, { signal: controller.signal })|
 
       # When the server cannot observe the command, standing stays unknown; the
       # client refuses to invent COMPLETED/NOT_OBSERVED/PENDING on its own.
       assert client =~ ~S|if (!res.ok) return { status: "STILL_UNKNOWN" };|
-      assert client =~ "return await res.json();"
+      assert client =~ "RECONCILE_STATUSES.includes(body?.status)"
 
       refute client =~ "POST", "reconciliation must never re-dispatch (no retry, no actuation)"
       refute client =~ "PENDING", "no client-side PENDING classification may be fabricated"

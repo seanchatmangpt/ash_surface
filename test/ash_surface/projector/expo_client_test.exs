@@ -110,7 +110,7 @@ defmodule AshSurface.Projector.ExpoClientTest do
       # Golden fragment: the factory signature forwards contract, transports,
       # preference, and a reconcile endpoint.
       assert client =~
-               "export function createZoelaClient({ contract, transports = {}, prefer = \"http\", reconcileEndpoint }) {"
+               "export function createZoelaClient({ contract, transports = {}, prefer = \"http\", reconcileEndpoint, reconcileTimeoutMs = 10000 }) {"
 
       # Golden fragment: the runtime client is spread (preserving its frozen
       # surface: actions, resources, events, get, inspect, reconcile) and
@@ -127,7 +127,9 @@ defmodule AshSurface.Projector.ExpoClientTest do
       assert client =~ "throw new Error(\"No reconcileEndpoint configured on client\");"
       assert client =~ "encodeURIComponent(commandId)"
       assert client =~ "if (!res.ok) return { status: \"STILL_UNKNOWN\" };"
-      assert client =~ "return await res.json();"
+
+      assert client =~
+               "RECONCILE_STATUSES.includes(body?.status) ? body : { status: \"STILL_UNKNOWN\" }"
     end
   end
 

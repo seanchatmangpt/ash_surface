@@ -12,7 +12,7 @@
 #
 # Regenerate the list when suites change (additions must re-pin; removals
 # must also lower the floor to the new measured count):
-# floor: 1217
+# floor: 1220
 test/ash_surface/action_id_test.exs
 test/ash_surface/aria_projector_test.exs
 test/ash_surface/ash_section_truth_test.exs
@@ -90,6 +90,7 @@ test/ash_surface/possibility_coverage_test.exs
 test/ash_surface/presentation_section_test.exs
 test/ash_surface/project_test.exs
 test/ash_surface/projector/expo_actions_test.exs
+test/ash_surface/projector/expo_client_reconcile_test.exs
 test/ash_surface/projector/expo_client_test.exs
 test/ash_surface/projector/expo_determinism_test.exs
 test/ash_surface/projector/expo_events_test.exs
