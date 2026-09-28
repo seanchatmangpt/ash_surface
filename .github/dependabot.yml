@@ -1,0 +1,53 @@
+# Dependabot version + security updates. Weekly, grouped so one PR carries a
+# coherent bump; security updates open immediately regardless of the weekly
+# schedule (GitHub security updates are a repo setting that this file shapes
+# via groups, see docs/SUPPLY_CHAIN.md).
+version: 2
+updates:
+  - package-ecosystem: mix
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, elixir]
+    groups:
+      ash-ecosystem:
+        patterns: ["ash", "ash_*", "spark", "igniter", "reactor", "splode"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+    # ash_a2a / ash_r2rml are git-pinned to commits/tags and bumped by hand
+    # (see docs/SUPPLY_CHAIN.md); dependabot cannot resolve their refs.
+    ignore:
+      - dependency-name: ash_a2a
+      - dependency-name: ash_r2rml
+
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, javascript]
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
