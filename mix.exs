@@ -50,6 +50,12 @@ defmodule AshSurface.MixProject do
   # the zod-importing JS-bridge suites — ordering fixed in
   # .github/workflows/dialyzer-coverage.yml).
   #
+  # Raised 90 -> 97 on 2026-09-28 after the Chicago coverage wave measured
+  # 98.30% (1222 tests); the ~1.3pt margin absorbs the shallow-clone lineage
+  # skip in CI, not new untested product code. Remaining misses are defensive
+  # clauses unreachable through the public API (Transport frontier tie-break
+  # with two known transports, JS/Schema adapter fall-throughs).
+  #
   # ignore_modules: everything under test/support/ (fixtures, the compiler
   # echo section, digest-parity fixtures, Inspect protocol impls for fixture
   # structs). They are compiled into the :test env and exercised by the
@@ -57,7 +63,7 @@ defmodule AshSurface.MixProject do
   # measures product code only.
   defp test_coverage do
     [
-      threshold: 90,
+      threshold: 97,
       ignore_modules: [
         AshSurface.DigestParityFixtures,
         AshSurface.Fixtures.Domain,

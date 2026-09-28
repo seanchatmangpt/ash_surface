@@ -1,8 +1,8 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (pinned floor 1006 tests, 92 `test/**/*_test.exs` files) and
-`npm test` (289 tests, 22 `test/js/*.test.mjs` files), chained
+`mix test` (1222 tests, pinned floor 1217, 113 `test/**/*_test.exs` files) and
+`npm test` (330 tests, 24 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
@@ -83,7 +83,7 @@ not a setup problem.
 
 The battery pins the full chicago suite set: `scripts/chicago_census.txt`
 is the golden census — one `# floor: <N>` line plus one suite path per
-line (92 suites at this SHA: 75 mix + 17 npm), regenerated with
+line (137 suites at this SHA: 113 mix + 24 npm), regenerated with
 `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
 the floor re-measured from `mix test` whenever suites change. Two
 fail-closed battery steps consume it:
@@ -93,8 +93,10 @@ fail-closed battery steps consume it:
   a missing census, a missing/duplicated/malformed floor line, an empty
   list, or a path escaping the clone.
 - **mix test count floor** (after `mix test`) — the clone's `mix test`
-  count must be >= the pinned floor (1006 at this SHA; re-pinned 2026-09-23
-  from 842 when the census grew the command_center, human_surface, zoe_demo,
+  count must be >= the pinned floor (1217 at this SHA; re-pinned 2026-09-28
+  from 1029 when the Chicago coverage wave added the `*_coverage_test.exs`,
+  boundary/projector/MX-verify hardening and JS runtime-hardening suites;
+  earlier re-pinned 2026-09-23 from 842 when the census grew the command_center, human_surface, zoe_demo,
   codec_props and event_replay_state suites), so gutting a suite
   without deleting its file also fails. The summary parser handles the
   ExUnit >= 1.19 `Result: N passed (…)` / `Result: X/Y passed` lines and
