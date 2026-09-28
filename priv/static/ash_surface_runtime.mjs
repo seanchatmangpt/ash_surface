@@ -485,6 +485,29 @@ export const ashSurfaceContractSchema = z
  */
 
 /**
+ * @typedef {Object} InvokeOptions
+ * @property {string} [commandId] Caller-supplied command identity; defaults to `cmd_<randomUUID>`.
+ * @property {AbortSignal} [signal] Passed to the adapter. Once dispatched, an
+ *   aborted (or already-aborted) signal settles the call as
+ *   TRANSPORT_OUTCOME_UNKNOWN / UNKNOWN_AFTER_DISPATCH (cause code
+ *   DISPATCH_ABORTED); the action is never replayed over another transport.
+ * @property {number} [timeoutMs] Opt-in dispatch deadline (positive finite
+ *   milliseconds). An adapter that has not settled by then yields
+ *   TRANSPORT_OUTCOME_UNKNOWN / UNKNOWN_AFTER_DISPATCH (cause code
+ *   DISPATCH_TIMEOUT); no cross-transport retry. The timer is always cleared.
+ */
+
+// Reconciliation verdict boundary: the documented TransportAdapter.reconcile
+// reply. Only the status vocabulary is closed; every other key (receipt,
+// commandId, ...) passes through untouched and the adapter's own object is
+// returned (source refs preserved, never rebuilt).
+export const reconcileResultSchema = z
+  .object({
+    status: z.enum(["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]),
+  })
+  .passthrough();
+
+/**
  * @typedef {Object} ActionSchemas
  * @property {{parse(value: unknown): unknown}} [input] Zod-compatible input schema.
  * @property {{parse(value: unknown): unknown}} [output] Zod-compatible output schema.
@@ -532,6 +555,13 @@ export class SurfaceRuntimeError extends Error {
  * @param {Partial<Record<"http"|"phoenix_channel", TransportAdapter>>} options.transports
  * @param {"http"|"phoenix_channel"} [options.prefer="http"]
  * @param {Record<string, ActionSchemas>} [options.schemas] Zod schemas keyed by stable action id.
+ * Each action client exposes `invoke(input, callOptions)` and
+ * `invokeWithReceipt(input, callOptions)` where `callOptions` is an
+ * {@link InvokeOptions}. `actions` and each `resources[Resource]` record are
+ * null-prototype objects: lookups never resolve inherited Object.prototype
+ * names, and contract ids such as "__proto__" are ordinary keys.
+ * `reconcile` validates the adapter reply against `reconcileResultSchema` and
+ * rejects a malformed reply with INVALID_RECONCILE_RESULT.
  * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, events: Object, reconcile(commandId: string, transportName?: "http"|"phoenix_channel"): Promise<Object>, get(id: string): Object|null, inspect(id: string): Object}}
  */
 export function createClient(options) {
@@ -547,19 +577,22 @@ export function createClient(options) {
   assertPreferred(prefer);
   assertTransportAdapters(transports);
 
-  const actions = {};
-  const resources = {};
+  // Null-prototype records keyed by contract-supplied ids: a resource or
+  // action named "__proto__"/"constructor"/"toString" is an ordinary key and
+  // can never reach Object.prototype.
+  const actions = Object.create(null);
+  const resources = Object.create(null);
   const eventListeners = new Map();
 
   for (const action of contract.surface.actions) {
-    if (actions[action.id]) {
+    if (Object.hasOwn(actions, action.id)) {
       throw new SurfaceRuntimeError(
         "DUPLICATE_ACTION_ID",
         `duplicate action id: ${action.id}`,
       );
     }
 
-    const actionSchemas = schemas[action.id];
+    const actionSchemas = Object.hasOwn(schemas, action.id) ? schemas[action.id] : undefined;
     const actionClient = Object.freeze({
       id: action.id,
       semanticId: action.semanticId,
@@ -598,7 +631,7 @@ export function createClient(options) {
 
     actions[action.id] = actionClient;
 
-    if (!resources[action.resource]) resources[action.resource] = {};
+    if (!Object.hasOwn(resources, action.resource)) resources[action.resource] = Object.create(null);
     resources[action.resource][action.action] = actionClient;
   }
 
@@ -629,7 +662,7 @@ export function createClient(options) {
     resources,
     events,
     async reconcile(commandId, transportName = prefer) {
-      const adapter = transports[transportName];
+      const adapter = Object.hasOwn(transports, transportName) ? transports[transportName] : undefined;
       if (!adapter || typeof adapter.reconcile !== "function") {
         return {
           commandId,
@@ -637,13 +670,22 @@ export function createClient(options) {
           reason: "transport_reconciliation_unsupported",
         };
       }
-      return await adapter.reconcile(commandId);
+      const verdict = await adapter.reconcile(commandId);
+      const parsed = reconcileResultSchema.safeParse(verdict);
+      if (!parsed.success) {
+        throw new SurfaceRuntimeError(
+          "INVALID_RECONCILE_RESULT",
+          `${transportName} reconcile reply for ${commandId} failed Zod validation`,
+          { issues: parsed.error.issues },
+        );
+      }
+      return verdict;
     },
     get(id) {
-      return actions[id] ?? null;
+      return Object.hasOwn(actions, id) ? actions[id] : null;
     },
     inspect(id) {
-      const action = actions[id];
+      const action = Object.hasOwn(actions, id) ? actions[id] : undefined;
       if (!action) throw new SurfaceRuntimeError("UNKNOWN_ACTION", `unknown action: ${id}`);
       return action.inspect();
     },
@@ -725,17 +767,25 @@ async function invokeWithReceipt(
     factsFromProfile(action),
   );
   const adapter = transports[decision.selected];
+  const timeoutMs = admitTimeout(options.timeoutMs, action.id);
 
-  const commandId = options.commandId || `cmd_${Math.random().toString(36).substring(2, 11)}`;
+  const commandId = options.commandId || `cmd_${globalThis.crypto.randomUUID()}`;
 
   try {
-    const response = await adapter.invoke({
-      action,
-      input: admittedInput,
-      commandId,
-      contract,
-      signal: options.signal,
-    });
+    // Dispatch happens here; from this line on every failure (including a
+    // timeout or abort) is UNKNOWN_AFTER_DISPATCH, never a replay.
+    const response = await raceDispatch(
+      adapter.invoke({
+        action,
+        input: admittedInput,
+        commandId,
+        contract,
+        signal: options.signal,
+      }),
+      timeoutMs,
+      options.signal,
+      action.id,
+    );
 
     let admittedOutput = response;
     if (actionSchemas?.output) {
@@ -763,6 +813,73 @@ async function invokeWithReceipt(
       { cause, receipt: buildMXReceipt(decision, action, commandId, "unknown_after_dispatch", null) },
     );
   }
+}
+
+// Pre-dispatch admission of the opt-in dispatch deadline.
+function admitTimeout(timeoutMs, actionId) {
+  if (timeoutMs === undefined || timeoutMs === null) return null;
+  if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new SurfaceRuntimeError(
+      "INVALID_OPTIONS",
+      `timeoutMs must be a positive finite number for ${actionId}`,
+    );
+  }
+  return timeoutMs;
+}
+
+// Races an already-dispatched adapter promise against the optional deadline
+// and abort signal. Settles exactly once; the timer and abort listener are
+// always released on settlement so no handle outlives the call.
+function raceDispatch(dispatched, timeoutMs, signal, actionId) {
+  const abortable = signal && typeof signal.addEventListener === "function";
+  if (timeoutMs === null && !abortable) return dispatched;
+
+  return new Promise((resolve, reject) => {
+    let timer = null;
+    let settled = false;
+
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      if (abortable) signal.removeEventListener("abort", onAbort);
+      fn(value);
+    };
+
+    function onAbort() {
+      settle(
+        reject,
+        new SurfaceRuntimeError("DISPATCH_ABORTED", `dispatch aborted for ${actionId}`, {
+          cause: signal.reason,
+        }),
+      );
+    }
+
+    Promise.resolve(dispatched).then(
+      (value) => settle(resolve, value),
+      (error) => settle(reject, error),
+    );
+
+    if (abortable) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    if (timeoutMs !== null) {
+      timer = setTimeout(() => {
+        settle(
+          reject,
+          new SurfaceRuntimeError(
+            "DISPATCH_TIMEOUT",
+            `dispatch exceeded ${timeoutMs}ms for ${actionId}`,
+          ),
+        );
+      }, timeoutMs);
+    }
+  });
 }
 
 function buildMXReceipt(decision, action, commandId, dispatchState, result) {
