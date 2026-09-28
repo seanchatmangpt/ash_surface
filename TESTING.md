@@ -32,7 +32,8 @@ Nothing else. No environment variables, no database, no external network:
   `ash_a2a` (git-pinned, `runtime: false` — see section 3). The fixture
   resource in `test/support/fixtures.ex` uses the in-memory
   `Ash.DataLayer.Ets` data layer; there is no Ecto repo and no Postgres.
-- No env. `config/config.exs` sets one Ash string-length option and nothing
+- No env. `config/config.exs` sets one Ash string-length option plus a
+  test-only `:logger` level of `:warning`, and nothing
   else; `test/test_helper.exs` is a single `ExUnit.start()`.
 - No external network. The end-to-end tests listen on ephemeral loopback
   sockets (`:gen_tcp.listen(0, ...)` in `test/support/fixtures.ex`,

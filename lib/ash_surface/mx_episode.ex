@@ -49,6 +49,8 @@ defmodule AshSurface.MXEpisode do
   @typedoc "A composed mx-episode-schema record: a JSON-ready string-keyed map."
   @type episode :: %{optional(String.t()) => term()}
 
+  @verifier_timeout_ms 30_000
+
   @type verify_result ::
           {:ok, :valid}
           | {:error, {code :: String.t(), message :: String.t()}}
@@ -215,35 +217,77 @@ defmodule AshSurface.MXEpisode do
   `{:ok, :valid}` only when the verifier exits 0 and reports VALID. Any other
   verifier code is an `{:error, {code, message}}` — never skipped, never
   approximated.
+
+  Bounded: a verifier that does not answer within `:timeout` ms (default
+  #{@verifier_timeout_ms}) is `{:error, {:verifier_timeout, ms}}` — never an
+  unbounded wait, never a pass.
   """
-  @spec verify_file(String.t()) :: verify_result()
-  def verify_file(episode_path) when is_binary(episode_path) do
+  @spec verify_file(String.t(), keyword()) :: verify_result()
+  def verify_file(episode_path, opts \\ []) when is_binary(episode_path) do
+    timeout = Keyword.get(opts, :timeout, @verifier_timeout_ms)
+
     with {:ok, python} <- python_executable(),
-         {output, exit_code} <-
-           System.cmd(python, [verifier_path(), episode_path], stderr_to_stdout: true) do
+         {:ok, {output, exit_code}} <- run_verifier(python, episode_path, timeout) do
       report_verifier_result(output, exit_code)
     end
   end
 
   @doc """
   Encodes an episode to JSON and runs the vendored in-repo verifier on it
-  (round trip). Same result contract as `verify_file/1`.
+  (round trip). Same result contract (and `:timeout` option) as
+  `verify_file/2`.
+
+  An episode that cannot be JSON-encoded is `{:error,
+  {:episode_not_json_encodable, reason}}`, never a raise. The scratch file
+  carries an unguessable name and is created exclusively (O_EXCL), so a
+  pre-planted file or symlink in the shared tmp dir is refused rather than
+  followed or overwritten.
   """
-  @spec verify(term()) :: verify_result()
-  def verify(episode) when is_map(episode) do
-    tmp_path =
-      Path.join(System.tmp_dir(), "mx_episode_verify-#{:erlang.unique_integer([:positive])}.json")
+  @spec verify(term(), keyword()) :: verify_result()
+  def verify(episode, opts \\ [])
 
-    File.write!(tmp_path, Jason.encode!(episode))
-
-    try do
-      verify_file(tmp_path)
-    after
-      File.rm(tmp_path)
+  def verify(episode, opts) when is_map(episode) do
+    with {:ok, json} <- encode_episode(episode),
+         {:ok, tmp_path} <- write_exclusive_tmp(json) do
+      try do
+        verify_file(tmp_path, opts)
+      after
+        File.rm(tmp_path)
+      end
     end
   end
 
-  def verify(episode), do: {:error, {:episode_must_be_a_map, episode}}
+  def verify(episode, _opts), do: {:error, {:episode_must_be_a_map, episode}}
+
+  defp encode_episode(episode) do
+    case Jason.encode(episode) do
+      {:ok, json} -> {:ok, json}
+      {:error, reason} -> {:error, {:episode_not_json_encodable, reason}}
+    end
+  rescue
+    error in Protocol.UndefinedError -> {:error, {:episode_not_json_encodable, error}}
+  end
+
+  defp write_exclusive_tmp(json) do
+    name =
+      "mx_episode_verify-" <> Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
+
+    tmp_path = Path.join(System.tmp_dir!(), name <> ".json")
+
+    case File.open(tmp_path, [:write, :exclusive, :binary]) do
+      {:ok, device} ->
+        try do
+          IO.binwrite(device, json)
+        after
+          File.close(device)
+        end
+
+        {:ok, tmp_path}
+
+      {:error, reason} ->
+        {:error, {:verifier_tmp_unwritable, tmp_path, reason}}
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # compose internals
@@ -388,6 +432,20 @@ defmodule AshSurface.MXEpisode do
       {:ok, executable}
     else
       {:error, :verifier_python_not_found}
+    end
+  end
+
+  # The verifier runs in a monitored task so the caller's wait is bounded; on
+  # timeout the task is killed, which closes its port to the OS process.
+  defp run_verifier(python, episode_path, timeout) do
+    task =
+      Task.async(fn ->
+        System.cmd(python, [verifier_path(), episode_path], stderr_to_stdout: true)
+      end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> {:ok, result}
+      _timeout_or_exit -> {:error, {:verifier_timeout, timeout}}
     end
   end
 

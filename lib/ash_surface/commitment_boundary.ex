@@ -124,6 +124,13 @@ defmodule AshSurface.CommitmentBoundary do
   defp normalize_datetime(%DateTime{} = value), do: DateTime.to_iso8601(value)
   defp normalize_datetime(value) when is_binary(value), do: value
 
+  defp normalize_datetime(value),
+    do:
+      raise(
+        ArgumentError,
+        "expires_at must be a DateTime, ISO-8601 string or nil, got: #{inspect(value)}"
+      )
+
   defp digest(term) do
     term
     |> :erlang.term_to_binary([:deterministic])
