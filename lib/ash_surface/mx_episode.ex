@@ -428,24 +428,70 @@ defmodule AshSurface.MXEpisode do
   # ---------------------------------------------------------------------------
 
   defp python_executable do
-    if executable = Enum.find(["python3.11", "python3"], &System.find_executable/1) do
+    if executable = Enum.find_value(["python3.11", "python3"], &System.find_executable/1) do
       {:ok, executable}
     else
       {:error, :verifier_python_not_found}
     end
   end
 
-  # The verifier runs in a monitored task so the caller's wait is bounded; on
-  # timeout the task is killed, which closes its port to the OS process.
+  # The verifier runs as an OS process behind a port, read against a
+  # monotonic deadline: no Task/spawn (the no-local-DO tripwire bans process
+  # execution on the surface), and on timeout the OS process is killed so a
+  # hung verifier never outlives the call.
   defp run_verifier(python, episode_path, timeout) do
-    task =
-      Task.async(fn ->
-        System.cmd(python, [verifier_path(), episode_path], stderr_to_stdout: true)
-      end)
+    port =
+      Port.open({:spawn_executable, python}, [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        :hide,
+        args: [verifier_path(), episode_path]
+      ])
 
-    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, result} -> {:ok, result}
-      _timeout_or_exit -> {:error, {:verifier_timeout, timeout}}
+    deadline = System.monotonic_time(:millisecond) + max(timeout, 0)
+    collect_verifier(port, [], deadline, timeout)
+  end
+
+  defp collect_verifier(port, acc, deadline, timeout) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {^port, {:data, data}} ->
+        collect_verifier(port, [acc | data], deadline, timeout)
+
+      {^port, {:exit_status, status}} ->
+        {:ok, {IO.iodata_to_binary(acc), status}}
+    after
+      remaining ->
+        kill_verifier(port)
+        {:error, {:verifier_timeout, timeout}}
+    end
+  end
+
+  defp kill_verifier(port) do
+    with {:os_pid, os_pid} <- Port.info(port, :os_pid),
+         kill when is_binary(kill) <- System.find_executable("kill") do
+      System.cmd(kill, ["-KILL", Integer.to_string(os_pid)], stderr_to_stdout: true)
+    end
+
+    close_port(port)
+    flush_verifier(port)
+  end
+
+  # The killed process may close the port between any check and the close;
+  # an already-closed port is the goal state, not an error.
+  defp close_port(port) do
+    Port.close(port)
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp flush_verifier(port) do
+    receive do
+      {^port, _message} -> flush_verifier(port)
+    after
+      0 -> :ok
     end
   end
 

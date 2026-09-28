@@ -239,6 +239,12 @@ defmodule AshSurface do
     end)
   end
 
+  # Structs (DateTime, MapSet, ...) are not JSON data: refused before the map
+  # clause, which would otherwise enumerate them (Protocol.UndefinedError /
+  # FunctionClauseError instead of a typed error).
+  defp validate_json_data(value) when is_struct(value),
+    do: {:error, {:profile_value_not_serializable, value}}
+
   defp validate_json_data(value) when is_map(value) do
     Enum.reduce_while(value, :ok, fn {key, item}, :ok ->
       cond do
@@ -272,7 +278,42 @@ defmodule AshSurface do
           |> Enum.reject(&MapSet.member?(known, &1))
           |> Enum.sort()
 
-        if unknown == [], do: :ok, else: {:error, {:unknown_action_profile, unknown}}
+        if unknown == [],
+          do: validate_action_profiles(actions),
+          else: {:error, {:unknown_action_profile, unknown}}
+    end
+  end
+
+  # Each per-action profile must be a map, and the fields the JS contract
+  # schema types (surfaceActionSchema in priv/static/ash_surface_runtime.mjs:
+  # `evidenceRequired: z.boolean()`, `possibleRefusals: z.array(z.string()...)`)
+  # must carry those types when present. The JS "REFUSED_" prefix regex is NOT
+  # enforced here: existing Elixir fixtures/goldens declare codes such as
+  # "AUTHORITY_REFUSED" (a pending cross-language vocabulary decision).
+  defp validate_action_profiles(actions) do
+    actions
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.find_value(:ok, fn {id, action_profile} ->
+      validate_action_profile(id, action_profile)
+    end)
+  end
+
+  defp validate_action_profile(id, action_profile) when not is_map(action_profile),
+    do: {:error, {:action_profile_must_be_a_map, id, action_profile}}
+
+  defp validate_action_profile(id, action_profile) do
+    evidence = Map.get(action_profile, "evidenceRequired", false)
+    refusals = Map.get(action_profile, "possibleRefusals", [])
+
+    cond do
+      not is_boolean(evidence) ->
+        {:error, {:evidence_required_must_be_boolean, id, evidence}}
+
+      not (is_list(refusals) and Enum.all?(refusals, &is_binary/1)) ->
+        {:error, {:possible_refusals_must_be_strings, id, refusals}}
+
+      true ->
+        nil
     end
   end
 
