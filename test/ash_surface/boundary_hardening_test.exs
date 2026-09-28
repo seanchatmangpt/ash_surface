@@ -68,6 +68,18 @@ defmodule AshSurface.BoundaryHardeningTest do
       end
     end
 
+    test "every declared refusal is a REFUSED_-prefixed code with a named reason (Zod: /^REFUSED_.+/)" do
+      for bad <- ["AUTHORITY_REFUSED", "REFUSED", "REFUSED_", "UNKNOWN_AFTER_DISPATCH"] do
+        assert {:error, {:possible_refusal_not_a_refusal_code, @read_id, ^bad}} =
+                 with_action_profile(%{"possibleRefusals" => ["REFUSED_NO_AUTHORITY", bad]})
+      end
+
+      assert {:ok, _surface} =
+               with_action_profile(%{
+                 "possibleRefusals" => ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"]
+               })
+    end
+
     test "well-typed action profiles (string or atom spelled) are admitted into the contract" do
       assert {:ok, surface} =
                AshSurface.from_manifest(manifest(),

@@ -156,6 +156,21 @@ defmodule AshSurface.CompilerCoverageTest do
     end
   end
 
+  describe "compiled IR through the ARIA projector" do
+    test "the schema section's list-form aria \"fields\" become the surface inputs (internal_hint stays private; tags allows nil)" do
+      assert {:ok, irs} = Compiler.compile(LedgerDomain)
+      assert {:ok, contract, _meta} = AshSurface.Projectors.ARIA.project_ir(irs)
+
+      record =
+        Enum.find(contract["surfaces"], &String.ends_with?(&1["id"], "Ledger.record"))
+
+      assert Enum.map(record["inputs"], &{&1["name"], &1["required"]}) == [
+               {"note_text", true},
+               {"tags", false}
+             ]
+    end
+  end
+
   describe "Compiler: :sections refusal" do
     test "a non-list :sections option is refused typed" do
       assert Compiler.compile(%Ash.Info.Manifest{entrypoints: []}, sections: :bogus) ==

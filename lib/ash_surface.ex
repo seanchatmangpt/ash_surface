@@ -287,9 +287,11 @@ defmodule AshSurface do
   # Each per-action profile must be a map, and the fields the JS contract
   # schema types (surfaceActionSchema in priv/static/ash_surface_runtime.mjs:
   # `evidenceRequired: z.boolean()`, `possibleRefusals: z.array(z.string()...)`)
-  # must carry those types when present. The JS "REFUSED_" prefix regex is NOT
-  # enforced here: existing Elixir fixtures/goldens declare codes such as
-  # "AUTHORITY_REFUSED" (a pending cross-language vocabulary decision).
+  # must carry those types when present. Every declared refusal is a
+  # "REFUSED_"-prefixed code with a named reason — the same law as the JS
+  # refusalCodeSchema (/^REFUSED_.+/) and AshSurface.Standing's REFUSED_*
+  # class — so Elixir never emits a contract the consumer runtime rejects.
+  # Dispatch outcomes such as UNKNOWN_AFTER_DISPATCH are not refusals.
   defp validate_action_profiles(actions) do
     actions
     |> Enum.sort_by(&elem(&1, 0))
@@ -312,10 +314,16 @@ defmodule AshSurface do
       not (is_list(refusals) and Enum.all?(refusals, &is_binary/1)) ->
         {:error, {:possible_refusals_must_be_strings, id, refusals}}
 
+      bad = Enum.reject(refusals, &refusal_code?/1) |> Enum.take(1) |> List.first() ->
+        {:error, {:possible_refusal_not_a_refusal_code, id, bad}}
+
       true ->
         nil
     end
   end
+
+  defp refusal_code?("REFUSED_" <> reason), do: reason != ""
+  defp refusal_code?(_code), do: false
 
   defp digest(contract) do
     contract

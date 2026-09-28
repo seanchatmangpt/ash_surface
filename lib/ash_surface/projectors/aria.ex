@@ -13,8 +13,9 @@ defmodule AshSurface.Projectors.ARIA do
     are tolerated so in-memory and round-tripped manifests feed the same
     read path. Shape: optional `"role"` (surface role), optional `"live"`
     (live-region politeness; OBSERVE-only admission), and inputs either
-    under `"inputs"` (a list of input maps or a name-keyed map) or as the
-    remaining name-keyed map entries. Per-input facts: `"role"`,
+    under `"inputs"` (a list of input maps or a name-keyed map), under
+    `"fields"` (the list form `AshSurface.Compiler.Schema` manufactures for
+    compiled IR), or as the remaining name-keyed map entries. Per-input facts: `"role"`,
     `"required"`, `"describedby"`.
   - `IR.Presentation` — `label` (surface label), `group` (grouping fact),
     `order` (tab order fact).
@@ -45,7 +46,7 @@ defmodule AshSurface.Projectors.ARIA do
   @calver "26.9.17"
   @default_prefix "ash_surface_aria"
   @politeness ~w(polite assertive off)
-  @reserved ~w(inputs live role)
+  @reserved ~w(inputs fields live role)
 
   @doc """
   Projects one IR (or a list of IRs) into the ARIA contract map.
@@ -191,7 +192,7 @@ defmodule AshSurface.Projectors.ARIA do
   defp inputs(nil), do: []
 
   defp inputs(aria) when is_map(aria) do
-    case fact(aria, "inputs") do
+    case fact(aria, "inputs") || fact(aria, "fields") do
       nil ->
         name_keyed_inputs(aria)
 

@@ -1,7 +1,7 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (1222 tests, pinned floor 1217, 113 `test/**/*_test.exs` files) and
+`mix test` (1224 tests, pinned floor 1217, 113 `test/**/*_test.exs` files) and
 `npm test` (330 tests, 24 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
