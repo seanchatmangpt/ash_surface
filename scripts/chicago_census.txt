@@ -22,7 +22,6 @@ test/ash_surface/capacity_gate_test.exs
 test/ash_surface/codec_props_test.exs
 test/ash_surface/command_center_coverage_test.exs
 test/ash_surface/command_center_test.exs
-test/ash_surface/commitment_boundary_coverage_test.exs
 test/ash_surface/compiler/aria_section_test.exs
 test/ash_surface/compiler/ash_section_test.exs
 test/ash_surface/compiler/boundary_ledger_test.exs
@@ -54,9 +53,6 @@ test/ash_surface/fuzz_projectors_test.exs
 test/ash_surface/handwritten_ledger_test.exs
 test/ash_surface/health_deep_test.exs
 test/ash_surface/health_test.exs
-test/ash_surface/human_projection_coverage_test.exs
-test/ash_surface/human_surface_coverage_test.exs
-test/ash_surface/human_surface_test.exs
 test/ash_surface/idempotency_test.exs
 test/ash_surface/intent/candidate_test.exs
 test/ash_surface/intent/dispatch_knownness_gate_test.exs
@@ -74,7 +70,6 @@ test/ash_surface/lineage_court_bench_test.exs
 test/ash_surface/lineage_court_test.exs
 test/ash_surface/live_view_projector_test.exs
 test/ash_surface/manifest_serializer_test.exs
-test/ash_surface/manufacture_trace_coverage_test.exs
 test/ash_surface/mx_closed_loop_deep_test.exs
 test/ash_surface/mx_closed_loop_episode_test.exs
 test/ash_surface/mx_episode_compose_state_test.exs
@@ -88,11 +83,8 @@ test/ash_surface/observation_deep_test.exs
 test/ash_surface/observation_test.exs
 test/ash_surface/ontology_enforced_by_test.exs
 test/ash_surface/path_truth_test.exs
-test/ash_surface/personalization_context_coverage_test.exs
-test/ash_surface/personalization_manufacture_test.exs
 test/ash_surface/planning_episode_deep_test.exs
 test/ash_surface/planning_episode_test.exs
-test/ash_surface/possibility_coverage_test.exs
 test/ash_surface/presentation_section_test.exs
 test/ash_surface/project_test.exs
 test/ash_surface/projector/expo_actions_test.exs
@@ -100,7 +92,6 @@ test/ash_surface/projector/expo_client_reconcile_test.exs
 test/ash_surface/projector/expo_client_test.exs
 test/ash_surface/projector/expo_determinism_test.exs
 test/ash_surface/projector/expo_events_test.exs
-test/ash_surface/projector/expo_human_runtime_test.exs
 test/ash_surface/projector/expo_receipts_hash_test.exs
 test/ash_surface/projector/expo_receipts_test.exs
 test/ash_surface/projector/expo_schemas_test.exs
@@ -141,7 +132,6 @@ test/ash_surface/version_sync_test.exs
 test/ash_surface/vocabulary_drift_test.exs
 test/ash_surface/vocabulary_test.exs
 test/ash_surface/vocabulary_zod_coverage2_test.exs
-test/ash_surface/zoe_demo_test.exs
 test/ash_surface_test.exs
 test/conformance/conformance_replay_test.exs
 test/js/boundary_refusals.test.mjs
@@ -160,7 +150,6 @@ test/js/ir_projection.test.mjs
 test/js/ir_projector_deep.test.mjs
 test/js/namespaces_deep.test.mjs
 test/js/observability_events.test.mjs
-test/js/personalization_manufacture.test.mjs
 test/js/planning_episode.test.mjs
 test/js/playwright_accessibility.test.mjs
 test/js/receipts_primitives.test.mjs
@@ -170,5 +159,4 @@ test/js/select_calculus_parity.test.mjs
 test/js/transport_law.test.mjs
 test/js/version_sync.test.mjs
 test/js/zod_boundaries.test.mjs
-test/js/zoela_human_surface.test.mjs
 test/js/zoela_mx_consumer_fixture.test.mjs

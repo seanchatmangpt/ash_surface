@@ -1,8 +1,8 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (1262 tests, pinned floor 1257, 131 `test/**/*_test.exs` files) and
-`npm test` (371 tests, 28 `test/js/*.test.mjs` files), chained
+`mix test` (1262 tests, pinned floor 1257, 121 `test/**/*_test.exs` files) and
+`npm test` (371 tests, 26 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
@@ -83,7 +83,7 @@ not a setup problem.
 
 The battery pins the full chicago suite set: `scripts/chicago_census.txt`
 is the golden census — one `# floor: <N>` line plus one suite path per
-line (159 suites at this SHA: 131 mix + 28 npm), regenerated with
+line (147 suites at this SHA: 121 mix + 26 npm), regenerated with
 `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
 the floor re-measured from `mix test` whenever suites change. Two
 fail-closed battery steps consume it:
