@@ -180,14 +180,14 @@ defmodule AshSurface.ProjectorsCoverageTest do
     test "project/1 uses the default prefix and matches project/2 with no opts" do
       surface = expo_surface(%{})
 
-      assert {:ok, artifacts, meta} = Expo.project(surface)
-      assert {:ok, ^artifacts, ^meta} = Expo.project(surface, [])
+      assert {:ok, artifacts, meta} = AshSurface.project(surface, Expo)
+      assert {:ok, ^artifacts, ^meta} = AshSurface.project(surface, Expo, [])
       assert meta.prefix == "zoela_surface"
       assert Map.has_key?(artifacts, "zoela_surface.schemas.mjs")
     end
 
     test "resources that are neither a map nor a list resolve no fields" do
-      assert {:ok, artifacts, _meta} = Expo.project(expo_surface("not resources"))
+      assert {:ok, artifacts, _meta} = AshSurface.project(expo_surface("not resources"), Expo)
 
       assert artifacts["zoela_surface.schemas.mjs"] =~
                "export const Help_Ticket_read_inputSchema = z.object({\n\n}).passthrough();"
@@ -208,7 +208,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
     test "project/1 uses the default prefix and emits the exact bytes to target_dir" do
       surface = voice_surface(%{"res" => %{"name" => "Help.Ticket"}})
 
-      assert {:ok, artifacts, meta} = VoiceKiosk.project(surface)
+      assert {:ok, artifacts, meta} = AshSurface.project(surface, VoiceKiosk)
       assert meta == %{prefix: "voice_kiosk", intent_count: 1}
       assert Map.keys(artifacts) == ["voice_kiosk.voice.json"]
 
@@ -222,7 +222,8 @@ defmodule AshSurface.ProjectorsCoverageTest do
 
       on_exit(fn -> File.rm_rf!(target_dir) end)
 
-      assert {:ok, ^artifacts, _meta} = VoiceKiosk.project(surface, target_dir: target_dir)
+      assert {:ok, ^artifacts, _meta} =
+               AshSurface.project(surface, VoiceKiosk, target_dir: target_dir)
 
       assert File.read!(Path.join(target_dir, "voice_kiosk.voice.json")) ==
                artifacts["voice_kiosk.voice.json"]
@@ -231,14 +232,14 @@ defmodule AshSurface.ProjectorsCoverageTest do
     test "a resource entry without fields gives no slots" do
       surface = voice_surface(%{"res" => %{"name" => "Help.Ticket"}})
 
-      assert %{"intents" => [%{"slots" => []}]} = VoiceKiosk.project_ir(surface)
+      assert %{"intents" => [%{"slots" => []}]} = VoiceKiosk.voice_ir(surface)
     end
 
     test "absent resources give no slots" do
       surface = voice_surface(nil)
 
       assert %{"intents" => [%{"slots" => [], "mode" => "ANSWER"}]} =
-               VoiceKiosk.project_ir(surface)
+               VoiceKiosk.voice_ir(surface)
     end
   end
 
@@ -271,7 +272,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
   defp expo_surface(resources) do
     actions = [%{"id" => "Help.Ticket.read", "resource" => "Help.Ticket", "action" => "read"}]
 
-    %AshSurface.Surface{
+    AshSurface.TestSupport.VerifiedSurface.seal(%AshSurface.Surface{
       manifest: nil,
       contract: %{
         "surface" => %{"actions" => actions},
@@ -279,7 +280,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
       },
       digest: "digest-test",
       action_ids: ["Help.Ticket.read"]
-    }
+    })
   end
 
   defp voice_surface(resources) do
@@ -294,7 +295,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
       }
     ]
 
-    %AshSurface.Surface{
+    AshSurface.TestSupport.VerifiedSurface.seal(%AshSurface.Surface{
       manifest: nil,
       contract: %{
         "surface" => %{"actions" => actions},
@@ -302,6 +303,6 @@ defmodule AshSurface.ProjectorsCoverageTest do
       },
       digest: "digest-test",
       action_ids: ["Help.Ticket#read"]
-    }
+    })
   end
 end

@@ -4,6 +4,12 @@ defmodule AshSurface.Projectors.JsProjectorTest do
   artifact (default prefix `ash_surface_client`), byte-deterministic, with
   DO-boundary actions projecting dispatch-intent descriptors only.
 
+  The artifact's behaviour - JSDoc namespaces, Zod schemas embedded from
+  `IR.Schema.zod`, the DO dispatch-intent law and the refusing factory - is
+  pinned by EXECUTION (`GeneratedArtifactsExecTest`, and
+  `test/js/ir_projection.test.mjs` over the bridge below), not by asserting
+  source fragments.
+
   `setup_all/1` also materializes the cross-language bridge consumed by
   `test/js/ir_projection.test.mjs`: the emitted artifact plus a `fixture.json`
   sidecar carrying the exact normalized fixture truth, both under
@@ -149,49 +155,6 @@ defmodule AshSurface.Projectors.JsProjectorTest do
     end
   end
 
-  describe "JSDoc + Zod content" do
-    test "embeds IR.Schema.zod strings verbatim as exported schemas", %{bridge_code: code} do
-      assert code =~ "export const Todo_create_schema = #{@create_zod};"
-      assert code =~ "export const Todo_list_schema = #{@list_zod};"
-      assert code =~ ~s|SCHEMAS = Object.freeze({\n  "Todo.create": Todo_create_schema,|
-    end
-
-    test "exports JSDoc-typed namespaces per resource", %{bridge_code: code} do
-      assert code =~ "@typedef {Object} TodoNamespace"
-      assert code =~ "@typedef {Object} MemberNamespace"
-      assert code =~ "export const Todo = Object.freeze({"
-      assert code =~ "export const NAMESPACES = Object.freeze({\n  Member,\n  Todo\n});"
-    end
-  end
-
-  describe "DO boundary law" do
-    test "exactly one dispatch-intent descriptor, and it is the DO action", %{bridge_code: code} do
-      assert code =~
-               ~s|id: "Todo.create",\n    resource: "Todo",\n    action: "create",\n    actionType: "create",\n    authorityBoundary: "DO",\n    receiptRequired: true,\n    descriptorKind: "DISPATCH_INTENT",|
-
-      assert count(code, ~r/\n    descriptorKind: "DISPATCH_INTENT",/) == 1
-    end
-
-    test "dispatch intents are minted by a refusing, non-executing factory", %{bridge_code: code} do
-      assert code =~ ~s|throw new Error("REFUSED_UNKNOWN_ACTION: " + id);|
-      assert code =~ ~s|throw new Error("REFUSED_NOT_DO_BOUNDARY: " + id|
-
-      assert code =~
-               "return Object.freeze({ kind: \"DISPATCH_INTENT\", actionId: id, input: parsed });"
-
-      # No execution path anywhere in the artifact.
-      refute code =~ "invoke("
-      refute code =~ "fetch("
-      refute code =~ "transport"
-      refute code =~ "await "
-    end
-
-    test "non-delegated boundary stays null instead of being inferred", %{bridge_code: code} do
-      assert code =~ ~s|id: "Member.deactivate",|
-      assert code =~ "authorityBoundary: null"
-    end
-  end
-
   describe "byte determinism" do
     test "repeated projection over the same IR is byte-identical", %{bridge_code: code} do
       {name, first} = project_code(fixture_irs())
@@ -246,6 +209,4 @@ defmodule AshSurface.Projectors.JsProjectorTest do
     assert [sole] = Map.keys(artifacts)
     {sole, Map.fetch!(artifacts, sole)}
   end
-
-  defp count(code, regex), do: length(Regex.scan(regex, code))
 end

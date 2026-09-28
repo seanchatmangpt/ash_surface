@@ -472,20 +472,18 @@ defmodule AshSurface.Projectors.LiveViewTest do
   end
 
   describe "behaviour conformance" do
-    test "LiveView carries its documented project_ir/2 subject contract" do
+    test "LiveView declares the single projector contract and refuses foreign IR kinds" do
       behaviours =
         LiveView.__info__(:attributes)
         |> Keyword.get_values(:behaviour)
         |> List.flatten()
 
-      # Integrated truth: the branch-local behaviour declaration was superseded
-      # by the canonical AshSurface.Projector.IR (v16), whose callback folds
-      # kind-tagged IR node maps; LiveView's project_ir/2 folds %AshSurface.IR{}
-      # structs directly — a different subject contract — so it honestly does
-      # not declare the behaviour. Conformance is owed by the adapter that
-      # bridges the two IR shapes.
-      assert AshSurface.Projector.IR not in behaviours
+      assert AshSurface.Projector.IR in behaviours
       assert function_exported?(LiveView, :project_ir, 2)
+
+      # It admits %AshSurface.IR{} structs only: a surface node map is refused typed.
+      node = %{kind: "ash_surface.surface", ash: %{}}
+      assert {:error, {:not_an_ir, ^node}} = LiveView.project_ir([node], [])
     end
   end
 end

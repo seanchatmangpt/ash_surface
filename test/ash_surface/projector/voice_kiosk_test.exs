@@ -22,7 +22,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
   @resource "Volunteer.Milestone"
 
   defp surface(actions, resources \\ %{}) do
-    %AshSurface.Surface{
+    AshSurface.TestSupport.VerifiedSurface.seal(%AshSurface.Surface{
       manifest: nil,
       contract: %{
         "surface" => %{"actions" => actions},
@@ -30,7 +30,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
       },
       digest: "digest-test",
       action_ids: Enum.map(actions, & &1["id"])
-    }
+    })
   end
 
   defp read_action(overides \\ %{}) do
@@ -70,11 +70,11 @@ defmodule AshSurface.Projector.VoiceKioskTest do
         })
 
       assert [%{"prompt" => "Hear today's milestones"}] =
-               VoiceKiosk.project_ir(surface([action]))["intents"]
+               VoiceKiosk.voice_ir(surface([action]))["intents"]
     end
 
     test "an action without a presentation.label falls back to a humanized action name" do
-      assert [%{"prompt" => "read"}] = VoiceKiosk.project_ir(surface([read_action()]))["intents"]
+      assert [%{"prompt" => "read"}] = VoiceKiosk.voice_ir(surface([read_action()]))["intents"]
 
       gated = %{
         "id" => "Volunteer.Milestone#record",
@@ -86,14 +86,14 @@ defmodule AshSurface.Projector.VoiceKioskTest do
       }
 
       assert [%{"prompt" => "Please confirm: record milestone"}] =
-               VoiceKiosk.project_ir(surface([gated]))["intents"]
+               VoiceKiosk.voice_ir(surface([gated]))["intents"]
     end
   end
 
   describe "slot grammar hints from schema inputs" do
     test "every schema input field becomes a slot with a grammar hint and required flag" do
       intent =
-        surface([read_action()], fields_resource()) |> VoiceKiosk.project_ir() |> fetch_intent()
+        surface([read_action()], fields_resource()) |> VoiceKiosk.voice_ir() |> fetch_intent()
 
       assert intent["slots"] ==
                [
@@ -108,7 +108,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
     test "an action whose resource has no schema yields no slots" do
       intent =
         surface([%{"id" => "Orphan#read", "resource" => "Unknown", "action" => "read"}])
-        |> VoiceKiosk.project_ir()
+        |> VoiceKiosk.voice_ir()
         |> fetch_intent()
 
       assert intent["slots"] == []
@@ -126,7 +126,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
         "profile" => %{"presentation" => %{"label" => "Record a milestone"}}
       }
 
-      intent = surface([gated]) |> VoiceKiosk.project_ir() |> fetch_intent()
+      intent = surface([gated]) |> VoiceKiosk.voice_ir() |> fetch_intent()
 
       assert intent["mode"] == "CONFIRM"
       assert intent["autoExecute"] == false
@@ -136,14 +136,14 @@ defmodule AshSurface.Projector.VoiceKioskTest do
     test "the authority_required capability forces confirmation even on an OBSERVE action" do
       action = read_action(%{"profile" => %{"capabilities" => ["authority_required"]}})
 
-      intent = surface([action]) |> VoiceKiosk.project_ir() |> fetch_intent()
+      intent = surface([action]) |> VoiceKiosk.voice_ir() |> fetch_intent()
 
       assert intent["mode"] == "CONFIRM"
       assert intent["autoExecute"] == false
     end
 
     test "an ungated OBSERVE action answers directly and may auto-execute" do
-      intent = surface([read_action()]) |> VoiceKiosk.project_ir() |> fetch_intent()
+      intent = surface([read_action()]) |> VoiceKiosk.voice_ir() |> fetch_intent()
 
       assert intent["mode"] == "ANSWER"
       assert intent["autoExecute"] == true
@@ -152,7 +152,7 @@ defmodule AshSurface.Projector.VoiceKioskTest do
     test "unrelated capabilities do not gate" do
       action = read_action(%{"profile" => %{"capabilities" => ["offline_cache"]}})
 
-      intent = surface([action]) |> VoiceKiosk.project_ir() |> fetch_intent()
+      intent = surface([action]) |> VoiceKiosk.voice_ir() |> fetch_intent()
 
       assert intent["mode"] == "ANSWER"
       assert intent["autoExecute"] == true
@@ -309,17 +309,21 @@ defmodule AshSurface.Projector.VoiceKioskTest do
         %{"id" => "B#read", "resource" => @resource, "action" => "read"}
       ]
 
-      ir = VoiceKiosk.project_ir(surface(actions))
+      ir = VoiceKiosk.voice_ir(surface(actions))
       assert Enum.map(ir["intents"], & &1["actionId"]) == ["A#read", "B#read", "C#read"]
-      assert ir == VoiceKiosk.project_ir(surface(Enum.reverse(actions)))
-      assert ir == VoiceKiosk.project_ir(surface(actions), [])
+
+      # The surface digest addresses the contract as given (list order is
+      # part of its content); everything projected is order-independent.
+      reversed = VoiceKiosk.voice_ir(surface(Enum.reverse(actions)))
+      assert Map.delete(ir, "surfaceDigest") == Map.delete(reversed, "surfaceDigest")
+      assert ir == VoiceKiosk.voice_ir(surface(actions), [])
     end
 
     test "the IR carries the surface digest and is JSON-serializable" do
-      ir = surface([read_action()]) |> VoiceKiosk.project_ir()
+      ir = surface([read_action()]) |> VoiceKiosk.voice_ir()
 
       assert ir["kind"] == "voice_kiosk"
-      assert ir["surfaceDigest"] == "digest-test"
+      assert ir["surfaceDigest"] == AshSurface.contract_digest(surface([read_action()]).contract)
       assert {:ok, decoded} = Jason.decode(Jason.encode!(ir))
       assert decoded == ir
     end
@@ -402,6 +406,6 @@ defmodule AshSurface.Projector.VoiceKioskTest do
   end
 
   defp flow_intent(row, i) do
-    surface([flow_action(row, i)], fields_resource()) |> VoiceKiosk.project_ir() |> fetch_intent()
+    surface([flow_action(row, i)], fields_resource()) |> VoiceKiosk.voice_ir() |> fetch_intent()
   end
 end

@@ -44,15 +44,13 @@ defmodule AshSurface.Projector.ExpoTest do
 
     assert meta.prefix == "zoela_surface"
     assert meta.action_count == 2
-    assert meta.human_surface == true
+    refute Map.has_key?(meta, :human_surface)
 
     for file <- [
           "zoela_surface.schemas.mjs",
           "zoela_surface.actions.mjs",
           "zoela_surface.events.mjs",
           "zoela_surface.receipts.mjs",
-          "zoela_surface.human.mjs",
-          "zoela_surface.demo.mjs",
           "zoela_surface.mjs",
           "zoela_surface.tanstack.mjs"
         ] do
@@ -61,24 +59,12 @@ defmodule AshSurface.Projector.ExpoTest do
       assert is_binary(artifacts[file])
     end
 
-    human = artifacts["zoela_surface.human.mjs"]
-    assert human =~ "HUMAN_AREAS"
-    assert human =~ "preservedPossibilities"
-    assert human =~ "personalizationContext"
-    assert human =~ "manufactureTraceFor"
-    assert human =~ "devotionalQueue"
-    assert human =~ "commitmentPreview"
-    assert human =~ "journeyTimeline"
-    assert human =~ "assertNoDoAuthority"
-
-    demo = artifacts["zoela_surface.demo.mjs"]
-    assert demo =~ "buildZoeDemoViewModel"
-    assert demo =~ "createContinuousDevotionalPlayer"
-    assert demo =~ "createHtmlAudioAdapter"
-    assert demo =~ "constructBrceIntent"
-    assert demo =~ "renderZoeDemoHtml"
-    refute demo =~ "createClient("
-    refute demo =~ ".invoke("
+    # ZOE human/demo artifacts moved to the ash_surface_zoe package: core Expo
+    # never emits them (packages/ash_surface_zoe, AshSurfaceZoe.Projector.Human).
+    refute Map.has_key?(artifacts, "zoela_surface.human.mjs")
+    refute Map.has_key?(artifacts, "zoela_surface.demo.mjs")
+    refute File.exists?(Path.join(@tmp_dir, "zoela_surface.human.mjs"))
+    refute File.exists?(Path.join(@tmp_dir, "zoela_surface.demo.mjs"))
 
     # Verify every generated JavaScript artifact independently. Passing many
     # filenames to one node --check only checks the first script and treats the
@@ -88,8 +74,6 @@ defmodule AshSurface.Projector.ExpoTest do
           "zoela_surface.actions.mjs",
           "zoela_surface.events.mjs",
           "zoela_surface.receipts.mjs",
-          "zoela_surface.human.mjs",
-          "zoela_surface.demo.mjs",
           "zoela_surface.mjs",
           "zoela_surface.tanstack.mjs"
         ] do

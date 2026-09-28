@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/mutation_recipes.sh — Chicago falsifier for the three golden families
-# (runtime SHA, contract digest, IR codec golden). Companion of
+# (runtime behaviour, contract digest, IR codec golden). Companion of
 # scripts/mutation_recipes.md, which documents each recipe and its executed
 # receipt.
 #
@@ -22,7 +22,9 @@ S1="priv/static/ash_surface_runtime.mjs"
 S2="lib/ash_surface.ex"
 S3="test/ash_surface/ir_codec_golden_test.exs"
 
-G1="test/ash_surface/runtime_source_test.exs"
+# Family 1 guard is BEHAVIOURAL (node:test, needs `npm install` for zod): the
+# post-dispatch classification law. There is no runtime whole-file digest.
+G1="test/js/transport_law.test.mjs"
 G2="test/ash_surface/digest_test.exs"
 G3="$S3"
 
@@ -62,15 +64,18 @@ for subject in "$S1" "$S2" "$S3"; do assert_clean "$subject"; done
 
 # --- baseline: all guards green before any mutation ----------------------
 expect "BASELINE_COMPILE" 0 mix compile --warnings-as-errors
-expect "BASELINE_G1" 0 mix test "$G1"
+expect "BASELINE_G1" 0 node --test "$G1"
 expect "BASELINE_G2" 0 mix test "$G2"
 expect "BASELINE_G3" 0 mix test "$G3"
 
-# --- family 1: runtime SHA — whitespace injection ------------------------
-printf '\n' >> "$S1"
-expect "M1_RED" nonzero mix test "$G1"
+# --- family 1: runtime behaviour — post-dispatch classification ----------
+# Always reporting SUCCESS would let a timed-out/disconnected dispatch look
+# settled (transport law: post-dispatch failure is UNKNOWN_AFTER_DISPATCH).
+perl -pi -e 's/const outcome = dispatchState === "completed"[^;]*;/const outcome = "SUCCESS";/' "$S1"
+grep -q 'const outcome = "SUCCESS";' "$S1" || fail "family 1 mutation did not land"
+expect "M1_RED" nonzero node --test "$G1"
 git checkout -- "$S1"
-expect "M1_GREEN" 0 mix test "$G1"
+expect "M1_GREEN" 0 node --test "$G1"
 
 # --- family 2: contract digest — field rename ----------------------------
 perl -pi -e 's/"generatorIdentity" =>/"generatorIdentityRenamed" =>/' "$S2"
@@ -78,8 +83,11 @@ expect "M2_RED" nonzero mix test "$G2"
 git checkout -- "$S2"
 expect "M2_GREEN" 0 mix test "$G2"
 
-# --- family 3: IR codec golden — field rename ----------------------------
-perl -pi -e 's/"presentation" => section_to_map/"presentation_renamed" => section_to_map/' "$S3"
+# --- family 3: IR codec golden — expected-field drop ----------------------------
+# The codec now lives in lib/; the golden pins its shape with a field-list
+# assertion. Drop one expected presentation field so that assertion goes RED.
+perl -pi -e 's/assert fields\.\(IR\.Presentation\) == ~w\(format group label order widget\)a/assert fields.(IR.Presentation) == ~w(format group order widget)a/' "$S3"
+grep -q 'assert fields.(IR.Presentation) == ~w(format group order widget)a' "$S3" || fail "family 3 mutation did not land"
 expect "M3_RED" nonzero mix test "$G3"
 git checkout -- "$S3"
 expect "M3_GREEN" 0 mix test "$G3"

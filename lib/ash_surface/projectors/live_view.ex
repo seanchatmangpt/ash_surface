@@ -31,10 +31,9 @@ defmodule AshSurface.Projectors.LiveView do
   projection is byte-stable under input permutation.
   """
 
-  # Integrated truth: the canonical AshSurface.Projector.IR behaviour (v16)
-  # folds kind-tagged IR node maps; this projector folds %AshSurface.IR{}
-  # structs directly — a different, documented subject contract — so it
-  # honestly does not declare the behaviour.
+  # Declares the single projector contract; it admits %AshSurface.IR{} structs
+  # and refuses every other input kind with a typed error.
+  @behaviour AshSurface.Projector.IR
 
   @default_group "Resources"
   @default_order 0
@@ -54,7 +53,8 @@ defmodule AshSurface.Projectors.LiveView do
 
   # The projector's public entry (three clauses below): a single IR folds as
   # a one-element collection, a list folds as given, anything else is refused.
-  @spec project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
+  @impl true
+  @spec project_ir(AshSurface.Projector.IR.input(), keyword()) ::
           {:ok, map(), map()} | {:error, term()}
   def project_ir(%AshSurface.IR{} = ir, opts), do: project_ir([ir], opts)
 
@@ -318,7 +318,11 @@ defmodule AshSurface.Projectors.LiveView do
   defp surface_action_id(%AshSurface.IR{} = ir),
     do: "#{resource_name(ir)}##{action_name(ir)}"
 
-  defp module_name(module) when is_atom(module), do: module |> Module.split() |> Enum.join(".")
+  defp module_name(nil), do: ""
+
+  defp module_name(module) when is_atom(module),
+    do: module |> Atom.to_string() |> String.replace_prefix("Elixir.", "")
+
   defp module_name(name) when is_binary(name), do: name
 
   defp input_fields(nil), do: []
@@ -379,8 +383,11 @@ defmodule AshSurface.Projectors.LiveView do
   defp validate_irs(irs) do
     Enum.reduce_while(irs, :ok, fn
       %AshSurface.IR{} = ir, :ok ->
-        case malformed_relationship(ir) do
-          nil -> {:cont, :ok}
+        with :ok <- AshSurface.IR.Codec.validate_facts(ir),
+             nil <- malformed_relationship(ir) do
+          {:cont, :ok}
+        else
+          {:error, _} = error -> {:halt, error}
           entry -> {:halt, {:error, {:malformed_relationship, entry}}}
         end
 

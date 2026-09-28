@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createClient,
   reconcileResultSchema,
+  VOCABULARY,
   SurfaceRuntimeError,
 } from "../../priv/static/ash_surface_runtime.mjs";
 
@@ -555,4 +556,25 @@ test("invalid commandId is INVALID_OPTIONS before dispatch", TIMEOUT, async () =
     const { receipt } = await client.actions["todos:Todo:create"].invokeWithReceipt({}, { commandId });
     assert.match(receipt.commandId, /^cmd_/);
   }
+});
+
+test("VOCABULARY is one frozen record built from the runtime's own constants", TIMEOUT, () => {
+  assert.equal(Object.isFrozen(VOCABULARY), true);
+  assert.equal(VOCABULARY.refusalPrefix, "REFUSED_");
+  assert.deepEqual(VOCABULARY.reconcileStatuses, ["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]);
+  assert.deepEqual(VOCABULARY.knownTransports, ["http", "phoenix_channel"]);
+  assert.deepEqual(VOCABULARY.dimensionClasses, ["low", "medium", "high"]);
+  assert.deepEqual(VOCABULARY.dimensions, ["cost", "latency", "privacy"]);
+  assert.equal(VOCABULARY.digestHexLength, 64);
+  assert.deepEqual(VOCABULARY.dispatchOutcomes, ["SUCCESS", "UNKNOWN_AFTER_DISPATCH"]);
+  assert.deepEqual(VOCABULARY.dispatchStates, ["not_dispatched", "completed", "unknown_after_dispatch"]);
+  assert.equal(VOCABULARY.idempotencyProtocol, "ash_surface.idempotency/1");
+  for (const value of Object.values(VOCABULARY)) {
+    if (Array.isArray(value)) assert.equal(Object.isFrozen(value), true);
+  }
+  // The exported vocabulary IS the boundary: reconcile status enum follows it.
+  for (const status of VOCABULARY.reconcileStatuses) {
+    assert.equal(reconcileResultSchema.safeParse({ status }).success, true);
+  }
+  assert.equal(reconcileResultSchema.safeParse({ status: "MAYBE" }).success, false);
 });

@@ -1,7 +1,22 @@
 defmodule AshSurface.Projector.IR do
   @moduledoc """
-  IR-era projector behaviour and the adapter that carries existing
-  `AshSurface.Projector` modules into it unchanged.
+  The single projector contract: every projector (JavaScript, ARIA, LiveView,
+  Expo, VoiceKiosk) declares `@behaviour AshSurface.Projector.IR` and
+  implements `project_ir/2`.
+
+  ## The contract
+
+      project_ir(input, opts) :: {:ok, artifacts, meta} | {:error, reason}
+
+  `input` is a single IR value or a list (see `t:input/0`): either
+  `%AshSurface.IR{}` per-action structs, or `#{"ash_surface.surface"}` node
+  maps carrying a whole verified surface. A projector admits the input kinds it
+  understands and refuses every other kind with a typed error; it never prunes
+  silently. Surface-consuming projectors (Expo, VoiceKiosk) recover the
+  surface with `to_surface/1`, which re-verifies the content-addressed digest
+  at the boundary. `AshSurface.project/3` is the public facade over a
+  `%AshSurface.Surface{}`: it wraps the surface with `from_surface/1` and
+  dispatches through `project/3` here. There is no second projector behaviour.
 
   ## Canonical IR shape (declared locally)
 
@@ -46,68 +61,20 @@ defmodule AshSurface.Projector.IR do
           optional(atom()) => term()
         }
 
-  @doc """
-  Projects IR into a consumer artifact.
-
-  `irs` is a single IR node or a list of IR nodes. Implementations refuse
-  unknown node kinds with typed errors instead of silently pruning them.
-  """
-  @callback project_ir(irs :: ir() | [ir()], opts :: keyword()) ::
-              {:ok, term(), map()} | {:error, term()}
-
-  defmodule ManifestProjector do
-    @moduledoc """
-    Adapter that runs an existing `AshSurface.Projector`-behaviour module over IR.
-
-    Manifest facts are re-extracted from the `ash` section of the surface IR
-    and the wrapped projector's `project/2` is invoked with them, unchanged.
-    Dispatch through `AshSurface.Projector.IR.project/3`.
-    """
-
-    defstruct [:projector]
-
-    @type t :: %__MODULE__{projector: module()}
-
-    @doc """
-    Re-extracts the surface from `irs` and delegates to the wrapped legacy
-    projector, passing `opts` through untouched.
-    """
-    @spec project_ir(
-            t(),
-            AshSurface.Projector.IR.ir() | [AshSurface.Projector.IR.ir()],
-            keyword()
-          ) ::
-            {:ok, term(), map()} | {:error, term()}
-    def project_ir(%__MODULE__{projector: projector}, irs, opts) do
-      with {:ok, surface} <- AshSurface.Projector.IR.to_surface(irs) do
-        projector.project(surface, opts)
-      end
-    end
-  end
-
-  alias __MODULE__.ManifestProjector
+  @typedoc "Anything a projector may be handed: node maps and/or per-action IR structs."
+  @type input :: ir() | AshSurface.IR.t() | [ir() | AshSurface.IR.t()]
 
   @doc """
-  Wraps an existing `AshSurface.Projector`-behaviour module for IR-era
-  projection.
+  Projects IR into consumer artifacts.
 
-  Anything that is not a module exporting `project/2` is refused with a typed
-  `{:unknown_projector_kind, _}` error — a projector module that exists but
-  implements no legacy behaviour is an unknown kind, not a silent no-op.
+  `irs` is a single IR value or a list. Implementations refuse input kinds
+  they do not admit with typed errors instead of silently pruning them.
+  Returns `{:ok, artifacts, meta}`; `artifacts` is projector-specific (a
+  filename-to-source map for the code projectors, a contract map for ARIA and
+  LiveView).
   """
-  @spec from_manifest_projector(term()) ::
-          {:ok, ManifestProjector.t()} | {:error, {:unknown_projector_kind, term()}}
-  def from_manifest_projector(projector) when is_atom(projector) do
-    Code.ensure_loaded(projector)
-
-    if function_exported?(projector, :project, 2) do
-      {:ok, %ManifestProjector{projector: projector}}
-    else
-      {:error, {:unknown_projector_kind, projector}}
-    end
-  end
-
-  def from_manifest_projector(other), do: {:error, {:unknown_projector_kind, other}}
+  @callback project_ir(irs :: input(), opts :: keyword()) ::
+              {:ok, artifacts :: term(), meta :: map()} | {:error, term()}
 
   @doc "Builds the canonical `#{@surface_ir_kind}` IR from a verified surface."
   @spec from_surface(AshSurface.Surface.t()) :: {:ok, ir()}
@@ -133,7 +100,9 @@ defmodule AshSurface.Projector.IR do
   refused with typed errors instead of silently pruned. A mixed collection —
   one surface node beside foreign nodes — is refused as a whole with
   `{:foreign_ir, foreign_nodes}`; the foreign remainder is never silently
-  discarded on success.
+  discarded on success. The claimed `digest` must equal the recomputed
+  content address of the IR's `contract` (`AshSurface.contract_digest/1`),
+  otherwise `{:error, {:surface_digest_mismatch, claimed, actual}}`.
   """
   @spec to_surface(ir() | [ir()]) :: {:ok, AshSurface.Surface.t()} | {:error, term()}
   def to_surface(irs) when is_list(irs) do
@@ -148,23 +117,17 @@ defmodule AshSurface.Projector.IR do
   def to_surface(other), do: {:error, {:invalid_irs, other}}
 
   @doc """
-  IR-era dispatch entry point.
+  Dispatch entry point: runs any module implementing the `project_ir/2`
+  callback over `irs`.
 
-  Accepts an adapter from `from_manifest_projector/1` or any module
-  implementing the `project_ir/2` callback. Anything else is refused with a
-  typed `{:unknown_projector_kind, _}` error — including a module that
-  declares only the legacy `AshSurface.Projector` behaviour, whose own
-  `project_ir/2` (if any) is not this callback.
+  Anything that is not a module exporting `project_ir/2` is refused with a
+  typed `{:unknown_projector_kind, _}` error.
   """
-  @spec project(ManifestProjector.t() | module(), ir() | [ir()], keyword()) ::
-          {:ok, term(), map()} | {:error, term()}
-  def project(%ManifestProjector{} = adapter, irs, opts),
-    do: ManifestProjector.project_ir(adapter, irs, opts)
-
+  @spec project(module(), input(), keyword()) :: {:ok, term(), map()} | {:error, term()}
   def project(projector, irs, opts) when is_atom(projector) do
     Code.ensure_loaded(projector)
 
-    if function_exported?(projector, :project_ir, 2) and not legacy_only?(projector) do
+    if function_exported?(projector, :project_ir, 2) do
       projector.project_ir(irs, opts)
     else
       {:error, {:unknown_projector_kind, projector}}
@@ -172,22 +135,6 @@ defmodule AshSurface.Projector.IR do
   end
 
   def project(other, _irs, _opts), do: {:error, {:unknown_projector_kind, other}}
-
-  # A module declaring only the legacy `AshSurface.Projector` behaviour may
-  # export a `project_ir/2` of its OWN subject contract (e.g.
-  # `AshSurface.Projector.VoiceKiosk.project_ir/2` takes a verified
-  # `AshSurface.Surface` and returns a bare map). That function is not this
-  # behaviour's callback: dispatching IR to it crashed with a
-  # FunctionClauseError. Such a module is an unknown IR kind here — wrap it
-  # with `from_manifest_projector/1` to run it over IR.
-  defp legacy_only?(projector) do
-    behaviours =
-      projector.module_info(:attributes)
-      |> Keyword.get_values(:behaviour)
-      |> List.flatten()
-
-    AshSurface.Projector in behaviours and __MODULE__ not in behaviours
-  end
 
   defp validate_ir_elements(irs) do
     case Enum.find(irs, &(not is_map(&1))) do
@@ -208,13 +155,16 @@ defmodule AshSurface.Projector.IR do
         action_ids: action_ids
       }
       when is_map(contract) and is_binary(digest) and is_list(action_ids) ->
-        {:ok,
-         %AshSurface.Surface{
-           manifest: manifest,
-           contract: contract,
-           digest: digest,
-           action_ids: action_ids
-         }}
+        surface = %AshSurface.Surface{
+          manifest: manifest,
+          contract: contract,
+          digest: digest,
+          action_ids: action_ids
+        }
+
+        # Trust boundary: the digest is a verified fact, not a claim. IR is
+        # data that crossed a boundary; recompute the content address.
+        with :ok <- AshSurface.verify_surface_digest(surface), do: {:ok, surface}
 
       _ ->
         {:error, {:invalid_surface_facts, Map.keys(ash) |> Enum.sort()}}

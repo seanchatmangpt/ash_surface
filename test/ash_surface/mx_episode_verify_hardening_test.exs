@@ -34,7 +34,7 @@ defmodule AshSurface.MXEpisodeVerifyHardeningTest do
           manifest: %{},
           contract: %{},
           action_ids: [],
-          digest: :crypto.hash(:sha256, "surface-bytes") |> Base.encode16(case: :lower)
+          digest: AshSurface.contract_digest(%{})
         },
         receipt_hash: String.duplicate("7", 64),
         subject_repo: "zoela_phx",

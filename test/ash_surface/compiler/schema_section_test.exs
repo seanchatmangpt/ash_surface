@@ -319,19 +319,20 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
         end)
         |> Map.put("f_untyped", %{"allow_nil?" => false})
 
-      surface = %AshSurface.Surface{
-        manifest: nil,
-        action_ids: [],
-        digest: nil,
-        contract: %{
-          "surface" => %{
-            "actions" => [%{"id" => "Canon.Resource#act", "resource" => "Canon.Resource"}]
-          },
-          "manifest" => %{
-            "resources" => %{"canon" => %{"name" => "Canon.Resource", "fields" => fields}}
+      surface =
+        AshSurface.TestSupport.VerifiedSurface.seal(%AshSurface.Surface{
+          manifest: nil,
+          action_ids: [],
+          digest: nil,
+          contract: %{
+            "surface" => %{
+              "actions" => [%{"id" => "Canon.Resource#act", "resource" => "Canon.Resource"}]
+            },
+            "manifest" => %{
+              "resources" => %{"canon" => %{"name" => "Canon.Resource", "fields" => fields}}
+            }
           }
-        }
-      }
+        })
 
       assert {:ok, artifacts, _meta} =
                AshSurface.project(surface, AshSurface.Projector.Expo, [])

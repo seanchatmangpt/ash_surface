@@ -110,8 +110,8 @@ pieces is in §7.
 | Compiler | DiscoverOnce, Normalize, sections, assembly; fails closed on missing sections | `lib/ash_surface/compiler.ex` |
 | SurfaceIR | dumb carrier; "IR determines NOTHING about existence, meaning, or DO-authority" | `lib/ash_surface/ir.ex` |
 | IR codec | JSON-isomorphic serialization + content addressing | `lib/ash_surface/ir/codec.ex` |
-| Projectors | receive verified `AshSurface.Surface`; never rediscover Spark internals | `lib/ash_surface.ex` (`AshSurface.Projector` behaviour) |
-| Expo (reference) | manufactures schemas/actions/events/receipts/client `.mjs` + member-facing `.human.mjs` and deterministic `.demo.mjs` | `lib/ash_surface/projector/expo.ex` |
+| Projectors | receive verified `AshSurface.Surface`; never rediscover Spark internals | `lib/ash_surface/projector/ir.ex` (`AshSurface.Projector.IR` behaviour) |
+| Expo (reference) | manufactures schemas/actions/events/receipts/client/tanstack `.mjs`; the member-facing `.human.mjs` and deterministic `.demo.mjs` are emitted by the separate `ash_surface_zoe` package (`AshSurfaceZoe.Projector.Human`, an `AshSurface.Projector.IR` implementation) | `lib/ash_surface/projector/expo.ex`; `packages/ash_surface_zoe/lib/ash_surface_zoe/projector/human.ex` |
 | JS runtime | `pi_JS = JavaScript + JSDoc + Zod`, never TypeScript; transport is a facet, not identity; selection weighs delegated cost/latency/privacy facts and exposes the non-dominated frontier (twin of `AshSurface.Transport`) | `priv/static/ash_surface_runtime.mjs` |
 | Observation | OBSERVE-only, zero DO authority | `lib/ash_surface/observation.ex` |
 | Planning | `AshSurface != Planner`; ceiling SELECT/CONSTRUCT | `lib/ash_surface/planning_episode.ex` |
@@ -187,8 +187,8 @@ delegated fact was deleted, not branched.
 ## 6. The projector recipe (~60 lines)
 
 The recipe every projector (LiveView, JS, ARIA, voice) follows; the landed reference
-is `lib/ash_surface/projector/expo.ex` against the `AshSurface.Projector` behaviour in
-`lib/ash_surface.ex`.
+is `lib/ash_surface/projector/expo.ex` against the `AshSurface.Projector.IR` behaviour in
+`lib/ash_surface/projector/ir.ex`.
 
 ```text
 # --- the ash_surface projector recipe (v26.9.16) -------------------------------

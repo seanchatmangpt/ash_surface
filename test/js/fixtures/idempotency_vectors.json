@@ -1,0 +1,69 @@
+{
+  "derivedKeys": [
+    {
+      "actionId": "Demo.create",
+      "commandId": "cmd_123",
+      "key": "ik_d3331af4fd4404a1c3591d5bfc329ae0f4b58e5693543443ddfa303f8d1e1133"
+    },
+    {
+      "actionId": "act.one",
+      "commandId": "cmd_00000000-0000-4000-8000-000000000000",
+      "key": "ik_616c5ccd77a48fec649d8ff500666219f5150d314e34b8c059dbf128de0788b5"
+    }
+  ],
+  "digests": [
+    {
+      "actionId": "a",
+      "digest": "05f91937846148adde499611f1cb1c71a7c49bc9b31226398b60d99af0f9dbdf",
+      "inputJson": "{\"b\":1,\"a\":[true,null,\"x\"]}"
+    },
+    {
+      "actionId": "act.one",
+      "digest": "d2227d6f4c7b4d0ec5f6b8d39beb37dabbf3498cf529b6d07b570c99055931a4",
+      "inputJson": "{\"s\":\"q\\\"\\\\/\\n\\t\\u0001\\u001f\\u007f é 😀 \\u2028\",\"n\":-7}"
+    },
+    {
+      "actionId": "act.two",
+      "digest": "281ce1248aa66d76ae164b71f3a1df4990dfc8d7d1c760b04e6eb922ff67c9ea",
+      "inputJson": "{\"z\":1,\"é\":2,\"￿\":3,\"😀\":4,\"\":5}"
+    },
+    {
+      "actionId": "act.three",
+      "digest": "a69ee6c29fdd227129774a935776be2d1ca8eab82f050ce9deef3311a226d60e",
+      "inputJson": "null"
+    },
+    {
+      "actionId": "act.four",
+      "digest": "29fa4eb9379153262c4ec0d0ef8563e90f28acb5b305849e5111edd36ecabff2",
+      "inputJson": "{\"s\":\"\\b\\f\\r\\u0000\\u000b\\\\u0041 \\\\n\",\"list\":[[],{},[1,[2]]],\"big\":9007199254740991,\"neg\":-9007199254740991,\"zero\":0}"
+    },
+    {
+      "actionId": "Demo.create",
+      "digest": "315b945ae7ae5cf0c0fe49fe15bfcff1a6894de9f4d4f31c50cf433e3327808b",
+      "inputJson": "{\"title\":\"buy milk\",\"tags\":[\"a\",\"b\"],\"done\":false}"
+    }
+  ],
+  "invalidKeys": [
+    "",
+    "short",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "_abcdefgh",
+    "has space1",
+    "abcd123\n",
+    "abcd!234",
+    "ünïcode123"
+  ],
+  "nonPortableInputJson": [
+    "1.5",
+    "{\"a\":[0.25]}",
+    "9007199254740992",
+    "{\"a\":-9007199254740992}"
+  ],
+  "protocol": "ash_surface.idempotency/1",
+  "validKeys": [
+    "abcd1234",
+    "ik_x.y:z-1",
+    "A1234567",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ]
+}

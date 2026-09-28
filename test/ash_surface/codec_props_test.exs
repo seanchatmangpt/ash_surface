@@ -110,119 +110,6 @@ defmodule AshSurface.CodecPropsTest do
     end)
   end
 
-  # Realistic five-section shapes. The section KEYS are the codec's canon
-  # (actions/identity/profile/resources/transports); the section CONTENT is
-  # shaped after the IR's five sources: ash (resource projections),
-  # semantic (IRIs, digests), capability (authority boundaries, refusals),
-  # presentation (audience, flags, order), schema/transport selections.
-
-  @refusals ~w(REFUSED_NO_AUTHORITY REFUSED_UNKNOWN_REVERSIBILITY REFUSED_GENERATOR_OWNED)
-
-  defp version_string do
-    map(integer(0..99), fn n -> "26.9.#{n}" end)
-  end
-
-  defp iri do
-    map(integer(0..99), fn n -> "https://w3id.org/chatman/aps#aps_#{n}" end)
-  end
-
-  defp hex_digest do
-    map(binary(length: 6), &Base.encode16(&1, case: :lower))
-  end
-
-  defp identity_section do
-    map(
-      list_of(
-        {
-          member_of(
-            ~w(surfaceSchemaVersion generatorIdentity manifestDigest semanticId ontology)
-          ),
-          one_of([version_string(), hex_digest(), iri()])
-        },
-        min_length: 1,
-        max_length: 4
-      ),
-      &Map.new/1
-    )
-  end
-
-  defp resource_name do
-    map(integer(0..999), fn n ->
-      "AshSurface.Prop#{String.pad_leading(Integer.to_string(n), 3, "0")}"
-    end)
-  end
-
-  defp resources_section do
-    map(
-      list_of(
-        {
-          resource_name(),
-          map(
-            list_of(member_of(~w(id body title state owner inserted_at)),
-              min_length: 1,
-              max_length: 5
-            ),
-            fn attributes -> %{"attributes" => attributes} end
-          )
-        },
-        min_length: 1,
-        max_length: 3
-      ),
-      &Map.new/1
-    )
-  end
-
-  defp actions_section do
-    map(list_of(action_entry(), min_length: 1, max_length: 4), fn entries ->
-      %{"entries" => entries}
-    end)
-  end
-
-  defp action_entry do
-    gen all(
-          resource <- resource_name(),
-          action <- member_of(~w(read record submit approve list)),
-          boundary <- member_of(~w(OBSERVE DO)),
-          do_authority <- boolean(),
-          refusals <- list_of(member_of(@refusals), max_length: 2)
-        ) do
-      %{
-        "id" => "#{resource}##{action}",
-        "authorityBoundary" => boundary,
-        "doAuthority" => do_authority,
-        "possibleRefusals" => refusals
-      }
-    end
-  end
-
-  defp profile_section do
-    gen all(
-          audience <- member_of(~w(internal public partner)),
-          flags <-
-            map(
-              list_of(
-                {member_of(~w(verifyReceipts adaptiveTransport ariaLabels)), boolean()},
-                max_length: 3
-              ),
-              &Map.new/1
-            ),
-          order <- integer(0..99)
-        ) do
-      %{"audience" => audience, "flags" => flags, "order" => order}
-    end
-  end
-
-  defp transports_section do
-    gen all(
-          declared <- list_of(transport(), min_length: 1, max_length: 3),
-          preferred <- transport()
-        ) do
-      %{"declared" => Enum.uniq(declared), "preferred" => preferred}
-    end
-  end
-
-  defp transport, do: member_of(~w(http phoenix_channel sse mcp))
-
   defp maybe(gen), do: frequency([{1, constant(nil)}, {4, gen}])
 
   # An honest five-section pair list in a generated rotation — insertion
@@ -263,11 +150,30 @@ defmodule AshSurface.CodecPropsTest do
   # One admitted-canon section generator: every codec-declared field drawn from
   # the bounded JSON value generator (fields may be any JSON term; the codec
   # stages them nil-honestly and ignores unknowns).
+  #
+  # The scalar facts projectors read (`resource`, `action`, `action_type`,
+  # `order`, `aria`) are typed at the decode boundary
+  # (`Codec.validate_facts/1`), so they are drawn from their declared domains;
+  # the refusal of wrong-typed values is pinned in `fuzz_ir_codec_test.exs`.
   defp section(fields) do
-    gen all(values <- list_of(json_iso(2), length: length(fields))) do
+    gen all(values <- fields |> Enum.map(&fact/1) |> fixed_list()) do
       fields |> Enum.zip(values) |> Map.new()
     end
   end
+
+  defp fact(name) when name in ["resource", "action", "action_type"],
+    do: one_of([constant(nil), string(:alphanumeric, max_length: 8)])
+
+  defp fact("order"), do: one_of([constant(nil), integer(0..99)])
+
+  defp fact("aria"),
+    do:
+      one_of([
+        constant(nil),
+        map(list_of({member_of(["role", "live"]), json_iso(1)}, max_length: 2), &Map.new/1)
+      ])
+
+  defp fact(_name), do: json_iso(2)
 
   # JSON-isomorphic terms only (string keys): the codec's require_section_shapes
   # refuses atom-keyed maps as non-staging shapes (034 law).

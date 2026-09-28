@@ -64,6 +64,7 @@ defmodule AshSurface.Intent.Dispatch do
   """
 
   alias AshSurface.Intent.Envelope
+  alias AshSurface.Telemetry
 
   @doc """
   Manufactures an intent from `candidate_map` and submits it to `command_bus`.
@@ -84,6 +85,14 @@ defmodule AshSurface.Intent.Dispatch do
   """
   @spec submit(map(), module(), map()) :: {:ok, term()} | {:error, term()}
   def submit(candidate_map, command_bus, context) do
+    result = do_submit(candidate_map, command_bus, context)
+
+    action_id = if is_map(candidate_map), do: Map.get(candidate_map, :action_id)
+    Telemetry.intent_dispatched(action_id, result)
+    result
+  end
+
+  defp do_submit(candidate_map, command_bus, context) do
     with :ok <- validate_candidate(candidate_map),
          :ok <- validate_knownness(candidate_map, context),
          :ok <- validate_bus(command_bus) do

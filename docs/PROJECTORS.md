@@ -12,69 +12,56 @@ projector accepts by existing:
 > NEVER re-discover Ash semantics from Spark internals.
 > NEVER dispatch: a projector that actuates is a contract violation.
 
-## 1. The two behaviour contracts
+## 1. The projector contract (single, `project_ir/2`)
 
-### 1.1 Legacy — `AshSurface.Projector` (on base, this branch)
-
-Declared in `lib/ash_surface.ex`:
-
-```elixir
-defmodule AshSurface.Projector do
-  @callback project(AshSurface.Surface.t(), keyword()) ::
-              {:ok, term(), map()} | {:error, term()}
-end
-```
-
-`%AshSurface.Surface{}` carries exactly `manifest | contract | digest | action_ids`
-(all enforce keys). Dispatch is `AshSurface.project/3`: a module that does not
-export `project/2` is refused with `{:error, {:unsupported_projector, projector}}`.
-
-### 1.2 IR-era — `project_ir/2` (admitted on `exp/v16`, `lib/ash_surface/projector/ir.ex`)
+There is ONE projector behaviour: `AshSurface.Projector.IR`
+(`lib/ash_surface/projector/ir.ex`). The former legacy behaviour
+`AshSurface.Projector` (`project(surface, opts)`, declared in
+`lib/ash_surface.ex`) was retired; see the migration note in §4.
 
 ```elixir
-@callback project_ir(irs :: ir() | [ir()], opts :: keyword()) ::
-            {:ok, term(), map()} | {:error, term()}
+@type input :: ir() | AshSurface.IR.t() | [ir() | AshSurface.IR.t()]
+
+@callback project_ir(irs :: input(), opts :: keyword()) ::
+            {:ok, artifacts :: term(), meta :: map()} | {:error, term()}
 ```
 
-- `irs` is a single IR node or a list; implementations **refuse unknown node
-  kinds with typed errors** instead of silently pruning them.
-- Dispatch is `AshSurface.Projector.IR.project/3`: accepts a
-  `ManifestProjector` adapter (§4) or any module exporting `project_ir/2`;
-  anything else is `{:error, {:unknown_projector_kind, term}}`.
+`input` was widened deliberately (was `ir() | [ir()]`): the callback now
+names both IR shapes projectors actually consume — `ash_surface.surface` node
+maps (whole verified surface) and per-action `%AshSurface.IR{}` structs. Each
+projector admits the kinds it understands and refuses the rest with a typed
+error; the return shape `{:ok, artifacts, meta}` is unchanged.
+
+| Projector | Declares behaviour | Admits | Refuses other kinds with |
+|---|---|---|---|
+| `Projector.Expo`, `Projector.VoiceKiosk` | yes | one `ash_surface.surface` node (digest re-verified by `to_surface/1`) | `{:missing_surface_ir, n}`, `{:foreign_ir, _}`, `{:surface_digest_mismatch, _, _}`, ... |
+| `Projectors.JS`, `Projectors.LiveView`, `Projectors.ARIA` | yes | `%AshSurface.IR{}` (single or list) | `{:not_an_ir, term}` (LiveView: also `{:not_ir_input, term}`) |
+
+`%AshSurface.Surface{}` carries exactly `manifest | contract | digest | action_ids`.
+The public facade is `AshSurface.project(surface, projector, opts)`: it wraps
+the surface with `Projector.IR.from_surface/1` and dispatches through
+`Projector.IR.project/3`; a module that does not export `project_ir/2` is
+refused with `{:error, {:unsupported_projector, projector}}`. Because the
+surface now travels as IR, it crosses the same trust boundary as any other IR:
+`to_surface/1` recomputes the contract digest, so a hand-built `%Surface{}`
+must carry a real manifest struct and its true `AshSurface.contract_digest/1`.
+
+### 1.1 `Projector.IR` dispatch and surface IR
+
+- Dispatch is `AshSurface.Projector.IR.project/3`: any module exporting
+  `project_ir/2`; anything else is `{:error, {:unknown_projector_kind, term}}`.
 - `to_surface/1` admits **exactly one** complete `kind: "ash_surface.surface"`
   node; zero, duplicate, foreign, or incomplete nodes are refused with typed
   errors (`{:missing_surface_ir, n}`, `{:duplicate_surface_irs, n}`,
   `{:invalid_surface_facts, keys}`, `{:invalid_ir, node}}`,
   `{:foreign_ir, nodes}`). A mixed collection — one surface node beside
   foreign nodes — is refused as a whole; the foreign remainder is never
-  silently pruned on success.
+  silently pruned on success. The claimed digest must equal the recomputed
+  content address (`{:surface_digest_mismatch, claimed, actual}`).
 - Canonical node shape: `%{kind: "ash_surface.surface", ash: %{manifest,
   contract, digest, action_ids}}` — the four facts of a verified surface,
   re-extracted (never re-derived; Ash ships no manifest deserializer and none
   is invented).
-
-**Dispatch refusal (2026-09-28).** `Projector.IR.project/3` refuses a module
-that declares only the legacy `AshSurface.Projector` behaviour with
-`{:unknown_projector_kind, mod}`, even if it exports its own `project_ir/2`
-(`VoiceKiosk.project_ir/2` takes a verified `Surface`, not IR, and used to
-crash the dispatcher with a `FunctionClauseError`). Wrap such a module with
-`from_manifest_projector/1` to run it over IR.
-
-**Adoption reality (corrected gapfix-docs-truth-013).** The `project_ir/2`
-callback is declared here, but in-tree the behaviour is adopted only by a
-test fixture (`test/ash_surface/projector/ir_projector_test.exs`). The shipped
-projectors — `AshSurface.Projectors.JS`, `AshSurface.Projectors.ARIA`,
-`AshSurface.Projectors.LiveView`, `AshSurface.Projector.VoiceKiosk` — export
-`project_ir/2` without declaring the behaviour; dispatch is duck-typed on
-`function_exported?(projector, :project_ir, 2)`
-(`lib/ash_surface/projector/ir.ex:161`), and
-`lib/ash_surface/projectors/live_view.ex:28–31` records the honest reason (the
-v16 behaviour folds kind-tagged node maps; these projectors fold
-`%AshSurface.IR{}` structs — a different, documented subject contract). The
-legacy `AshSurface.Projector` behaviour (§1.1) *is* declared by
-`Projector.VoiceKiosk` and `Projector.Expo`. Earlier revisions of this
-document implied the behaviour was the shipped adoption path; that was not
-true at this tree.
 
 ## 2. The IR the projectors speak — five sections
 
@@ -124,8 +111,8 @@ Four projection lanes leave the IR (`pi_LiveView`, `pi_JS`, `pi_ARIA`,
 | `pi_ARIA` | `AshSurface.Compiler.Aria` | `lib/ash_surface/compiler/aria.ex` | `exp/v08` (`88dc562`), deepened `exp/v34` (`725503e`) | `build/2` pure section builder (data only) | per-input ARIA contracts mounted at `IR.Schema.aria` |
 | `pi_LiveView` (structure) | `AshSurface.Compiler.Presentation` | `lib/ash_surface/compiler/presentation.ex` | `exp/v06`, carried `exp/v50` | `build/2` presentation reader | `label/group/order/widget/format` at `IR.Presentation` |
 | `pi_voice` | `AshSurface.Projector.VoiceKiosk` | `lib/ash_surface/projector/voice_kiosk.ex` | `exp/v20` (`41a5a48`), carried `exp/v50` | legacy `project/2` + `project_ir/2` | `{prefix}.voice.json` sorted voice intents |
-| reference (landed) | `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | base `282f3ca` | legacy `project/2` | `{prefix}.schemas/.actions/.events/.receipts/.human/.demo/.mjs/.tanstack.mjs` |
-| `pi_LiveView` (projection) | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | landed at v50 final integration (feat `2b93c85`) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch; see §1.2 adoption note) | ash_admin-style structure map: navigation/table/forms/relationships + intent-only action controls |
+| reference (landed) | `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | base `282f3ca` | legacy `project/2` | `{prefix}.schemas/.actions/.events/.receipts/.mjs/.tanstack.mjs` (the former `.human`/`.demo` artifacts moved to `AshSurfaceZoe.Projector.Human` in `packages/ash_surface_zoe`) |
+| `pi_LiveView` (projection) | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | landed at v50 final integration (feat `2b93c85`) | `project_ir/2` over `%AshSurface.IR{}` structs (declares `Projector.IR`; §1) | ash_admin-style structure map: navigation/table/forms/relationships + intent-only action controls |
 | `pi_ARIA` (projection) | `AshSurface.Projectors.ARIA` | `lib/ash_surface/projectors/aria.ex` | landed at v50 final integration (feat `8827f41`, `exp/v19` line) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch) | ARIA contract map (+ optional `.json` emission) from delegated `IR.Schema.aria`/`IR.Presentation` facts |
 
 Notes per lane:
@@ -193,9 +180,9 @@ Notes per lane:
   revision said "no projector module is shipped" — falsified by the v50
   landing.] The projection module `AshSurface.Projectors.LiveView` folds
   `%AshSurface.IR{}` structs into deterministic navigation/table/form/
-  relationship structure maps with intent-only action controls; it honestly
-  does not declare the `Projector.IR` behaviour (struct subject, not
-  kind-tagged node maps — `live_view.ex:28–31`). The structure facet's source
+  relationship structure maps with intent-only action controls; it declares
+  the `Projector.IR` behaviour and admits `%AshSurface.IR{}` structs only,
+  refusing node maps typed. The structure facet's source
   *data* is still the presentation section: `build/2` reads ash_admin-style
   overrides from the action's `custom.ash_surface` envelope under
   `"presentation"` (atom or string envelope keys tolerated for in-memory vs
@@ -204,7 +191,8 @@ Notes per lane:
   is closed and admitted (`default text textarea toggle select number date`);
   anything else is a typed `unknown_widget_presentation` rejection.
   Server-rendered LiveView itself is consumer territory (AshPhoenix
-  authoritative). It is nil-safe over compiler-produced IR: a nil
+  authoritative; the module's own moduledoc, `live_view.ex:26–28`, records that a
+  nil section reads as all-UNKNOWN facts). It is nil-safe over compiler-produced IR: a nil
   `semantic`/`capability`/`presentation`/`schema` section reads as the empty
   struct (honest absence, e.g. `consequence_class: nil`), and relationships
   are read only from the map-shaped `semantic.predicates`. The compiler
@@ -213,37 +201,52 @@ Notes per lane:
   R2RML discovery.
 - **voice_kiosk.** The deliberately minimal fifth projector — see §5.
 
-## 4. The legacy manifest-projector adapter — `from_manifest_projector/1`
+## 4. Migration: legacy `AshSurface.Projector` retired
 
-Admitted on `exp/v16` (`01545e3`), `lib/ash_surface/projector/ir.ex`. It
-carries every existing `AshSurface.Projector` module into the IR era
-**unchanged**:
+**Removed:** the `AshSurface.Projector` behaviour and its `project/2`
+callback, `Projector.IR.from_manifest_projector/1`,
+`Projector.IR.ManifestProjector`, and the `legacy_only?/1` dispatch guard that
+only existed to paper over the two-contract split. `Projector.Expo` and
+`Projector.VoiceKiosk` no longer export `project/2`.
+
+**Migrate a custom projector:**
 
 ```elixir
-@spec from_manifest_projector(term()) ::
-        {:ok, ManifestProjector.t()} | {:error, {:unknown_projector_kind, term()}}
+# before
+@behaviour AshSurface.Projector
+@impl true
+def project(%AshSurface.Surface{} = surface, opts), do: ...
+
+# after
+@behaviour AshSurface.Projector.IR
+@impl true
+def project_ir(irs, opts) do
+  with {:ok, surface} <- AshSurface.Projector.IR.to_surface(irs) do
+    ... # unchanged body over `surface`
+  end
+end
 ```
 
-- Wraps any module exporting legacy `project/2` into
-  `%AshSurface.Projector.IR.ManifestProjector{projector: module}`.
-- Anything else — wrong module, module without the behaviour, non-module — is
-  refused with typed `{:unknown_projector_kind, term}`; a projector that
-  exists but implements no legacy behaviour is an unknown kind, **not a silent
-  no-op**.
-- `ManifestProjector.project_ir/3` re-extracts the verified surface from the
-  IR `ash` facts (`to_surface/1`) and delegates to the wrapped projector's
-  `project/2` with opts untouched — artifacts, meta, and errors pass through.
-  The wrapped projector observes the identical surface it received before the
-  IR era (proven state-based in `test/ash_surface/projector/ir_projector_test.exs`
-  on `exp/v16`: echoed surface, passthrough errors, unchanged opts, typed
-  refusals at both adaptation and dispatch).
+**Migrate callers:** `AshSurface.project(surface, Projector, opts)` is
+unchanged. Direct calls `Expo.project(surface, opts)` /
+`VoiceKiosk.project(surface, opts)` become
+`AshSurface.project(surface, Expo, opts)` (artifact bytes and meta are
+identical). `VoiceKiosk.project_ir(surface)` (the bare intents map) was
+renamed `VoiceKiosk.voice_ir/2` because `project_ir/2` is now the callback.
+`from_manifest_projector/1` callers pass the module straight to
+`Projector.IR.project/3`.
+
+**Behaviour change to know:** `AshSurface.project/3` now verifies the
+surface digest (it travels as IR). Surfaces built by `from_manifest/2`/
+`from_app/2` are unaffected; hand-built fixtures need a `%Ash.Info.Manifest{}`
+and `AshSurface.contract_digest(contract)` as their digest.
 
 ## 5. The new-surface recipe (~60 lines, voice_kiosk inlined)
 
 `AshSurface.Projector.VoiceKiosk` (`exp/v20`, `41a5a48`) is the proof that any
 new surface speaks the IR in ~60 lines. Steps, then the module verbatim:
 
-1. Pick the contract: legacy `project/2` (surface) or `project_ir/2` (IR).
+1. Implement `project_ir/2` (`@behaviour AshSurface.Projector.IR`); recover a whole surface with `to_surface/1`, or fold `%AshSurface.IR{}` structs.
 2. Read only admitted truth: identity (`id`/`resource`/`action`) is re-used,
    never re-minted; delegated facts (`authorityBoundary`, `doAuthority`,
    `receiptRequired`, `semanticId`) are read-or-`nil` — emitting a default is
@@ -271,7 +274,7 @@ defmodule AshSurface.Projector.VoiceKiosk do
   any new surface speaks the IR in ~60 lines.
   """
 
-  @behaviour AshSurface.Projector
+  @behaviour AshSurface.Projector.IR
 
   @grammar %{
     "string" => "free text",        "integer" => "a whole number",
@@ -281,9 +284,15 @@ defmodule AshSurface.Projector.VoiceKiosk do
   }
 
   @impl true
-  def project(%AshSurface.Surface{} = surface, opts \\ []) do
+  def project_ir(irs, opts \\ []) do
+    with {:ok, surface} <- AshSurface.Projector.IR.to_surface(irs) do
+      project_surface(surface, opts)
+    end
+  end
+
+  defp project_surface(%AshSurface.Surface{} = surface, opts) do
     prefix = Keyword.get(opts, :prefix, "voice_kiosk")
-    ir = project_ir(surface, opts)
+    ir = voice_ir(surface, opts)
     artifacts = %{"#{prefix}.voice.json" => Jason.encode!(ir, pretty: true)}
 
     if target_dir = Keyword.get(opts, :target_dir) do
@@ -295,8 +304,8 @@ defmodule AshSurface.Projector.VoiceKiosk do
   end
 
   @doc "Projects the surface IR into sorted voice intents: prompts, slots, gating."
-  @spec project_ir(AshSurface.Surface.t(), keyword()) :: map()
-  def project_ir(%AshSurface.Surface{} = surface, _opts \\ []) do
+  @spec voice_ir(AshSurface.Surface.t(), keyword()) :: map()
+  def voice_ir(%AshSurface.Surface{} = surface, _opts \\ []) do
     resources = get_in(surface.contract, ["manifest", "resources"])
 
     intents =
@@ -372,8 +381,8 @@ correction markers) is the registry of record.]
 
 | Element | Branch (commit) | Canonical path (post-integration) |
 |---|---|---|
-| Legacy `AshSurface.Projector` behaviour + dispatch | base `282f3ca` | `lib/ash_surface.ex` |
-| `project_ir/2` behaviour + `from_manifest_projector/1` + `project/3` | `exp/v16` (`01545e3`) | `lib/ash_surface/projector/ir.ex` |
+| `AshSurface.project/3` facade (legacy `AshSurface.Projector` behaviour retired, see §4) | base `282f3ca` | `lib/ash_surface.ex` |
+| `project_ir/2` behaviour (sole contract) + `project/3` | `exp/v16` (`01545e3`) | `lib/ash_surface/projector/ir.ex` |
 | Five-section `AshSurface.IR` | `exp/v01` -> `exp/v18` | `lib/ash_surface/ir.ex` |
 | Flat-entry reader (`entries/1`, `describe/1`, `do_boundary?/1`) | `exp/v18` (`7d8e705`), renamed `Projector.IREntry` at v50 final integration (`4aacae5`) | `lib/ash_surface/projector/ir_entry.ex` |
 | LiveView projector (`AshSurface.Projectors.LiveView`) | v50 final integration (feat `2b93c85`) | `lib/ash_surface/projectors/live_view.ex` |

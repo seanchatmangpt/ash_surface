@@ -32,18 +32,6 @@ defmodule AshSurface do
           }
   end
 
-  defmodule Projector do
-    @moduledoc """
-    Behaviour for projecting a verified `AshSurface.Surface` into a consumer artifact.
-
-    Projectors receive an already-normalized, already-verified manifest. They should
-    not rediscover Ash resource/action semantics from Spark internals.
-    """
-
-    @callback project(AshSurface.Surface.t(), keyword()) ::
-                {:ok, term(), map()} | {:error, term()}
-  end
-
   @doc "Returns the version of AshSurface's wrapper contract."
   @spec schema_version() :: String.t()
   def schema_version, do: @surface_schema_version
@@ -98,13 +86,21 @@ defmodule AshSurface do
     end
   end
 
-  @doc "Projects a verified surface through a declared projector module."
+  @doc """
+  Projects a verified surface through a declared projector module.
+
+  Public facade over the single projector contract
+  (`AshSurface.Projector.IR`): the surface travels as `ash_surface.surface` IR
+  and the projector's `project_ir/2` runs over it. A module without
+  `project_ir/2` is refused with `{:unsupported_projector, module}`.
+  """
   @spec project(Surface.t(), module(), keyword()) :: {:ok, term(), map()} | {:error, term()}
   def project(%Surface{} = surface, projector, opts \\ []) when is_atom(projector) do
     Code.ensure_loaded(projector)
 
-    if function_exported?(projector, :project, 2) do
-      projector.project(surface, opts)
+    if function_exported?(projector, :project_ir, 2) do
+      {:ok, ir} = AshSurface.Projector.IR.from_surface(surface)
+      AshSurface.Projector.IR.project(projector, ir, opts)
     else
       {:error, {:unsupported_projector, projector}}
     end
@@ -225,9 +221,16 @@ defmodule AshSurface do
   defp validate_profile(profile) when is_map(profile), do: validate_json_data(profile)
   defp validate_profile(_), do: {:error, :profile_must_be_a_map}
 
+  # A binary must be valid UTF-8 (keys and values): Jason cannot encode
+  # anything else, so admitting it yields a contract that cannot serialize.
+  defp validate_json_data(value) when is_binary(value) do
+    if String.valid?(value),
+      do: :ok,
+      else: {:error, {:profile_value_not_serializable, value}}
+  end
+
   defp validate_json_data(value)
-       when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value) or
-              is_atom(value),
+       when is_number(value) or is_boolean(value) or is_nil(value) or is_atom(value),
        do: :ok
 
   # An improper list ([1 | 2]) is not JSON data and would raise in Enum.
@@ -246,7 +249,7 @@ defmodule AshSurface do
   defp validate_json_data(value) when is_map(value) do
     Enum.reduce_while(value, :ok, fn {key, item}, :ok ->
       cond do
-        not (is_binary(key) or is_atom(key)) ->
+        not (is_binary(key) or is_atom(key)) or (is_binary(key) and not String.valid?(key)) ->
           {:halt, {:error, {:profile_key_not_serializable, key}}}
 
         true ->
@@ -333,8 +336,52 @@ defmodule AshSurface do
     end
   end
 
-  defp refusal_code?("REFUSED_" <> reason), do: reason != ""
-  defp refusal_code?(_code), do: false
+  defp refusal_code?(code), do: AshSurface.Vocabulary.refusal_code?(code)
+
+  @doc """
+  The content address of a contract map: lowercase sha256 hex over the
+  canonical (string-keyed, sorted) term encoding.
+
+  This is the exact function `from_manifest/2` uses to mint `Surface.digest`,
+  exposed so the digest is a *verifiable fact*: anything that receives a
+  `%Surface{}` from outside the constructor (IR, episodes) recomputes it
+  instead of trusting the claimed value.
+
+  ## Examples
+
+      iex> digest = AshSurface.contract_digest(%{"a" => 1})
+      iex> {byte_size(digest), digest == AshSurface.contract_digest(%{a: 1})}
+      {64, true}
+  """
+  @spec contract_digest(map()) :: String.t()
+  def contract_digest(contract), do: digest(contract)
+
+  @doc """
+  Verifies that `surface.digest` is the content address of `surface.contract`.
+
+  Returns `:ok` or `{:error, {:surface_digest_mismatch, claimed, actual}}`.
+
+  ## Examples
+
+      iex> {:ok, surface} = AshSurface.from_manifest(%Ash.Info.Manifest{entrypoints: []})
+      iex> AshSurface.verify_surface_digest(surface)
+      :ok
+
+      iex> {:ok, surface} = AshSurface.from_manifest(%Ash.Info.Manifest{entrypoints: []})
+      iex> forged = %{surface | digest: String.duplicate("a", 64)}
+      iex> {:error, {:surface_digest_mismatch, claimed, actual}} = AshSurface.verify_surface_digest(forged)
+      iex> {claimed, actual == surface.digest}
+      {String.duplicate("a", 64), true}
+  """
+  @spec verify_surface_digest(Surface.t()) ::
+          :ok | {:error, {:surface_digest_mismatch, term(), String.t()}}
+  def verify_surface_digest(%Surface{contract: contract, digest: claimed}) do
+    actual = contract_digest(contract)
+
+    if claimed == actual,
+      do: :ok,
+      else: {:error, {:surface_digest_mismatch, claimed, actual}}
+  end
 
   defp digest(contract) do
     contract

@@ -9,8 +9,8 @@ import {
   parseHumanSurfaceProjection,
   possibilitySetSchema,
   whyThisSchema,
-  SurfaceRuntimeError,
-} from "../../priv/static/ash_surface_runtime.mjs";
+} from "../../priv/static/ash_surface_zoe.mjs";
+import { SurfaceRuntimeError } from "ash_surface";
 
 function fixture() {
   const hypothesis = {

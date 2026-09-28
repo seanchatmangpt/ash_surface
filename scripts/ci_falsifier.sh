@@ -10,8 +10,8 @@
 #
 # Fail-closed: refuses a dirty tracked tree (restore must be lossless), refuses
 # a mutation that did not land, and prints FALSIFIER_OK only when every proof
-# held. Exits 0 only on that line. Runtime bound: ~1 compile + 7 narrow
-# `mix test` invocations (CI job pins timeout-minutes: 5).
+# held. Exits 0 only on that line. Runtime bound: 1 compile + 2 narrow
+# guard runs per recipe (CI job pins timeout-minutes: 5; measured in the report).
 set -Eeuo pipefail
 
 FALSIFIER_FAIL_MSG=""
@@ -38,23 +38,27 @@ mutated_subject=""
 trap 'rm -rf "$tmpdir"; [ -z "$mutated_subject" ] || git checkout -- "$mutated_subject"' EXIT
 
 # run_guard <label> <files...>: runs the guard subset, prints its verdict tail
-# and EXIT[label]=code. Echoes nothing else on stdout.
+# and EXIT[label]=code. Echoes nothing else on stdout. `*.mjs` files run under
+# `node --test` (the behavioural JS suites); everything else under `mix test`.
 run_guard() {
   local label="$1"
   shift
   local rc=0
-  mix test "$@" >"$tmpdir/guard.log" 2>&1 || rc=$?
+  case "$1" in
+    *.mjs) node --test "$@" >"$tmpdir/guard.log" 2>&1 || rc=$? ;;
+    *) mix test "$@" >"$tmpdir/guard.log" 2>&1 || rc=$? ;;
+  esac
   echo "EXIT[$label]=$rc"
   tail -n 2 "$tmpdir/guard.log"
   return $rc
 }
 
-# guard_is_red: non-zero exit AND ExUnit reported assertion failures (a compile
-# error of the subject is not a detection — the guard must fail assertions).
-# Format is the ExUnit verdict line: `Failed: 1 test` / `Failed: 2 tests`
-# (older ExUnit: `N failures`).
+# guard_is_red: non-zero exit AND the runner reported assertion failures (a
+# compile/import error of the subject is not a detection — the guard must fail
+# assertions). ExUnit: `Failed: 1 test` (older: `N failures`); node:test:
+# `# fail N` / `ℹ fail N` with N >= 1.
 guard_is_red() {
-  grep -Eq '^Failed: [0-9]+ tests?| [0-9]+ failures?' "$tmpdir/guard.log"
+  grep -Eq '^Failed: [0-9]+ (tests?|propert(y|ies))| [0-9]+ failures?|^(#|ℹ) fail [1-9]' "$tmpdir/guard.log"
 }
 
 # assert_mutated <probe-cmd>: the mutation MUST land; a silent no-op would let
@@ -75,25 +79,56 @@ run_guard canaries \
 
 # ---- 2. mutation recipes: RED under mutation, GREEN after restore ----------
 # name|subject|guard-file (recipes documented in scripts/mutation_recipes.md)
+# Every recipe is a BEHAVIOURAL or guard-removing mutation: the named guard is
+# a behaviour test, never a byte-change detector. `.mjs` guards need
+# `npm install` (zod) first; the CI falsifier job does that.
 recipes=(
-  "runtime-sha-whitespace|priv/static/ash_surface_runtime.mjs|test/ash_surface/runtime_source_test.exs"
+  "rt-post-dispatch-classification|priv/static/ash_surface_runtime.mjs|test/js/transport_law.test.mjs"
+  "rt-known-transports-order|priv/static/ash_surface_runtime.mjs|test/js/transport_law.test.mjs"
+  "rt-null-prototype-registry|priv/static/ash_surface_runtime.mjs|test/js/runtime_hardening.test.mjs"
   "digest-hexcase-flip|lib/ash_surface.ex|test/ash_surface/digest_test.exs"
+  "from-manifest-refused-prefix|lib/ash_surface.ex|test/ash_surface/boundary_hardening_test.exs"
   "irgolden-presentation-fielddrop|test/ash_surface/ir_codec_golden_test.exs|test/ash_surface/ir_codec_golden_test.exs"
+  "event-digest-second-slot|lib/ash_surface/ir/event_projection.ex|test/ash_surface/boundary_hardening_test.exs"
+  "transport-duplicate-check|lib/ash_surface/transport.ex|test/ash_surface/transport_coverage_test.exs"
+  "zodguard-allow-constructor|lib/ash_surface/projectors/js/zod_guard.ex|test/ash_surface/decode_boundary_zod_guard_test.exs"
+  "js-namespace-collision|lib/ash_surface/projectors/js.ex|test/ash_surface/projector_hardening_test.exs"
+  "mx-verifier-timeout|lib/ash_surface/mx_episode.ex|test/ash_surface/mx_episode_verify_hardening_test.exs"
 )
 
 for row in "${recipes[@]}"; do
   IFS='|' read -r name subject guard <<<"$row"
   echo "==> recipe $name: mutate $subject, demand RED from $guard"
 
-  bytes_before=$(wc -c <"$subject" | tr -d ' ')
   case "$name" in
-    runtime-sha-whitespace)
-      printf '\n' >>"$subject"
-      assert_mutated [ "$bytes_before" -lt "$(wc -c <"$subject" | tr -d ' ')" ]
+    rt-post-dispatch-classification)
+      # Post-dispatch failure must classify UNKNOWN_AFTER_DISPATCH; always
+      # reporting SUCCESS would let a timed-out call look settled.
+      perl -pi -e 's/const outcome = dispatchState === "completed"[^;]*;/const outcome = "SUCCESS";/' "$subject"
+      assert_mutated grep -q 'const outcome = "SUCCESS";' "$subject"
+      ;;
+    rt-known-transports-order)
+      # Transport selection order under "auto" is the http-first frontier.
+      perl -pi -e 's/Object\.freeze\(\["http", "phoenix_channel"\]\)/Object.freeze(["phoenix_channel", "http"])/' "$subject"
+      assert_mutated grep -q 'KNOWN_TRANSPORTS = Object.freeze(\["phoenix_channel", "http"\])' "$subject"
+      ;;
+    rt-null-prototype-registry)
+      # A plain-object action registry lets id "constructor"/"__proto__"
+      # resolve through Object.prototype.
+      perl -pi -e 's/const actions = Object\.create\(null\);/const actions = {};/' "$subject"
+      assert_mutated grep -q 'const actions = {};' "$subject"
       ;;
     digest-hexcase-flip)
       perl -pi -e 's/Base\.encode16\(case: :lower\)/Base.encode16(case: :upper)/' "$subject"
       assert_mutated grep -q 'Base.encode16(case: :upper)' "$subject"
+      ;;
+    from-manifest-refused-prefix)
+      # The REFUSED_-prefix admission branch of from_manifest's per-action
+      # profile validation is disabled: a non-refusal string would become an
+      # admissible "possible refusal" (the JS runtime would then reject the
+      # contract Elixir emitted).
+      perl -pi -e 's/bad = Enum\.reject\(refusals, &refusal_code\?\/1\)[^\n]*->\s*$/bad = nil ->/' "$subject"
+      assert_mutated grep -q '^ *bad = nil ->' "$subject"
       ;;
     irgolden-presentation-fielddrop)
       # Re-pointed at the live golden assertion (the old @presentation_fields
@@ -101,6 +136,30 @@ for row in "${recipes[@]}"; do
       # presentation field so the golden suite's own field-shape assert goes RED.
       perl -pi -e 's/assert fields\.\(IR\.Presentation\) == ~w\(format group label order widget\)a/assert fields.(IR.Presentation) == ~w(format group order widget)a/' "$subject"
       assert_mutated grep -q 'assert fields.(IR.Presentation) == ~w(format group order widget)a' "$subject"
+      ;;
+    event-digest-second-slot)
+      # Drop the receiptRef slot from digest binding: a tampered digest moved
+      # into the second slot would project.
+      perl -pi -e 's/\[\[:receipt_hash, "receiptHash"\], \[:receipt_ref, "receiptRef"\]\]/[[:receipt_hash, "receiptHash"]]/' "$subject"
+      assert_mutated grep -q '\[\[:receipt_hash, "receiptHash"\]\]' "$subject"
+      ;;
+    transport-duplicate-check)
+      perl -pi -e 's/^(\s*)duplicates != \[\] ->/$1false ->/' "$subject"
+      assert_mutated grep -q '^ *false ->' "$subject"
+      ;;
+    zodguard-allow-constructor)
+      perl -pi -e 's/\@denied_members ~w\(constructor prototype call apply bind\)/\@denied_members ~w(prototype call apply bind)/' "$subject"
+      assert_mutated grep -q '@denied_members ~w(prototype call apply bind)' "$subject"
+      ;;
+    js-namespace-collision)
+      perl -pi -e 's/\{short, many\} -> \{:error, \{:js_namespace_collision, short, many\}\}/{_short, _many} -> nil/' "$subject"
+      assert_mutated grep -q '{_short, _many} -> nil' "$subject"
+      ;;
+    mx-verifier-timeout)
+      # A hung verifier that never times out would block forever; the mutation
+      # makes the timeout branch report success instead of the typed refusal.
+      perl -pi -e 's/\{:error, \{:verifier_timeout, timeout\}\}/{:ok, {"", 0}}/' "$subject"
+      assert_mutated grep -q '{:ok, {"", 0}}' "$subject"
       ;;
     *)
       fail "unknown recipe: $name"

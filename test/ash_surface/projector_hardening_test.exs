@@ -297,17 +297,13 @@ defmodule AshSurface.ProjectorHardeningTest do
       assert {:ok, %{"ash_surface_client.mjs" => _}, _} = ProjectorIR.project(JS, irs, [])
       assert {:ok, _contract, %{surface_count: 5}} = ProjectorIR.project(ARIA, irs, [])
 
-      # VoiceKiosk's own project_ir/2 takes a verified Surface; it is a
-      # legacy projector and is refused typed rather than crashed into.
-      assert ProjectorIR.project(VoiceKiosk, irs, []) ==
-               {:error, {:unknown_projector_kind, VoiceKiosk}}
+      # Surface-consuming projectors (VoiceKiosk, Expo) implement the same
+      # contract but admit only `ash_surface.surface` IR: per-action IR is
+      # refused typed, never crashed into.
+      assert {:error, {:missing_surface_ir, 5}} = ProjectorIR.project(VoiceKiosk, irs, [])
 
-      assert ProjectorIR.project(AshSurface.Projector.Expo, irs, []) ==
-               {:error, {:unknown_projector_kind, AshSurface.Projector.Expo}}
-
-      # Wrapped legacy projectors refuse non-surface IR typed.
-      {:ok, adapter} = ProjectorIR.from_manifest_projector(VoiceKiosk)
-      assert {:error, {:missing_surface_ir, 5}} = ProjectorIR.project(adapter, irs, [])
+      assert {:error, {:missing_surface_ir, 5}} =
+               ProjectorIR.project(AshSurface.Projector.Expo, irs, [])
     end
   end
 

@@ -1,8 +1,8 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (1233 tests, pinned floor 1228, 115 `test/**/*_test.exs` files) and
-`npm test` (339 tests, 24 `test/js/*.test.mjs` files), chained
+`mix test` (1262 tests, pinned floor 1257, 131 `test/**/*_test.exs` files) and
+`npm test` (371 tests, 28 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
 
@@ -83,7 +83,7 @@ not a setup problem.
 
 The battery pins the full chicago suite set: `scripts/chicago_census.txt`
 is the golden census — one `# floor: <N>` line plus one suite path per
-line (139 suites at this SHA: 115 mix + 24 npm), regenerated with
+line (159 suites at this SHA: 131 mix + 28 npm), regenerated with
 `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
 the floor re-measured from `mix test` whenever suites change. Two
 fail-closed battery steps consume it:
@@ -93,7 +93,7 @@ fail-closed battery steps consume it:
   a missing census, a missing/duplicated/malformed floor line, an empty
   list, or a path escaping the clone.
 - **mix test count floor** (after `mix test`) — the clone's `mix test`
-  count must be >= the pinned floor (1228 at this SHA; re-pinned 2026-09-28
+  count must be >= the pinned floor (1257 at this SHA; re-pinned 2026-09-28
   from 1029 when the Chicago coverage wave added the `*_coverage_test.exs`,
   boundary/projector/MX-verify hardening and JS runtime-hardening suites;
   earlier re-pinned 2026-09-23 from 842 when the census grew the command_center, human_surface, zoe_demo,
@@ -106,6 +106,40 @@ fail-closed battery steps consume it:
 This is the same golden-vector discipline as section 2's drift detection,
 applied to the suite set itself: a removed or emptied-out suite is a
 battery failure, never a silent shrink of the proof.
+
+### Suites added by the 2026-09-28 hardening waves
+
+Beyond the per-module Chicago suites, these gates exist and are part of the
+census:
+
+- **Execution receipts, not source fragments.** Every manufactured artifact
+  (Expo schemas/actions/events/receipts/client/tanstack, the voice kiosk JSON,
+  the JS projector output) is imported and executed by Node against the real
+  runtime shim (`test/ash_surface/projector/generated_artifacts_exec_test.exs`,
+  `test/ash_surface/projector/expo_client_reconcile_test.exs`, runners `test/js/generated_*_runner.mjs`).
+  Each has a mutation sanity check: a hand-broken copy of the artifact must
+  fail its runner. Only intentional public contracts that execution cannot
+  observe (the `// @generated` header, import specifiers) are still pinned as
+  text.
+- **Cross-language conformance corpus** (`conformance/`, `docs/CONFORMANCE.md`):
+  language-neutral vectors minted by the real Elixir implementation and replayed
+  by Elixir (`test/conformance/`) and JavaScript
+  (`test/js/conformance_replay.test.mjs`); a divergence is pinned as a
+  `KNOWN_DIVERGENCE` with a reason, never skipped silently.
+- **Decode-boundary fuzzing** (`test/ash_surface/fuzz_*_test.exs`,
+  `decode_boundary_*_test.exs`): untrusted entry points (`IR.Codec.from_map/1`,
+  the `from_manifest` profile, `EventProjection.from_receipt/2`, the projectors
+  over decoded IR) are total and typed under StreamData input.
+- **Single-sourced vocabulary with a drift test**
+  (`test/ash_surface/vocabulary_drift_test.exs`): `AshSurface.Vocabulary` is deep-compared to the
+  JS runtime's `VOCABULARY` export.
+- **Falsifier** (`scripts/ci_falsifier.sh`, CI job `falsifier`): 11 mutation
+  recipes; each guard must turn RED under its mutation and GREEN after restore.
+  There is no whole-file runtime SHA golden any more; the runtime is pinned by
+  behaviour.
+- **ZOE package** (`packages/ash_surface_zoe`, `mix test.zoe`, CI job
+  `zoe-package`): the extracted human-surface family has its own suites and is
+  deliberately not part of `mix test.all`.
 
 ## 2. What Chicago-style means here
 
@@ -142,10 +176,12 @@ collaborators:
      (`sha256("need_42:diverged")`, `sha256("need_42:selected")`) so the
      observation/world-state contract cannot silently change shape.
   3. `test/ash_surface/projector/expo_test.exs` — the Expo projector must
-     manufacture the exact eight-file artifact set
-     (`zoela_surface.schemas/actions/events/receipts/human/demo/tanstack.mjs`,
+     manufacture the exact six-file generic artifact set
+     (`zoela_surface.schemas/actions/events/receipts/tanstack.mjs`,
      `zoela_surface.mjs`) and every file must pass `node --check`; a new,
-     renamed, or broken artifact breaks the golden list.
+     renamed, or broken artifact breaks the golden list. The `human`/`demo`
+     artifacts moved to the `ash_surface_zoe` package
+     (`packages/ash_surface_zoe`, `mix test.zoe`).
 
   `test/ash_surface_test.exs` adds the companion properties: the surface
   digest is stable across equivalent map insertion order, and projection

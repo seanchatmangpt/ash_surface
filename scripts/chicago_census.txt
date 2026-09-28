@@ -12,7 +12,7 @@
 #
 # Regenerate the list when suites change (additions must re-pin; removals
 # must also lower the floor to the new measured count):
-# floor: 1228
+# floor: 1257
 test/ash_surface/action_id_test.exs
 test/ash_surface/aria_projector_test.exs
 test/ash_surface/ash_section_truth_test.exs
@@ -35,6 +35,7 @@ test/ash_surface/compiler_discovery_test.exs
 test/ash_surface/compiler_sections_coverage_test.exs
 test/ash_surface/compiler_test.exs
 test/ash_surface/consumer_fixture_test.exs
+test/ash_surface/decode_boundary_zod_guard_test.exs
 test/ash_surface/delegation_coverage_test.exs
 test/ash_surface/digest_parity_fixture_test.exs
 test/ash_surface/digest_test.exs
@@ -46,12 +47,17 @@ test/ash_surface/event_test.exs
 test/ash_surface/formatter_registration_canary_test.exs
 test/ash_surface/from_app_test.exs
 test/ash_surface/from_manifest_test.exs
+test/ash_surface/fuzz_event_projection_test.exs
+test/ash_surface/fuzz_from_manifest_test.exs
+test/ash_surface/fuzz_ir_codec_test.exs
+test/ash_surface/fuzz_projectors_test.exs
 test/ash_surface/handwritten_ledger_test.exs
 test/ash_surface/health_deep_test.exs
 test/ash_surface/health_test.exs
 test/ash_surface/human_projection_coverage_test.exs
 test/ash_surface/human_surface_coverage_test.exs
 test/ash_surface/human_surface_test.exs
+test/ash_surface/idempotency_test.exs
 test/ash_surface/intent/candidate_test.exs
 test/ash_surface/intent/dispatch_knownness_gate_test.exs
 test/ash_surface/intent/dispatch_test.exs
@@ -99,6 +105,7 @@ test/ash_surface/projector/expo_receipts_hash_test.exs
 test/ash_surface/projector/expo_receipts_test.exs
 test/ash_surface/projector/expo_schemas_test.exs
 test/ash_surface/projector/expo_test.exs
+test/ash_surface/projector/generated_artifacts_exec_test.exs
 test/ash_surface/projector/ir_projector_test.exs
 test/ash_surface/projector/voice_kiosk_test.exs
 test/ash_surface/projector_hardening_test.exs
@@ -108,6 +115,7 @@ test/ash_surface/projectors/js_projector_test.exs
 test/ash_surface/projectors/live_view_states_test.exs
 test/ash_surface/projectors/live_view_test.exs
 test/ash_surface/projectors_coverage_test.exs
+test/ash_surface/projectors_input_coverage2_test.exs
 test/ash_surface/refactor_safety_net_test.exs
 test/ash_surface/resource/validator_adversarial_test.exs
 test/ash_surface/resource/validator_ir_alignment_test.exs
@@ -118,6 +126,9 @@ test/ash_surface/schema_section_test.exs
 test/ash_surface/semantic_delegation_test.exs
 test/ash_surface/stale_claim_tripwire_test.exs
 test/ash_surface/standing_test.exs
+test/ash_surface/supply_chain_test.exs
+test/ash_surface/telemetry_coverage2_test.exs
+test/ash_surface/telemetry_test.exs
 test/ash_surface/transport_calculus_tables_test.exs
 test/ash_surface/transport_coverage_test.exs
 test/ash_surface/transport_fallback_test.exs
@@ -125,10 +136,16 @@ test/ash_surface/transport_falsifiers_test.exs
 test/ash_surface/transport_outcome_test.exs
 test/ash_surface/transport_props_test.exs
 test/ash_surface/transport_select_test.exs
+test/ash_surface/trust_boundary_test.exs
 test/ash_surface/version_sync_test.exs
+test/ash_surface/vocabulary_drift_test.exs
+test/ash_surface/vocabulary_test.exs
+test/ash_surface/vocabulary_zod_coverage2_test.exs
 test/ash_surface/zoe_demo_test.exs
 test/ash_surface_test.exs
+test/conformance/conformance_replay_test.exs
 test/js/boundary_refusals.test.mjs
+test/js/conformance_replay.test.mjs
 test/js/consumer_fixture.test.mjs
 test/js/contract_schema.test.mjs
 test/js/digest_cross_language.test.mjs
@@ -137,9 +154,12 @@ test/js/digest_cross_language_v3.test.mjs
 test/js/e2e_hermetic.test.mjs
 test/js/error_paths.test.mjs
 test/js/event_observation.test.mjs
+test/js/idempotency_parity.test.mjs
+test/js/idempotency_retry.test.mjs
 test/js/ir_projection.test.mjs
 test/js/ir_projector_deep.test.mjs
 test/js/namespaces_deep.test.mjs
+test/js/observability_events.test.mjs
 test/js/personalization_manufacture.test.mjs
 test/js/planning_episode.test.mjs
 test/js/playwright_accessibility.test.mjs

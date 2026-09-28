@@ -293,7 +293,7 @@ defmodule AshSurface.DigestParityFixtures do
       },
       "semantic" => nil,
       "capability" => nil,
-      "presentation" => %{"order" => ["z", "a", "m"]},
+      "presentation" => %{"label" => "Σ🜂 deep", "group" => "g", "order" => 7},
       "schema" => nil
     }
 

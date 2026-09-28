@@ -2,39 +2,15 @@ defmodule AshSurface.RuntimeSourceTest do
   @moduledoc """
   State-based provenance tests for `AshSurface.runtime_source/0`.
 
-  Frozen against the shipped artifact `priv/static/ash_surface_runtime.mjs`.
-  Any change to that file must, in the same change, update the golden digest
-  here and re-freeze it. No env, db, or network is exercised.
+  Law pinned: the served runtime is exactly the shipped artifact, is ordinary
+  JavaScript (JSDoc + Zod, never TypeScript), carries the declared schema
+  version, and exposes the documented public export surface. There is no
+  whole-file digest golden: a byte-change-detector is not a correctness guard;
+  behavioural drift is caught by the JS behaviour suites and the mutation
+  falsifier (`scripts/ci_falsifier.sh`). No env, db, or network is exercised.
   """
 
   use ExUnit.Case, async: true
-
-  # v26.9.16 delegation: re-frozen after the runtime's surfaceActionSchema moved
-  # delegated facts (semanticId/authorityBoundary/doAuthority/receiptRequired)
-  # from client-side defaults to nullable delegated-or-null.
-  # gapfix-test-surface-015: re-frozen after the ontologyDigest/
-  # applicationReleaseIdentity producer-or-remove ledger comment was added to
-  # ashSurfaceContractSchema (comment-only change; no executable byte moved).
-  # gapfix-bump-mech-007 at integration (018): re-frozen after the 26.9.17
-  # carrier bump and the 015 comment union — the schema-site comment is still
-  # comment-only; the version marker moved through the bump mechanism.
-  # finish-standing-022 (F3) + finish-select-025 (F6) union re-freeze: standing
-  # enum union + REFUSED_-prefix guard AND the selection dimension facts twin;
-  # golden recomputed from the merged runtime file (whole-file SHA-256 law).
-  # chicago-039 union re-freeze: schema-site ledger-note comment-only edit; golden
-  # recomputed from the merged runtime file (whole-file SHA-256 law).
-  # runtime-hardening re-freeze (2026-09-28): null-prototype action/resource
-  # namespaces + own-key lookups, opt-in timeoutMs/abort dispatch race
-  # (UNKNOWN_AFTER_DISPATCH, no replay), Zod-validated reconcile verdict,
-  # crypto.randomUUID default commandId; golden recomputed from the edited
-  # runtime file (whole-file SHA-256 law). SURFACE_RUNTIME_VERSION unchanged.
-  # 2026-09-28 review-hardening re-freeze: never-throw default commandId
-  # (randomUUID -> getRandomValues v4 -> Math.random), pre-dispatch
-  # DISPATCH_ABORTED_PRE_DISPATCH refusal for an already-aborted signal,
-  # own-property (Object.hasOwn) transport lookup everywhere, null options
-  # and commandId admission (INVALID_OPTIONS); golden recomputed from the
-  # edited runtime file (whole-file SHA-256 law). Version unchanged.
-  @golden_runtime_sha256 "32199c29db0bec2981a616c8357d1730e089b3931b99be98f24df9b3a3060588"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 
@@ -43,12 +19,6 @@ defmodule AshSurface.RuntimeSourceTest do
       assert {:ok, source} = AshSurface.runtime_source()
       assert is_binary(source)
       assert byte_size(source) > 0
-    end
-
-    test "hashes to the golden-frozen SHA-256 digest of the shipped runtime" do
-      assert {:ok, source} = AshSurface.runtime_source()
-      digest = :crypto.hash(:sha256, source) |> Base.encode16(case: :lower)
-      assert digest == @golden_runtime_sha256
     end
 
     test "carries a SURFACE_RUNTIME_VERSION marker matching the declared schema version" do
@@ -70,6 +40,32 @@ defmodule AshSurface.RuntimeSourceTest do
 
       assert source_digest == disk_digest
       assert source == disk
+    end
+
+    test "is ordinary JavaScript: no TypeScript syntax, no type-only files" do
+      assert {:ok, source} = AshSurface.runtime_source()
+      assert String.ends_with?(AshSurface.runtime_path(), ".mjs")
+      refute source =~ ~r/^\s*(export\s+)?(interface|type)\s+\w+\s*(=|\{)/m
+      refute source =~ ~r/\bimport\s+type\b/
+      assert source =~ ~r/from\s+"zod"/
+    end
+
+    test "exports the documented public runtime surface" do
+      assert {:ok, source} = AshSurface.runtime_source()
+
+      exported =
+        ~r/^export\s+(?:const|function|class)\s+([A-Za-z_$][\w$]*)/m
+        |> Regex.scan(source, capture: :all_but_first)
+        |> List.flatten()
+
+      for name <-
+            ~w(createClient SurfaceRuntimeError SURFACE_RUNTIME_VERSION STANDING_VALUES
+               ashSurfaceContractSchema surfaceActionSchema eventProjectionSchema
+               reconcileResultSchema) do
+        assert name in exported, "runtime no longer exports #{name}"
+      end
+
+      assert Enum.uniq(exported) == exported
     end
   end
 end

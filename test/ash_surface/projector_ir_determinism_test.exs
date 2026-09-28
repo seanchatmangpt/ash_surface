@@ -30,24 +30,32 @@ end
 
 defmodule AshSurface.ProjectorIRDeterminism.JsonProjector do
   @moduledoc """
-  Injected projector double over the legacy `AshSurface.Projector` behaviour —
+  Injected surface-consuming projector double over the single
+  `AshSurface.Projector.IR` contract —
   the seam TESTING.md admits for projectors (the projector module passed to
   `AshSurface.project/3`). State-based, no mocks: it renders one JSON artifact
   from admitted surface facts only.
 
   Canonical modules it drives: `AshSurface.IR.Codec.digest/1` (the production
   digest canon, pinned against the surface's own digest by the suite) and the
-  contract's admitted action entries. The IR-era dispatch path drives this same
-  double through `AshSurface.Projector.IR.ManifestProjector`.
+  contract's admitted action entries. It recovers its surface with
+  `AshSurface.Projector.IR.to_surface/1`; both the `AshSurface.project/3`
+  facade and `AshSurface.Projector.IR.project/3` drive this same double.
   """
 
-  @behaviour AshSurface.Projector
+  @behaviour AshSurface.Projector.IR
 
   alias AshSurface.IR.Codec
   alias AshSurface.ProjectorIRDeterminism.CanonicalJson
 
   @impl true
-  def project(%AshSurface.Surface{} = surface, opts \\ []) do
+  def project_ir(irs, opts \\ []) do
+    with {:ok, surface} <- AshSurface.Projector.IR.to_surface(irs) do
+      render(surface, opts)
+    end
+  end
+
+  defp render(%AshSurface.Surface{} = surface, opts) do
     prefix = Keyword.get(opts, :prefix, "surface_ir")
 
     actions =
@@ -152,10 +160,9 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
         -> AshSurface.Projector.IR.from_surface / to_surface   (IR round-trip)
         -> AshSurface.IR.Codec.digest         (the production digest canon)
 
-  Projection dispatch is exercised through every canonical path: the legacy
-  `AshSurface.project/3` seam and the IR-era `AshSurface.Projector.IR.project/3`
-  (both the `ManifestProjector` adapter wrapping the legacy double and the
-  native `project_ir/2` double). The doubles are the admitted injected seam
+  Projection dispatch is exercised through every canonical path: the
+  `AshSurface.project/3` facade and `AshSurface.Projector.IR.project/3`
+  (both over the surface-consuming double and the descriptor double). The doubles are the admitted injected seam
   only — they are real state-based renderers, not fakes of any lib module.
 
   Zero env, zero db, zero network: one fixture built from the real shared
@@ -233,10 +240,8 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
                    target_dir: json_dir
                  )
 
-        assert {:ok, adapter} = IR.from_manifest_projector(JsonProjector)
-
         assert {:ok, adapter_artifacts, adapter_meta} =
-                 IR.project(adapter, ir_node, prefix: @prefix, target_dir: adapter_dir)
+                 IR.project(JsonProjector, ir_node, prefix: @prefix, target_dir: adapter_dir)
 
         assert {:ok, descriptor_artifacts, descriptor_meta} =
                  IR.project(DescriptorProjector, ir_node,
@@ -289,8 +294,8 @@ defmodule AshSurface.ProjectorIRDeterminismTest do
     # The IR round-trip re-extracts the exact surface, byte for byte.
     assert {:ok, ^surface} = IR.to_surface(ir_node)
 
-    # The adapter re-extracted the identical surface, so the wrapped legacy
-    # projector emitted identical bytes through both dispatch paths.
+    # The IR path re-extracted the identical surface, so the projector
+    # emitted identical bytes through both dispatch paths.
     assert adapter_artifacts == json_artifacts
     assert adapter_meta == json_meta
 
