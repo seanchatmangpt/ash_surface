@@ -54,11 +54,12 @@ defmodule AshSurface.IR.EventProjection do
       receipt whose own binding evidence contradicts its content never
       reaches the observation stream. A carried value outside that byte
       shape (or no digest at all) is an opaque `receipt_ref`, carried
-      verbatim as before. Every slot that can become the event's
-      `receipt_ref` (`receiptHash` and `receiptRef`) is bound, and a value
-      that claims the digest shape without being one (more than 64 bytes, or
-      a hex-only string of 32+ bytes that is not exactly 64) refuses with
-      reason `{:malformed_receipt_digest, value}` instead of being skipped.
+      verbatim as before: git SHAs, dashless UUIDs, long IRIs and domain ids
+      are legitimate references, not digest claims. Every slot that can
+      become the event's `receipt_ref` (`receiptHash` and `receiptRef`) is
+      bound, so a digest moved from one slot to the other is still checked.
+      Digests are lowercase hex (the shape the runtime mints); an uppercase
+      64-byte value fails to bind and refuses (fail closed).
     * a non-map IR action or non-map `semantic` section refuses with
       `standing: :REFUSED_INVALID_SUBJECT` and reason
       `{:malformed_ir_action, value}` / `{:malformed_ir_semantic, value}`.
@@ -220,11 +221,9 @@ defmodule AshSurface.IR.EventProjection do
   ##
   ## Boundary-hardening: the check covers EVERY slot that can become the
   ## event's `receipt_ref` (`receiptHash` and `receiptRef`), so a digest moved
-  ## from one slot to the other is still bound. A value that claims the digest
-  ## shape without being one — at least 64 bytes but not exactly 64, or a
-  ## hex-only string of hash-like length (>= 32) — is a malformed digest and a
-  ## refusal, never a skip. Anything else (absent, or a short opaque reference
-  ## like a domain id) is carried verbatim as the event's `receipt_ref`.
+  ## from one slot to the other is still bound. Only the exact 64-byte shape
+  ## is a digest claim; any other value (absent, or a reference such as a git
+  ## SHA, UUID, IRI or domain id) is carried verbatim as the `receipt_ref`.
 
   defp bind_receipt_digest(receipt) do
     [[:receipt_hash, "receiptHash"], [:receipt_ref, "receiptRef"]]
@@ -243,12 +242,6 @@ defmodule AshSurface.IR.EventProjection do
     if actual == hash,
       do: :ok,
       else: digest_refusal({:receipt_digest_mismatch, hash, actual})
-  end
-
-  defp bind_digest_slot(_receipt, value) when is_binary(value) do
-    if byte_size(value) > 64 or (byte_size(value) >= 32 and value =~ ~r/\A[0-9a-fA-F]+\z/),
-      do: digest_refusal({:malformed_receipt_digest, value}),
-      else: :ok
   end
 
   defp bind_digest_slot(_receipt, _opaque_or_absent), do: :ok

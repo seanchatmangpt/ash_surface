@@ -155,6 +155,8 @@ Notes per lane:
   | `{:unsafe_js_namespace, name}` | not an ASCII identifier, a reserved word, an ECMAScript global (`Object`, `Error`, `JSON`, ...), or a binding the artifact declares itself (`z`, `ACTIONS`, `SCHEMAS`, `NAMESPACES`, `getAction`, `dispatchIntent`) |
   | `{:unsafe_js_member, id}` | a non-identifier action name or `__proto__` (reserved words stay legal members: `Post.delete`) |
   | `{:js_binding_collision, name}` | two schema constants, or a schema constant and a namespace, share a name |
+  | `{:invalid_prefix, prefix}` | the `:prefix` option is not a non-empty string |
+  | `{:unadmitted_field, id, field}` | a descriptor field (`label`, `capability_iri`, ...) is neither a string nor nil |
   | `{:unadmitted_zod, id, reason}` | the Zod string is outside the admitted grammar |
 
   The Zod grammar (`AshSurface.Projectors.JS.ZodGuard`) is a `z`-rooted

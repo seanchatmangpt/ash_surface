@@ -226,7 +226,8 @@ defmodule AshSurface.MXEpisode do
   def verify_file(episode_path, opts \\ []) when is_binary(episode_path) do
     timeout = Keyword.get(opts, :timeout, @verifier_timeout_ms)
 
-    with {:ok, python} <- python_executable(),
+    with :ok <- validate_timeout(timeout),
+         {:ok, python} <- python_executable(),
          {:ok, {output, exit_code}} <- run_verifier(python, episode_path, timeout) do
       report_verifier_result(output, exit_code)
     end
@@ -439,6 +440,9 @@ defmodule AshSurface.MXEpisode do
   # monotonic deadline: no Task/spawn (the no-local-DO tripwire bans process
   # execution on the surface), and on timeout the OS process is killed so a
   # hung verifier never outlives the call.
+  defp validate_timeout(timeout) when is_integer(timeout) and timeout >= 0, do: :ok
+  defp validate_timeout(timeout), do: {:error, {:invalid_verifier_timeout, timeout}}
+
   defp run_verifier(python, episode_path, timeout) do
     port =
       Port.open({:spawn_executable, python}, [
@@ -449,8 +453,17 @@ defmodule AshSurface.MXEpisode do
         args: [verifier_path(), episode_path]
       ])
 
-    deadline = System.monotonic_time(:millisecond) + max(timeout, 0)
-    collect_verifier(port, [], deadline, timeout)
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    try do
+      collect_verifier(port, [], deadline, timeout)
+    catch
+      # Anything abnormal mid-collection (an exit signal, a raise): never leave
+      # the verifier running with nobody to read it.
+      kind, reason ->
+        kill_verifier(port)
+        :erlang.raise(kind, reason, __STACKTRACE__)
+    end
   end
 
   defp collect_verifier(port, acc, deadline, timeout) do

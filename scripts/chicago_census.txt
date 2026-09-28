@@ -12,7 +12,7 @@
 #
 # Regenerate the list when suites change (additions must re-pin; removals
 # must also lower the floor to the new measured count):
-# floor: 1220
+# floor: 1228
 test/ash_surface/action_id_test.exs
 test/ash_surface/aria_projector_test.exs
 test/ash_surface/ash_section_truth_test.exs
@@ -112,6 +112,7 @@ test/ash_surface/refactor_safety_net_test.exs
 test/ash_surface/resource/validator_adversarial_test.exs
 test/ash_surface/resource/validator_ir_alignment_test.exs
 test/ash_surface/resource/validator_test.exs
+test/ash_surface/review_hardening_test.exs
 test/ash_surface/runtime_source_test.exs
 test/ash_surface/schema_section_test.exs
 test/ash_surface/semantic_delegation_test.exs

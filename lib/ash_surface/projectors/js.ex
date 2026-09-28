@@ -35,6 +35,9 @@ defmodule AshSurface.Projectors.JS do
   - `{:duplicate_js_member, id}` — the same action id projected twice;
   - `{:js_binding_collision, name}` — two top-level bindings (schema
     constants or namespaces) with the same name;
+  - `{:invalid_prefix, prefix}` — the `:prefix` option is not a non-empty string;
+  - `{:unadmitted_field, id, field}` — a descriptor field (`label`,
+    `capability_iri`, `authority_boundary`, ...) is neither a string nor nil;
   - `{:unadmitted_zod, id, reason}` — an `IR.Schema.zod` string outside the
     `AshSurface.Projectors.JS.ZodGuard` grammar (the zod string is embedded
     as code, so decoded IR must not smuggle arbitrary JavaScript).
@@ -96,10 +99,15 @@ defmodule AshSurface.Projectors.JS do
   @spec project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
           {:ok, %{optional(String.t()) => String.t()}, map()} | {:error, term()}
   def project_ir(ir, opts \\ []) do
-    with {:ok, entries, zod_forms} <- admit(List.wrap(ir)) do
+    with :ok <- check_prefix(Keyword.get(opts, :prefix, @default_prefix)),
+         {:ok, entries, zod_forms} <- admit(List.wrap(ir)) do
       emit(entries, zod_forms, opts)
     end
   end
+
+  # The prefix names the artifact file and is echoed into its header.
+  defp check_prefix(prefix) when is_binary(prefix) and prefix != "", do: :ok
+  defp check_prefix(prefix), do: {:error, {:invalid_prefix, prefix}}
 
   defp emit(entries, zod_forms, opts) do
     prefix = Keyword.get(opts, :prefix, @default_prefix)
@@ -128,6 +136,7 @@ defmodule AshSurface.Projectors.JS do
   defp admit(irs) do
     with {:ok, pairs} <- describe_all(irs),
          entries = pairs |> Enum.map(&elem(&1, 0)) |> Enum.sort_by(& &1.id),
+         :ok <- check_each(entries, &check_fields/1),
          :ok <- check_each(entries, &check_namespace/1),
          :ok <- check_each(entries, &check_member/1),
          :ok <- check_short_names(pairs),
@@ -160,6 +169,21 @@ defmodule AshSurface.Projectors.JS do
         :ok -> nil
         error -> error
       end
+    end)
+  end
+
+  # Decoded or hand-built IR can carry any term in a descriptor field; each is
+  # rendered through js_string/1, which admits only strings and nil. Refuse
+  # anything else typed rather than raise mid-render.
+  @string_fields ~w(id resource action action_type authority_boundary capability_iri label)a
+
+  defp check_fields(%IREntry{} = entry) do
+    Enum.find_value(@string_fields, :ok, fn field ->
+      value = Map.fetch!(entry, field)
+
+      if is_nil(value) or is_binary(value),
+        do: nil,
+        else: {:error, {:unadmitted_field, entry.id, field}}
     end)
   end
 

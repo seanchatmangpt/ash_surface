@@ -28,7 +28,13 @@ defmodule AshSurface.RuntimeSourceTest do
   # (UNKNOWN_AFTER_DISPATCH, no replay), Zod-validated reconcile verdict,
   # crypto.randomUUID default commandId; golden recomputed from the edited
   # runtime file (whole-file SHA-256 law). SURFACE_RUNTIME_VERSION unchanged.
-  @golden_runtime_sha256 "68c3c33661c5442c4b91621bae8a3c3fd0351ec1a6afc399a00069d1398a8f34"
+  # 2026-09-28 review-hardening re-freeze: never-throw default commandId
+  # (randomUUID -> getRandomValues v4 -> Math.random), pre-dispatch
+  # DISPATCH_ABORTED_PRE_DISPATCH refusal for an already-aborted signal,
+  # own-property (Object.hasOwn) transport lookup everywhere, null options
+  # and commandId admission (INVALID_OPTIONS); golden recomputed from the
+  # edited runtime file (whole-file SHA-256 law). Version unchanged.
+  @golden_runtime_sha256 "32199c29db0bec2981a616c8357d1730e089b3931b99be98f24df9b3a3060588"
 
   @version_marker_regex ~r/SURFACE_RUNTIME_VERSION\s*=\s*"([^"]+)"/
 

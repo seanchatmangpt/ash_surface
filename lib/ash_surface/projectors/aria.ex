@@ -46,7 +46,7 @@ defmodule AshSurface.Projectors.ARIA do
   @calver "26.9.17"
   @default_prefix "ash_surface_aria"
   @politeness ~w(polite assertive off)
-  @reserved ~w(inputs fields live role)
+  @reserved ~w(inputs live role)
 
   @doc """
   Projects one IR (or a list of IRs) into the ARIA contract map.
@@ -192,7 +192,7 @@ defmodule AshSurface.Projectors.ARIA do
   defp inputs(nil), do: []
 
   defp inputs(aria) when is_map(aria) do
-    case fact(aria, "inputs") || fact(aria, "fields") do
+    case fact(aria, "inputs") || fields_list(aria) do
       nil ->
         name_keyed_inputs(aria)
 
@@ -204,9 +204,21 @@ defmodule AshSurface.Projectors.ARIA do
     end
   end
 
+  # `"fields"` is the compiler's list-form carrier. Only a list is that
+  # carrier: a name-keyed input literally called "fields" (a map of facts) is
+  # still an input, not the list form.
+  defp fields_list(aria) do
+    case fact(aria, "fields") do
+      fields when is_list(fields) -> fields
+      _not_the_list_form -> nil
+    end
+  end
+
   defp name_keyed_inputs(map) do
     map
-    |> Enum.reject(fn {key, value} -> reserved?(key) or not is_map(value) end)
+    |> Enum.reject(fn {key, value} ->
+      reserved?(key) or list_form_carrier?(key, value) or not is_map(value)
+    end)
     |> Enum.map(fn {name, input_facts} -> input(to_string(name), input_facts) end)
     |> Enum.sort_by(& &1["name"])
   end
@@ -269,6 +281,8 @@ defmodule AshSurface.Projectors.ARIA do
   defp entry_id(ir), do: IREntry.describe(ir).id
 
   defp reserved?(key), do: to_string(key) in @reserved
+
+  defp list_form_carrier?(key, value), do: to_string(key) == "fields" and is_list(value)
 
   defp fact(nil, _fact_name), do: nil
 

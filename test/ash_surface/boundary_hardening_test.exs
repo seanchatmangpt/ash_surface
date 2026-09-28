@@ -133,21 +133,32 @@ defmodule AshSurface.BoundaryHardeningTest do
       assert refusal.authority_boundary == :OBSERVE
     end
 
-    test "a present-but-malformed digest is a refusal, not a skip" do
+    test "only the exact 64-byte shape is a digest claim; other references are opaque and carried" do
+      hash = CanonicalJSON.sha256_hex(@payload)
+
+      legitimate = [
+        String.duplicate("ab", 20),
+        String.duplicate("cd", 16),
+        "urn:zoe:receipt:" <> String.duplicate("x", 80),
+        hash <> "0",
+        binary_part(hash, 0, 63)
+      ]
+
+      for slot <- ["receiptHash", "receiptRef"], ref <- legitimate do
+        assert {:ok, event} = EventProjection.from_receipt(Map.put(@payload, slot, ref)),
+               "#{slot}=#{inspect(ref)} is an opaque reference and must project"
+
+        assert event.receipt_ref == ref
+      end
+    end
+
+    test "a 64-byte value must bind: uppercase hex fails closed, a different digest refuses" do
       hash = CanonicalJSON.sha256_hex(@payload)
 
       for slot <- ["receiptHash", "receiptRef"],
-          bad <- [hash <> "0", hash <> "x", binary_part(hash, 0, 63), String.duplicate("ab", 20)] do
-        receipt = @payload |> tampered() |> Map.put(slot, bad)
-
-        assert {:error, refusal} = EventProjection.from_receipt(receipt),
-               "#{slot}=#{inspect(bad)} must refuse"
-
-        assert refusal == %{
-                 standing: :REFUSED_RECEIPT_DIGEST_MISMATCH,
-                 reason: {:malformed_receipt_digest, bad},
-                 authority_boundary: :OBSERVE
-               }
+          claim <- [String.upcase(hash), String.duplicate("0", 64)] do
+        assert {:error, %{standing: :REFUSED_RECEIPT_DIGEST_MISMATCH}} =
+                 EventProjection.from_receipt(Map.put(@payload, slot, claim))
       end
     end
 

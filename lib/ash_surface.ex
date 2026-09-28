@@ -230,13 +230,11 @@ defmodule AshSurface do
               is_atom(value),
        do: :ok
 
+  # An improper list ([1 | 2]) is not JSON data and would raise in Enum.
   defp validate_json_data(value) when is_list(value) do
-    Enum.reduce_while(value, :ok, fn item, :ok ->
-      case validate_json_data(item) do
-        :ok -> {:cont, :ok}
-        error -> {:halt, error}
-      end
-    end)
+    if proper_list?(value),
+      do: validate_json_items(value),
+      else: {:error, {:profile_value_not_serializable, value}}
   end
 
   # Structs (DateTime, MapSet, ...) are not JSON data: refused before the map
@@ -282,6 +280,19 @@ defmodule AshSurface do
           do: validate_action_profiles(actions),
           else: {:error, {:unknown_action_profile, unknown}}
     end
+  end
+
+  defp proper_list?([]), do: true
+  defp proper_list?([_head | tail]), do: proper_list?(tail)
+  defp proper_list?(_improper_tail), do: false
+
+  defp validate_json_items(value) do
+    Enum.reduce_while(value, :ok, fn item, :ok ->
+      case validate_json_data(item) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   # Each per-action profile must be a map, and the fields the JS contract

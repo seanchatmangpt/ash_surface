@@ -13,7 +13,8 @@ import {
  *   2. opt-in dispatch deadline + abort signal -> UNKNOWN_AFTER_DISPATCH,
  *      never a cross-transport replay (AGENTS.md transport law)
  *   3. Zod boundary on the adapter's reconcile verdict
- *   4. default commandId entropy (crypto.randomUUID)
+ *   4. default commandId entropy (crypto.randomUUID, with never-throw fallbacks)
+ *   5. pre-dispatch abort refusal, own-property transports, options admission
  *
  * The only doubles are injected transport adapters (the defined seam); they
  * record call counts and the assertions read that state and the real
@@ -244,18 +245,42 @@ test("aborting the signal after dispatch settles UNKNOWN_AFTER_DISPATCH without 
   assert.equal(channel.invoke, 0);
 });
 
-test("an already-aborted signal settles UNKNOWN_AFTER_DISPATCH once dispatched", TIMEOUT, async () => {
+test("an already-aborted signal is a typed pre-dispatch refusal with no adapter call", TIMEOUT, async () => {
   const { client, http, channel } = dualTransportClient(neverSettles);
 
   await assert.rejects(
     client.actions["todos:Todo:create"].invoke(
       {},
-      { signal: AbortSignal.abort(), commandId: "cmd_pre_aborted" },
+      { signal: AbortSignal.abort(new Error("early")), commandId: "cmd_pre_aborted" },
     ),
-    assertUnknownAfterDispatch("DISPATCH_ABORTED", "cmd_pre_aborted"),
+    (error) => {
+      typed("DISPATCH_ABORTED_PRE_DISPATCH")(error);
+      assert.equal(error.receipt, null);
+      assert.notEqual(error.code, "TRANSPORT_OUTCOME_UNKNOWN");
+      assert.equal(error.cause.message, "early");
+      return true;
+    },
   );
-  assert.equal(http.invoke, 1);
+  assert.equal(http.invoke, 0);
   assert.equal(channel.invoke, 0);
+});
+
+test("an already-aborted signal makes no adapter call on any transport", TIMEOUT, async () => {
+  for (const prefer of ["http", "phoenix_channel"]) {
+    const http = countingAdapter(async () => ({}));
+    const channel = countingAdapter(async () => ({}));
+    const client = createClient({
+      contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+      transports: { http: http.adapter, phoenix_channel: channel.adapter },
+      prefer,
+    });
+    await assert.rejects(
+      client.actions["todos:Todo:create"].invokeWithReceipt({}, { signal: AbortSignal.abort() }),
+      typed("DISPATCH_ABORTED_PRE_DISPATCH"),
+    );
+    assert.equal(http.calls.invoke, 0, prefer);
+    assert.equal(channel.calls.invoke, 0, prefer);
+  }
 });
 
 test("a fast adapter under a timeout succeeds and leaves no pending timer or listener", TIMEOUT, async () => {
@@ -388,4 +413,146 @@ test("a caller-supplied commandId is preserved verbatim", TIMEOUT, async () => {
     { commandId: "cmd_caller" },
   );
   assert.equal(receipt.commandId, "cmd_caller");
+});
+
+// ---------------------------------------------------------------------------
+// 5. commandId generation across runtimes (never throws)
+// ---------------------------------------------------------------------------
+
+async function withCrypto(replacement, fn) {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  Object.defineProperty(globalThis, "crypto", {
+    value: replacement,
+    configurable: true,
+    writable: true,
+    enumerable: original ? original.enumerable : false,
+  });
+  try {
+    return await fn();
+  } finally {
+    if (original) Object.defineProperty(globalThis, "crypto", original);
+    else delete globalThis.crypto;
+  }
+}
+
+async function collectIds(n) {
+  const { adapter } = countingAdapter(async () => ({}));
+  const client = createClient({
+    contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+    transports: { http: adapter },
+  });
+  const ids = new Set();
+  for (let i = 0; i < n; i += 1) {
+    const { receipt } = await client.actions["todos:Todo:create"].invokeWithReceipt({});
+    assert.match(receipt.commandId, /^cmd_/);
+    ids.add(receipt.commandId);
+  }
+  return ids;
+}
+
+test("commandId works without crypto.randomUUID (getRandomValues v4 path)", TIMEOUT, async () => {
+  const real = globalThis.crypto;
+  const ids = await withCrypto({ getRandomValues: (a) => real.getRandomValues(a) }, () => collectIds(200));
+  assert.equal(ids.size, 200);
+  for (const id of ids) {
+    assert.match(id, /^cmd_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  }
+});
+
+test("commandId works with no crypto at all (Hermes / RN fallback)", TIMEOUT, async () => {
+  for (const replacement of [undefined, {}]) {
+    const ids = await withCrypto(replacement, () => collectIds(200));
+    assert.equal(ids.size, 200);
+  }
+});
+
+test("commandId survives a throwing crypto", TIMEOUT, async () => {
+  const boom = () => {
+    throw new Error("no entropy");
+  };
+  const ids = await withCrypto({ randomUUID: boom, getRandomValues: boom }, () => collectIds(200));
+  assert.equal(ids.size, 200);
+});
+
+test("commandId works with native randomUUID (unchanged path) and restores crypto", TIMEOUT, async () => {
+  const before = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  assert.equal((await collectIds(200)).size, 200);
+  await withCrypto(undefined, () => collectIds(1));
+  const after = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  assert.equal(after?.get, before?.get);
+  assert.equal(after?.value, before?.value);
+});
+
+// ---------------------------------------------------------------------------
+// 6. own-property transport lookup, one rule everywhere
+// ---------------------------------------------------------------------------
+
+test("an inherited-only transport is absent for inspect, invoke and reconcile", TIMEOUT, async () => {
+  const { adapter, calls } = countingAdapter(async () => ({}));
+  adapter.reconcile = async () => ({ status: "COMPLETED" });
+  const client = createClient({
+    contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+    transports: Object.create({ http: adapter }),
+  });
+
+  assert.throws(() => client.inspect("todos:Todo:create"), typed("UNSUPPORTED_TRANSPORT"));
+  await assert.rejects(
+    client.actions["todos:Todo:create"].invoke({}),
+    typed("UNSUPPORTED_TRANSPORT"),
+  );
+  assert.equal(calls.invoke, 0);
+  assert.deepEqual(await client.reconcile("cmd_x", "http"), {
+    commandId: "cmd_x",
+    status: "STILL_UNKNOWN",
+    reason: "transport_reconciliation_unsupported",
+  });
+});
+
+test("an own transport on a prototype-bearing object still works", TIMEOUT, async () => {
+  const { adapter, calls } = countingAdapter(async () => ({ ok: 1 }));
+  const transports = Object.create({ inherited: true });
+  transports.http = adapter;
+  const client = createClient({
+    contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+    transports,
+  });
+  assert.deepEqual(await client.actions["todos:Todo:create"].invoke({}), { ok: 1 });
+  assert.equal(calls.invoke, 1);
+});
+
+// ---------------------------------------------------------------------------
+// 7. call options normalization
+// ---------------------------------------------------------------------------
+
+test("invoke(input, null) behaves like no options", TIMEOUT, async () => {
+  const { adapter, calls } = countingAdapter(async () => ({ ok: 1 }));
+  const client = createClient({
+    contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+    transports: { http: adapter },
+  });
+  assert.deepEqual(await client.actions["todos:Todo:create"].invoke({}, null), { ok: 1 });
+  const { receipt } = await client.actions["todos:Todo:create"].invokeWithReceipt({}, null);
+  assert.match(receipt.commandId, /^cmd_/);
+  assert.equal(calls.invoke, 2);
+});
+
+test("invalid commandId is INVALID_OPTIONS before dispatch", TIMEOUT, async () => {
+  const { adapter, calls } = countingAdapter(async () => ({}));
+  const client = createClient({
+    contract: contract([actionRow("todos:Todo:create", "Todo", "create")]),
+    transports: { http: adapter },
+  });
+  for (const commandId of ["", 0, 42, {}, false, []]) {
+    await assert.rejects(
+      client.actions["todos:Todo:create"].invoke({}, { commandId }),
+      typed("INVALID_OPTIONS"),
+      String(commandId),
+    );
+  }
+  assert.equal(calls.invoke, 0);
+  // undefined/null mean "generate".
+  for (const commandId of [undefined, null]) {
+    const { receipt } = await client.actions["todos:Todo:create"].invokeWithReceipt({}, { commandId });
+    assert.match(receipt.commandId, /^cmd_/);
+  }
 });
