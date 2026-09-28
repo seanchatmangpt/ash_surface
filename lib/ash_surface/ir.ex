@@ -163,6 +163,20 @@ defmodule AshSurface.IR do
     Facts admitted from the semantic layer: IRIs, predicates, shape, ontology.
     Carrying a `capability_iri` here does not make the capability mean, exist,
     or authorize anything.
+
+    Two carried shapes are admitted, and the type states both truthfully:
+
+      * **Compiled** (`AshSurface.Compiler.Section.Semantic`, the R2RML
+        delegation) carries `AshSurface.Compiler.IR.Semantic` verbatim:
+        `predicates` is a LIST of predicate IRIs in mapping order and
+        `ontology` a LIST of named-graph IRIs (both possibly empty).
+      * **Authored** (hand-built or decoded IR) may carry `predicates` as a
+        map of named predicate facts (e.g. `%{"relationships" => [...]}`,
+        the shape `AshSurface.Projectors.LiveView` reads relationships from)
+        and `ontology` as a single provenance string.
+
+    Consumers must accept either (or `nil`); a list of IRIs carries no
+    relationship structure.
     """
 
     defstruct [:subject_iri, :capability_iri, :predicates, :shape_id, :ontology]
@@ -170,9 +184,9 @@ defmodule AshSurface.IR do
     @type t :: %__MODULE__{
             subject_iri: String.t() | nil,
             capability_iri: String.t() | nil,
-            predicates: map() | nil,
+            predicates: [String.t()] | %{optional(String.t() | atom()) => term()} | nil,
             shape_id: String.t() | nil,
-            ontology: String.t() | nil
+            ontology: [String.t()] | String.t() | nil
           }
   end
 

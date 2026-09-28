@@ -20,7 +20,7 @@ defmodule AshSurface.ProjectTest do
     "doAuthority" => false,
     "receiptRequired" => true,
     "evidenceRequired" => true,
-    "possibleRefusals" => ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED"]
+    "possibleRefusals" => ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"]
   }
 
   # A lawful second consumer kind (Phoenix-channel-shaped probe). Proves that
@@ -124,7 +124,7 @@ defmodule AshSurface.ProjectTest do
     assert record["semanticId"] == "zoe:SelectOption"
     assert record["receiptRequired"] == true
     assert record["evidenceRequired"] == true
-    assert record["possibleRefusals"] == ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED"]
+    assert record["possibleRefusals"] == ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"]
 
     # v26.9.16 delegation: the unprofiled :read entrypoint delegates no facts,
     # so authorityBoundary/doAuthority/semanticId surface as nil.

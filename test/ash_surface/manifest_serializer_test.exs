@@ -46,7 +46,7 @@ defmodule AshSurface.ManifestSerializerTest do
           "doAuthority" => false,
           "receiptRequired" => true,
           "evidenceRequired" => true,
-          "possibleRefusals" => ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED"],
+          "possibleRefusals" => ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"],
           "transports" => ["http", "phoenix_channel"]
         }
       }
@@ -142,7 +142,7 @@ defmodule AshSurface.ManifestSerializerTest do
     assert record["doAuthority"] == false
     assert record["receiptRequired"] == true
     assert record["evidenceRequired"] == true
-    assert record["possibleRefusals"] == ["AUTHORITY_REFUSED", "EVIDENCE_REQUIRED"]
+    assert record["possibleRefusals"] == ["REFUSED_NO_AUTHORITY", "REFUSED_EVIDENCE_REQUIRED"]
   end
 
   test "contract round-trip preserves actions, transports, and metadata-under-custom", %{

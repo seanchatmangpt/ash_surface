@@ -138,14 +138,28 @@ defmodule AshSurface.Journey do
 
   defp normalize_atom(value) when is_atom(value), do: value
 
+  # A string naming no existing atom stays a string: the caller's membership
+  # check then refuses it with its field-specific "unknown journey ..."
+  # message instead of Erlang's generic `to_existing_atom` ArgumentError.
   defp normalize_atom(value) when is_binary(value) do
     value
     |> String.upcase()
     |> String.to_existing_atom()
+  rescue
+    ArgumentError -> value
   end
+
+  defp normalize_atom(value), do: value
 
   defp normalize_datetime(%DateTime{} = value), do: DateTime.to_iso8601(value)
   defp normalize_datetime(value) when is_binary(value), do: value
+
+  defp normalize_datetime(value),
+    do:
+      raise(
+        ArgumentError,
+        "occurred_at must be a DateTime or ISO-8601 string, got: #{inspect(value)}"
+      )
 
   defp validate_string_list!(values, field) when is_list(values) do
     unless Enum.all?(values, &is_binary/1),

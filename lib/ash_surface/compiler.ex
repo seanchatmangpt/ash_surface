@@ -250,32 +250,39 @@ defmodule AshSurface.Compiler do
   defp sections(opts) do
     case Keyword.get(opts, :sections, @default_sections) do
       sections when is_list(sections) ->
-        keys = Keyword.keys(sections)
-        unknown = Enum.uniq(keys -- @section_keys)
-        missing = @section_keys -- keys
-
-        cond do
-          not Keyword.keyword?(sections) ->
-            {:error, {:sections_must_bind_keys_to_modules, sections}}
-
-          keys == [] ->
-            {:error, :no_sections}
-
-          unknown != [] ->
-            {:error, {:unknown_section_keys, unknown}}
-
-          true ->
-            with {:ok, sections} <- ensure_section_modules(sections) do
-              if missing == [] do
-                {:ok, sections}
-              else
-                {:error, {:missing_section_keys, missing}}
-              end
-            end
+        # keyword? first: Keyword.keys/1 raises on a non-keyword list, which
+        # would turn this typed refusal into an ArgumentError.
+        if Keyword.keyword?(sections) do
+          validate_section_keys(sections)
+        else
+          {:error, {:sections_must_bind_keys_to_modules, sections}}
         end
 
       other ->
         {:error, {:sections_must_bind_keys_to_modules, other}}
+    end
+  end
+
+  defp validate_section_keys(sections) do
+    keys = Keyword.keys(sections)
+    unknown = Enum.uniq(keys -- @section_keys)
+    missing = @section_keys -- keys
+
+    cond do
+      keys == [] ->
+        {:error, :no_sections}
+
+      unknown != [] ->
+        {:error, {:unknown_section_keys, unknown}}
+
+      true ->
+        with {:ok, sections} <- ensure_section_modules(sections) do
+          if missing == [] do
+            {:ok, sections}
+          else
+            {:error, {:missing_section_keys, missing}}
+          end
+        end
     end
   end
 

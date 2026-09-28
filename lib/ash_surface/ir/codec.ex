@@ -205,9 +205,15 @@ defmodule AshSurface.IR.Codec do
   defp build_section(nil, _module, _fields), do: nil
 
   defp build_section(map, module, fields) when is_map(map) do
+    # The section module must be loaded before `String.to_existing_atom/1`:
+    # its field atoms only exist once the struct module is (lazily) loaded.
+    Code.ensure_loaded!(module)
+
+    # `Map.fetch/2` + an explicit nil guard: a bare `value = Map.get(...)`
+    # filter would also drop `false`, breaking to_map(from_map(m)) == m.
     kw =
       for field <- fields,
-          value = Map.get(map, field),
+          {:ok, value} <- [Map.fetch(map, field)],
           not is_nil(value),
           do: {String.to_existing_atom(field), value}
 

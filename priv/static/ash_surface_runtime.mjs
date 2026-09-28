@@ -485,6 +485,34 @@ export const ashSurfaceContractSchema = z
  */
 
 /**
+ * @typedef {Object} InvokeOptions
+ * @property {string} [commandId] Caller-supplied command identity (a non-empty
+ *   string, else INVALID_OPTIONS before dispatch); defaults to `cmd_<uuid>`
+ *   (crypto.randomUUID, else getRandomValues v4, else a Math.random id; never throws).
+ * @property {AbortSignal} [signal] Passed to the adapter. A signal already
+ *   aborted before dispatch is a typed PRE-dispatch refusal
+ *   (SurfaceRuntimeError DISPATCH_ABORTED_PRE_DISPATCH, no adapter call, no
+ *   receipt, dispatchState "not_dispatched"). An abort AFTER dispatch settles
+ *   the call as TRANSPORT_OUTCOME_UNKNOWN / UNKNOWN_AFTER_DISPATCH (cause code
+ *   DISPATCH_ABORTED); the action is never replayed over another transport.
+ *   `invoke(input, null)` is treated as `invoke(input, {})`.
+ * @property {number} [timeoutMs] Opt-in dispatch deadline (positive finite
+ *   milliseconds). An adapter that has not settled by then yields
+ *   TRANSPORT_OUTCOME_UNKNOWN / UNKNOWN_AFTER_DISPATCH (cause code
+ *   DISPATCH_TIMEOUT); no cross-transport retry. The timer is always cleared.
+ */
+
+// Reconciliation verdict boundary: the documented TransportAdapter.reconcile
+// reply. Only the status vocabulary is closed; every other key (receipt,
+// commandId, ...) passes through untouched and the adapter's own object is
+// returned (source refs preserved, never rebuilt).
+export const reconcileResultSchema = z
+  .object({
+    status: z.enum(["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]),
+  })
+  .passthrough();
+
+/**
  * @typedef {Object} ActionSchemas
  * @property {{parse(value: unknown): unknown}} [input] Zod-compatible input schema.
  * @property {{parse(value: unknown): unknown}} [output] Zod-compatible output schema.
@@ -532,6 +560,13 @@ export class SurfaceRuntimeError extends Error {
  * @param {Partial<Record<"http"|"phoenix_channel", TransportAdapter>>} options.transports
  * @param {"http"|"phoenix_channel"} [options.prefer="http"]
  * @param {Record<string, ActionSchemas>} [options.schemas] Zod schemas keyed by stable action id.
+ * Each action client exposes `invoke(input, callOptions)` and
+ * `invokeWithReceipt(input, callOptions)` where `callOptions` is an
+ * {@link InvokeOptions}. `actions` and each `resources[Resource]` record are
+ * null-prototype objects: lookups never resolve inherited Object.prototype
+ * names, and contract ids such as "__proto__" are ordinary keys.
+ * `reconcile` validates the adapter reply against `reconcileResultSchema` and
+ * rejects a malformed reply with INVALID_RECONCILE_RESULT.
  * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, events: Object, reconcile(commandId: string, transportName?: "http"|"phoenix_channel"): Promise<Object>, get(id: string): Object|null, inspect(id: string): Object}}
  */
 export function createClient(options) {
@@ -547,19 +582,22 @@ export function createClient(options) {
   assertPreferred(prefer);
   assertTransportAdapters(transports);
 
-  const actions = {};
-  const resources = {};
+  // Null-prototype records keyed by contract-supplied ids: a resource or
+  // action named "__proto__"/"constructor"/"toString" is an ordinary key and
+  // can never reach Object.prototype.
+  const actions = Object.create(null);
+  const resources = Object.create(null);
   const eventListeners = new Map();
 
   for (const action of contract.surface.actions) {
-    if (actions[action.id]) {
+    if (Object.hasOwn(actions, action.id)) {
       throw new SurfaceRuntimeError(
         "DUPLICATE_ACTION_ID",
         `duplicate action id: ${action.id}`,
       );
     }
 
-    const actionSchemas = schemas[action.id];
+    const actionSchemas = Object.hasOwn(schemas, action.id) ? schemas[action.id] : undefined;
     const actionClient = Object.freeze({
       id: action.id,
       semanticId: action.semanticId,
@@ -569,22 +607,22 @@ export function createClient(options) {
       resource: action.resource,
       action: action.action,
       profile: Object.freeze({ ...action.profile }),
-      invoke(input, callOptions = {}) {
+      invoke(input, callOptions) {
         return invokeWithReceipt(
           action,
           input,
-          callOptions,
+          callOptions ?? {},
           contract,
           transports,
           prefer,
           actionSchemas,
         ).then(({ result }) => result);
       },
-      invokeWithReceipt(input, callOptions = {}) {
+      invokeWithReceipt(input, callOptions) {
         return invokeWithReceipt(
           action,
           input,
-          callOptions,
+          callOptions ?? {},
           contract,
           transports,
           prefer,
@@ -598,7 +636,7 @@ export function createClient(options) {
 
     actions[action.id] = actionClient;
 
-    if (!resources[action.resource]) resources[action.resource] = {};
+    if (!Object.hasOwn(resources, action.resource)) resources[action.resource] = Object.create(null);
     resources[action.resource][action.action] = actionClient;
   }
 
@@ -629,7 +667,7 @@ export function createClient(options) {
     resources,
     events,
     async reconcile(commandId, transportName = prefer) {
-      const adapter = transports[transportName];
+      const adapter = Object.hasOwn(transports, transportName) ? transports[transportName] : undefined;
       if (!adapter || typeof adapter.reconcile !== "function") {
         return {
           commandId,
@@ -637,13 +675,22 @@ export function createClient(options) {
           reason: "transport_reconciliation_unsupported",
         };
       }
-      return await adapter.reconcile(commandId);
+      const verdict = await adapter.reconcile(commandId);
+      const parsed = reconcileResultSchema.safeParse(verdict);
+      if (!parsed.success) {
+        throw new SurfaceRuntimeError(
+          "INVALID_RECONCILE_RESULT",
+          `${transportName} reconcile reply for ${commandId} failed Zod validation`,
+          { issues: parsed.error.issues },
+        );
+      }
+      return verdict;
     },
     get(id) {
-      return actions[id] ?? null;
+      return Object.hasOwn(actions, id) ? actions[id] : null;
     },
     inspect(id) {
-      const action = actions[id];
+      const action = Object.hasOwn(actions, id) ? actions[id] : undefined;
       if (!action) throw new SurfaceRuntimeError("UNKNOWN_ACTION", `unknown action: ${id}`);
       return action.inspect();
     },
@@ -724,18 +771,37 @@ async function invokeWithReceipt(
     prefer,
     factsFromProfile(action),
   );
-  const adapter = transports[decision.selected];
+  const adapter = Object.hasOwn(transports, decision.selected)
+    ? transports[decision.selected]
+    : undefined;
+  const timeoutMs = admitTimeout(options.timeoutMs, action.id);
+  const commandId = admitCommandId(options.commandId, action.id);
 
-  const commandId = options.commandId || `cmd_${Math.random().toString(36).substring(2, 11)}`;
+  // Abort-before-dispatch is a typed PRE-dispatch refusal: nothing was sent,
+  // so there is no unknown-after-dispatch receipt and no adapter call.
+  if (options.signal && options.signal.aborted === true) {
+    throw new SurfaceRuntimeError(
+      "DISPATCH_ABORTED_PRE_DISPATCH",
+      `signal was already aborted before dispatch for ${action.id}; nothing was dispatched (dispatchState not_dispatched)`,
+      { cause: options.signal.reason },
+    );
+  }
 
   try {
-    const response = await adapter.invoke({
-      action,
-      input: admittedInput,
-      commandId,
-      contract,
-      signal: options.signal,
-    });
+    // Dispatch happens here; from this line on every failure (including a
+    // timeout or abort) is UNKNOWN_AFTER_DISPATCH, never a replay.
+    const response = await raceDispatch(
+      adapter.invoke({
+        action,
+        input: admittedInput,
+        commandId,
+        contract,
+        signal: options.signal,
+      }),
+      timeoutMs,
+      options.signal,
+      action.id,
+    );
 
     let admittedOutput = response;
     if (actionSchemas?.output) {
@@ -763,6 +829,116 @@ async function invokeWithReceipt(
       { cause, receipt: buildMXReceipt(decision, action, commandId, "unknown_after_dispatch", null) },
     );
   }
+}
+
+// Pre-dispatch admission of a caller-supplied commandId: absent (undefined/null)
+// means "generate one"; anything else must be a non-empty string.
+function admitCommandId(commandId, actionId) {
+  if (commandId === undefined || commandId === null) return generateCommandId();
+  if (typeof commandId !== "string" || commandId.length === 0) {
+    throw new SurfaceRuntimeError(
+      "INVALID_OPTIONS",
+      `commandId must be a non-empty string for ${actionId}`,
+    );
+  }
+  return commandId;
+}
+
+// Default command identity. Never throws: prefers crypto.randomUUID, else a
+// v4 UUID from crypto.getRandomValues (Node 18 without the global, non-secure
+// browser contexts), else a Math.random/time-based id (Hermes / React Native
+// without a crypto polyfill).
+function generateCommandId() {
+  let c;
+  try {
+    c = globalThis.crypto;
+  } catch {
+    c = undefined;
+  }
+  try {
+    if (c && typeof c.randomUUID === "function") return `cmd_${c.randomUUID()}`;
+    if (c && typeof c.getRandomValues === "function") {
+      const b = c.getRandomValues(new Uint8Array(16));
+      b[6] = (b[6] & 0x0f) | 0x40;
+      b[8] = (b[8] & 0x3f) | 0x80;
+      const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+      return `cmd_${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    }
+  } catch {
+    // fall through to the non-crypto id
+  }
+  fallbackCounter = (fallbackCounter + 1) >>> 0;
+  const rand = () => Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, "0");
+  return `cmd_${Date.now().toString(16)}-${fallbackCounter.toString(16)}-${rand()}${rand()}`;
+}
+
+let fallbackCounter = 0;
+
+// Pre-dispatch admission of the opt-in dispatch deadline.
+function admitTimeout(timeoutMs, actionId) {
+  if (timeoutMs === undefined || timeoutMs === null) return null;
+  if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new SurfaceRuntimeError(
+      "INVALID_OPTIONS",
+      `timeoutMs must be a positive finite number for ${actionId}`,
+    );
+  }
+  return timeoutMs;
+}
+
+// Races an already-dispatched adapter promise against the optional deadline
+// and abort signal. Settles exactly once; the timer and abort listener are
+// always released on settlement so no handle outlives the call.
+function raceDispatch(dispatched, timeoutMs, signal, actionId) {
+  const abortable = signal && typeof signal.addEventListener === "function";
+  if (timeoutMs === null && !abortable) return dispatched;
+
+  return new Promise((resolve, reject) => {
+    let timer = null;
+    let settled = false;
+
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      if (abortable) signal.removeEventListener("abort", onAbort);
+      fn(value);
+    };
+
+    function onAbort() {
+      settle(
+        reject,
+        new SurfaceRuntimeError("DISPATCH_ABORTED", `dispatch aborted for ${actionId}`, {
+          cause: signal.reason,
+        }),
+      );
+    }
+
+    Promise.resolve(dispatched).then(
+      (value) => settle(resolve, value),
+      (error) => settle(reject, error),
+    );
+
+    if (abortable) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    if (timeoutMs !== null) {
+      timer = setTimeout(() => {
+        settle(
+          reject,
+          new SurfaceRuntimeError(
+            "DISPATCH_TIMEOUT",
+            `dispatch exceeded ${timeoutMs}ms for ${actionId}`,
+          ),
+        );
+      }, timeoutMs);
+    }
+  });
 }
 
 function buildMXReceipt(decision, action, commandId, dispatchState, result) {
@@ -811,7 +987,7 @@ function declaredTransports(action) {
 
 function availableTransports(action, contract, transports, declared) {
   return declared.filter((name) => {
-    const adapter = transports[name];
+    const adapter = Object.hasOwn(transports, name) ? transports[name] : undefined;
     if (!adapter || typeof adapter.invoke !== "function") return false;
 
     if (typeof adapter.available === "function") {
@@ -1015,7 +1191,7 @@ function assertTransportAdapters(transports) {
     throw new SurfaceRuntimeError("INVALID_TRANSPORTS", "transports must be an object");
   }
 
-  const unknown = Object.keys(transports).filter((name) => !KNOWN_TRANSPORTS.includes(name));
+  const unknown = Object.getOwnPropertyNames(transports).filter((name) => !KNOWN_TRANSPORTS.includes(name));
   if (unknown.length > 0) {
     throw new SurfaceRuntimeError("UNKNOWN_TRANSPORT", `unknown transport adapter(s): ${unknown.join(", ")}`);
   }

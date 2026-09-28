@@ -798,7 +798,12 @@ defmodule AshSurface.Projector.Expo do
     import { SCHEMAS } from "./#{prefix}.schemas.mjs";
     import { ACTIONS } from "./#{prefix}.actions.mjs";
 
-    export function createZoelaClient({ contract, transports = {}, prefer = "http", reconcileEndpoint }) {
+    // The server owns reconcile classification; the client only observes it.
+    // Anything it cannot observe within the deadline, or cannot read as one of
+    // these statuses, stays STILL_UNKNOWN - never invented, never upgraded.
+    const RECONCILE_STATUSES = ["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"];
+
+    export function createZoelaClient({ contract, transports = {}, prefer = "http", reconcileEndpoint, reconcileTimeoutMs = 10000 }) {
       const client = createClient({
         contract,
         transports,
@@ -813,9 +818,18 @@ defmodule AshSurface.Projector.Expo do
           if (!reconcileEndpoint) {
             throw new Error("No reconcileEndpoint configured on client");
           }
-          const res = await fetch(`${reconcileEndpoint}?commandId=${encodeURIComponent(commandId)}`);
-          if (!res.ok) return { status: "STILL_UNKNOWN" };
-          return await res.json();
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), reconcileTimeoutMs);
+          try {
+            const res = await fetch(`${reconcileEndpoint}?commandId=${encodeURIComponent(commandId)}`, { signal: controller.signal });
+            if (!res.ok) return { status: "STILL_UNKNOWN" };
+            const body = await res.json();
+            return RECONCILE_STATUSES.includes(body?.status) ? body : { status: "STILL_UNKNOWN" };
+          } catch {
+            return { status: "STILL_UNKNOWN" };
+          } finally {
+            clearTimeout(timer);
+          }
         }
       });
     }

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check priv/static/ash_surface_runtime.mjs",
+    "check": "node --check priv/static/ash_surface_runtime.mjs && node --check priv/static/ash_surface_playwright.mjs",
     "test": "node --test test/js/*.test.mjs",
     "test:coverage": "node --experimental-test-coverage --test test/js/*.test.mjs"
   },

@@ -49,6 +49,8 @@ defmodule AshSurface.MXEpisode do
   @typedoc "A composed mx-episode-schema record: a JSON-ready string-keyed map."
   @type episode :: %{optional(String.t()) => term()}
 
+  @verifier_timeout_ms 30_000
+
   @type verify_result ::
           {:ok, :valid}
           | {:error, {code :: String.t(), message :: String.t()}}
@@ -215,35 +217,78 @@ defmodule AshSurface.MXEpisode do
   `{:ok, :valid}` only when the verifier exits 0 and reports VALID. Any other
   verifier code is an `{:error, {code, message}}` — never skipped, never
   approximated.
+
+  Bounded: a verifier that does not answer within `:timeout` ms (default
+  #{@verifier_timeout_ms}) is `{:error, {:verifier_timeout, ms}}` — never an
+  unbounded wait, never a pass.
   """
-  @spec verify_file(String.t()) :: verify_result()
-  def verify_file(episode_path) when is_binary(episode_path) do
-    with {:ok, python} <- python_executable(),
-         {output, exit_code} <-
-           System.cmd(python, [verifier_path(), episode_path], stderr_to_stdout: true) do
+  @spec verify_file(String.t(), keyword()) :: verify_result()
+  def verify_file(episode_path, opts \\ []) when is_binary(episode_path) do
+    timeout = Keyword.get(opts, :timeout, @verifier_timeout_ms)
+
+    with :ok <- validate_timeout(timeout),
+         {:ok, python} <- python_executable(),
+         {:ok, {output, exit_code}} <- run_verifier(python, episode_path, timeout) do
       report_verifier_result(output, exit_code)
     end
   end
 
   @doc """
   Encodes an episode to JSON and runs the vendored in-repo verifier on it
-  (round trip). Same result contract as `verify_file/1`.
+  (round trip). Same result contract (and `:timeout` option) as
+  `verify_file/2`.
+
+  An episode that cannot be JSON-encoded is `{:error,
+  {:episode_not_json_encodable, reason}}`, never a raise. The scratch file
+  carries an unguessable name and is created exclusively (O_EXCL), so a
+  pre-planted file or symlink in the shared tmp dir is refused rather than
+  followed or overwritten.
   """
-  @spec verify(term()) :: verify_result()
-  def verify(episode) when is_map(episode) do
-    tmp_path =
-      Path.join(System.tmp_dir(), "mx_episode_verify-#{:erlang.unique_integer([:positive])}.json")
+  @spec verify(term(), keyword()) :: verify_result()
+  def verify(episode, opts \\ [])
 
-    File.write!(tmp_path, Jason.encode!(episode))
-
-    try do
-      verify_file(tmp_path)
-    after
-      File.rm(tmp_path)
+  def verify(episode, opts) when is_map(episode) do
+    with {:ok, json} <- encode_episode(episode),
+         {:ok, tmp_path} <- write_exclusive_tmp(json) do
+      try do
+        verify_file(tmp_path, opts)
+      after
+        File.rm(tmp_path)
+      end
     end
   end
 
-  def verify(episode), do: {:error, {:episode_must_be_a_map, episode}}
+  def verify(episode, _opts), do: {:error, {:episode_must_be_a_map, episode}}
+
+  defp encode_episode(episode) do
+    case Jason.encode(episode) do
+      {:ok, json} -> {:ok, json}
+      {:error, reason} -> {:error, {:episode_not_json_encodable, reason}}
+    end
+  rescue
+    error in Protocol.UndefinedError -> {:error, {:episode_not_json_encodable, error}}
+  end
+
+  defp write_exclusive_tmp(json) do
+    name =
+      "mx_episode_verify-" <> Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
+
+    tmp_path = Path.join(System.tmp_dir!(), name <> ".json")
+
+    case File.open(tmp_path, [:write, :exclusive, :binary]) do
+      {:ok, device} ->
+        try do
+          IO.binwrite(device, json)
+        after
+          File.close(device)
+        end
+
+        {:ok, tmp_path}
+
+      {:error, reason} ->
+        {:error, {:verifier_tmp_unwritable, tmp_path, reason}}
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # compose internals
@@ -384,10 +429,82 @@ defmodule AshSurface.MXEpisode do
   # ---------------------------------------------------------------------------
 
   defp python_executable do
-    if executable = Enum.find(["python3.11", "python3"], &System.find_executable/1) do
+    if executable = Enum.find_value(["python3.11", "python3"], &System.find_executable/1) do
       {:ok, executable}
     else
       {:error, :verifier_python_not_found}
+    end
+  end
+
+  # The verifier runs as an OS process behind a port, read against a
+  # monotonic deadline: no Task/spawn (the no-local-DO tripwire bans process
+  # execution on the surface), and on timeout the OS process is killed so a
+  # hung verifier never outlives the call.
+  defp validate_timeout(timeout) when is_integer(timeout) and timeout >= 0, do: :ok
+  defp validate_timeout(timeout), do: {:error, {:invalid_verifier_timeout, timeout}}
+
+  defp run_verifier(python, episode_path, timeout) do
+    port =
+      Port.open({:spawn_executable, python}, [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        :hide,
+        args: [verifier_path(), episode_path]
+      ])
+
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    try do
+      collect_verifier(port, [], deadline, timeout)
+    catch
+      # Anything abnormal mid-collection (an exit signal, a raise): never leave
+      # the verifier running with nobody to read it.
+      kind, reason ->
+        kill_verifier(port)
+        :erlang.raise(kind, reason, __STACKTRACE__)
+    end
+  end
+
+  defp collect_verifier(port, acc, deadline, timeout) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {^port, {:data, data}} ->
+        collect_verifier(port, [acc | data], deadline, timeout)
+
+      {^port, {:exit_status, status}} ->
+        {:ok, {IO.iodata_to_binary(acc), status}}
+    after
+      remaining ->
+        kill_verifier(port)
+        {:error, {:verifier_timeout, timeout}}
+    end
+  end
+
+  defp kill_verifier(port) do
+    with {:os_pid, os_pid} <- Port.info(port, :os_pid),
+         kill when is_binary(kill) <- System.find_executable("kill") do
+      System.cmd(kill, ["-KILL", Integer.to_string(os_pid)], stderr_to_stdout: true)
+    end
+
+    close_port(port)
+    flush_verifier(port)
+  end
+
+  # The killed process may close the port between any check and the close;
+  # an already-closed port is the goal state, not an error.
+  defp close_port(port) do
+    Port.close(port)
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp flush_verifier(port) do
+    receive do
+      {^port, _message} -> flush_verifier(port)
+    after
+      0 -> :ok
     end
   end
 

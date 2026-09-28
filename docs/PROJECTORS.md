@@ -53,6 +53,13 @@ export `project/2` is refused with `{:error, {:unsupported_projector, projector}
   re-extracted (never re-derived; Ash ships no manifest deserializer and none
   is invented).
 
+**Dispatch refusal (2026-09-28).** `Projector.IR.project/3` refuses a module
+that declares only the legacy `AshSurface.Projector` behaviour with
+`{:unknown_projector_kind, mod}`, even if it exports its own `project_ir/2`
+(`VoiceKiosk.project_ir/2` takes a verified `Surface`, not IR, and used to
+crash the dispatcher with a `FunctionClauseError`). Wrap such a module with
+`from_manifest_projector/1` to run it over IR.
+
 **Adoption reality (corrected gapfix-docs-truth-013).** The `project_ir/2`
 callback is declared here, but in-tree the behaviour is adopted only by a
 test fixture (`test/ash_surface/projector/ir_projector_test.exs`). The shipped
@@ -125,7 +132,8 @@ Notes per lane:
 
 - **js (JSDoc + Zod).** `project_ir(ir, opts)` (single IR or list) renders ONE
   TypeScript-free `.mjs`: JSDoc-typed resource namespaces of frozen action
-  descriptors; Zod boundary schemas embedded verbatim from `IR.Schema.zod`;
+  descriptors; Zod boundary schemas embedded from `IR.Schema.zod` after the
+  admission guard below;
   `ACTIONS`/`SCHEMAS`/`NAMESPACES` registries plus `getAction/1` and
   `dispatchIntent/2`. DO-boundary actions carry dispatch-INTENT descriptors
   only — `dispatchIntent/2` mints frozen data, Zod-validates input, refuses
@@ -135,6 +143,35 @@ Notes per lane:
   resource-sorted, descriptor field order fixed. Opts: `:prefix`,
   `:target_dir`. Returns `{:ok, %{filename => code}, meta}` with
   `meta[:prefix | :action_count | :namespace_count]`.
+
+  **Emission-safety law (2026-09-28).** `project_ir/2` emits nothing rather
+  than emit JavaScript that fails to load or silently mis-resolves, and
+  returns a typed `{:error, reason}` instead:
+
+  | Reason | Refused because |
+  |---|---|
+  | `{:js_namespace_collision, short, [full_names]}` | `Blog.Post` and `Forum.Post` both shorten to `Post`; one frozen namespace would keep only the last member |
+  | `{:duplicate_js_member, id}` | the same action id twice in one namespace |
+  | `{:unsafe_js_namespace, name}` | not an ASCII identifier, a reserved word, an ECMAScript global (`Object`, `Error`, `JSON`, ...), or a binding the artifact declares itself (`z`, `ACTIONS`, `SCHEMAS`, `NAMESPACES`, `getAction`, `dispatchIntent`) |
+  | `{:unsafe_js_member, id}` | a non-identifier action name or `__proto__` (reserved words stay legal members: `Post.delete`) |
+  | `{:js_binding_collision, name}` | two schema constants, or a schema constant and a namespace, share a name |
+  | `{:invalid_prefix, prefix}` | the `:prefix` option is not a non-empty string |
+  | `{:unadmitted_field, id, field}` | a descriptor field (`label`, `capability_iri`, ...) is neither a string nor nil |
+  | `{:unadmitted_zod, id, reason}` | the Zod string is outside the admitted grammar |
+
+  The Zod grammar (`AshSurface.Projectors.JS.ZodGuard`) is a `z`-rooted
+  member/call chain over literal data only (JSON strings, numbers,
+  booleans, `null`, arrays, objects): no other identifiers, functions,
+  operators, computed access, template or regex literals, comments,
+  `constructor`/`prototype`/`call`/`apply`/`bind`, or `__`-prefixed names.
+  This closes the path from decoded IR (`IR.Codec.from_map/1`) to code
+  injection; it constrains syntax, not what a Zod method does at runtime.
+  The compiler's two-statement Zod program
+  (`export const X_inputSchema = ...; export const X_outputSchema = ...;`)
+  is admitted in that exact form and only its input-schema expression is
+  embedded, since that is the boundary `dispatchIntent/2` validates.
+  Comment content is escaped (`*/`, U+2028/9). Emitted bytes for valid,
+  non-colliding input are unchanged.
 - **aria.** Accessibility semantics as data: per input, a conservative
   `"role"` from the resolved input type (unmapped types get `nil`, never a
   fabricated role), `"required"` propagated from `allow_nil?` only,
@@ -145,7 +182,9 @@ Notes per lane:
   order sequential/unique/gapless over group boundaries (interactive nodes
   only), live regions for OBSERVE surfaces ONLY (DO consequences never
   announce passively; politeness is law, not configuration), id stability
-  across re-projections. Rendering belongs to consumers (AshSDUI / live_vue /
+  across re-projections. The projection module also reads the list-form
+  `"fields"` carrier the compiler's schema section manufactures, next to
+  `"inputs"`, so compiled IR projects its inputs. Rendering belongs to consumers (AshSDUI / live_vue /
   Expo), never to this module. The registered consumer of these contracts on
   this tree is the `AshSurface.Projectors.ARIA` projector (registry row
   above), which reads the delegated facts and emits the contract map —
@@ -165,7 +204,13 @@ Notes per lane:
   is closed and admitted (`default text textarea toggle select number date`);
   anything else is a typed `unknown_widget_presentation` rejection.
   Server-rendered LiveView itself is consumer territory (AshPhoenix
-  authoritative).
+  authoritative). It is nil-safe over compiler-produced IR: a nil
+  `semantic`/`capability`/`presentation`/`schema` section reads as the empty
+  struct (honest absence, e.g. `consequence_class: nil`), and relationships
+  are read only from the map-shaped `semantic.predicates`. The compiler
+  carries `predicates` as a flat list of IRIs with no relationship name or
+  destination, so list-form yields no relationships rather than a second
+  R2RML discovery.
 - **voice_kiosk.** The deliberately minimal fifth projector — see §5.
 
 ## 4. The legacy manifest-projector adapter — `from_manifest_projector/1`

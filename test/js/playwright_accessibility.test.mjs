@@ -10,12 +10,18 @@ import { observationProjectionSchema } from "../../priv/static/ash_surface_runti
 // must still pass, so the browser-launching tests type-refuse to SKIP when
 // the runtime is absent instead of failing on a static import. The shipped
 // module is imported dynamically for the same reason.
+//
+// Readiness is a real headless launch, not `executablePath()`: Playwright
+// returns the expected path even when that browser build was never
+// downloaded, so a path check turns "runtime absent" into a RED launch
+// failure instead of the SKIP this gate promises.
 let observeAccessibility = null;
 let chromiumReady = false;
 try {
   const pw = await import("playwright");
-  const executable = pw.chromium?.executablePath?.();
-  chromiumReady = typeof executable === "string" && executable.length > 0;
+  const probe = await pw.chromium.launch({ headless: true });
+  await probe.close();
+  chromiumReady = true;
   if (chromiumReady) {
     ({ observeAccessibility } = await import("../../priv/static/ash_surface_playwright.mjs"));
   }

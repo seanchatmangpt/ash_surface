@@ -13,8 +13,9 @@ defmodule AshSurface.Projectors.ARIA do
     are tolerated so in-memory and round-tripped manifests feed the same
     read path. Shape: optional `"role"` (surface role), optional `"live"`
     (live-region politeness; OBSERVE-only admission), and inputs either
-    under `"inputs"` (a list of input maps or a name-keyed map) or as the
-    remaining name-keyed map entries. Per-input facts: `"role"`,
+    under `"inputs"` (a list of input maps or a name-keyed map), under
+    `"fields"` (the list form `AshSurface.Compiler.Schema` manufactures for
+    compiled IR), or as the remaining name-keyed map entries. Per-input facts: `"role"`,
     `"required"`, `"describedby"`.
   - `IR.Presentation` — `label` (surface label), `group` (grouping fact),
     `order` (tab order fact).
@@ -191,7 +192,7 @@ defmodule AshSurface.Projectors.ARIA do
   defp inputs(nil), do: []
 
   defp inputs(aria) when is_map(aria) do
-    case fact(aria, "inputs") do
+    case fact(aria, "inputs") || fields_list(aria) do
       nil ->
         name_keyed_inputs(aria)
 
@@ -203,9 +204,21 @@ defmodule AshSurface.Projectors.ARIA do
     end
   end
 
+  # `"fields"` is the compiler's list-form carrier. Only a list is that
+  # carrier: a name-keyed input literally called "fields" (a map of facts) is
+  # still an input, not the list form.
+  defp fields_list(aria) do
+    case fact(aria, "fields") do
+      fields when is_list(fields) -> fields
+      _not_the_list_form -> nil
+    end
+  end
+
   defp name_keyed_inputs(map) do
     map
-    |> Enum.reject(fn {key, value} -> reserved?(key) or not is_map(value) end)
+    |> Enum.reject(fn {key, value} ->
+      reserved?(key) or list_form_carrier?(key, value) or not is_map(value)
+    end)
     |> Enum.map(fn {name, input_facts} -> input(to_string(name), input_facts) end)
     |> Enum.sort_by(& &1["name"])
   end
@@ -268,6 +281,8 @@ defmodule AshSurface.Projectors.ARIA do
   defp entry_id(ir), do: IREntry.describe(ir).id
 
   defp reserved?(key), do: to_string(key) in @reserved
+
+  defp list_form_carrier?(key, value), do: to_string(key) == "fields" and is_list(value)
 
   defp fact(nil, _fact_name), do: nil
 

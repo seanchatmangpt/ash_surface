@@ -54,7 +54,15 @@ defmodule AshSurface.IR.EventProjection do
       receipt whose own binding evidence contradicts its content never
       reaches the observation stream. A carried value outside that byte
       shape (or no digest at all) is an opaque `receipt_ref`, carried
-      verbatim as before.
+      verbatim as before: git SHAs, dashless UUIDs, long IRIs and domain ids
+      are legitimate references, not digest claims. Every slot that can
+      become the event's `receipt_ref` (`receiptHash` and `receiptRef`) is
+      bound, so a digest moved from one slot to the other is still checked.
+      Digests are lowercase hex (the shape the runtime mints); an uppercase
+      64-byte value fails to bind and refuses (fail closed).
+    * a non-map IR action or non-map `semantic` section refuses with
+      `standing: :REFUSED_INVALID_SUBJECT` and reason
+      `{:malformed_ir_action, value}` / `{:malformed_ir_semantic, value}`.
 
   Refusal ordering is part of the law: subject, then timestamp, then digest
   binding — a receipt refusing on identity or time never reaches the digest
@@ -128,9 +136,22 @@ defmodule AshSurface.IR.EventProjection do
 
   ## Subject resolution: IR semantic subject_iri first, ash:<resource>#<action> fallback.
 
-  defp subject_ref(receipt, ir_action) do
-    semantic = fetch(ir_action || %{}, [:semantic, "semantic"]) || %{}
+  # A non-map IR action or a non-map `semantic` section is a malformed
+  # subject source: typed refusal, never a raise (boundary-hardening).
+  defp subject_ref(_receipt, ir_action) when not is_nil(ir_action) and not is_map(ir_action),
+    do: {:error, invalid_subject_refusal({:malformed_ir_action, ir_action})}
 
+  defp subject_ref(receipt, ir_action) do
+    case fetch(ir_action || %{}, [:semantic, "semantic"]) do
+      semantic when is_nil(semantic) or is_map(semantic) ->
+        resolve_subject(receipt, ir_action, semantic || %{})
+
+      semantic ->
+        {:error, invalid_subject_refusal({:malformed_ir_semantic, semantic})}
+    end
+  end
+
+  defp resolve_subject(receipt, ir_action, semantic) do
     case fetch(semantic, [:subject_iri, "subject_iri"]) do
       iri when is_binary(iri) and iri != "" ->
         {:ok, iri}
@@ -147,15 +168,14 @@ defmodule AshSurface.IR.EventProjection do
                 {:ok, "ash:" <> action_id}
 
               _ ->
-                {:error,
-                 %{
-                   standing: :REFUSED_INVALID_SUBJECT,
-                   reason: :unresolvable_subject_ref,
-                   authority_boundary: :OBSERVE
-                 }}
+                {:error, invalid_subject_refusal(:unresolvable_subject_ref)}
             end
         end
     end
+  end
+
+  defp invalid_subject_refusal(reason) do
+    %{standing: :REFUSED_INVALID_SUBJECT, reason: reason, authority_boundary: :OBSERVE}
   end
 
   defp sequence(receipt) do
@@ -198,28 +218,37 @@ defmodule AshSurface.IR.EventProjection do
   ## the runtime-minted digest shape (64 bytes — the exact byte length of the
   ## sha256 hex the consumer runtime emits for `receiptHash`) must BIND the
   ## canonical re-encoding of its covered sections, or it is refused typed.
-  ## Anything else in the slot (absent, or an opaque reference like a domain
-  ## id) is carried verbatim as the event's `receipt_ref`, exactly as before.
+  ##
+  ## Boundary-hardening: the check covers EVERY slot that can become the
+  ## event's `receipt_ref` (`receiptHash` and `receiptRef`), so a digest moved
+  ## from one slot to the other is still bound. Only the exact 64-byte shape
+  ## is a digest claim; any other value (absent, or a reference such as a git
+  ## SHA, UUID, IRI or domain id) is carried verbatim as the `receipt_ref`.
 
   defp bind_receipt_digest(receipt) do
-    case fetch(receipt, [:receipt_hash, "receiptHash"]) do
-      hash when is_binary(hash) and byte_size(hash) == 64 ->
-        actual = CanonicalJSON.sha256_hex(digest_payload(receipt))
+    [[:receipt_hash, "receiptHash"], [:receipt_ref, "receiptRef"]]
+    |> Enum.map(&fetch(receipt, &1))
+    |> Enum.reduce_while(:ok, fn value, :ok ->
+      case bind_digest_slot(receipt, value) do
+        :ok -> {:cont, :ok}
+        refusal -> {:halt, refusal}
+      end
+    end)
+  end
 
-        if actual == hash do
-          :ok
-        else
-          {:error,
-           %{
-             standing: :REFUSED_RECEIPT_DIGEST_MISMATCH,
-             reason: {:receipt_digest_mismatch, hash, actual},
-             authority_boundary: :OBSERVE
-           }}
-        end
+  defp bind_digest_slot(receipt, hash) when is_binary(hash) and byte_size(hash) == 64 do
+    actual = CanonicalJSON.sha256_hex(digest_payload(receipt))
 
-      _opaque_or_absent ->
-        :ok
-    end
+    if actual == hash,
+      do: :ok,
+      else: digest_refusal({:receipt_digest_mismatch, hash, actual})
+  end
+
+  defp bind_digest_slot(_receipt, _opaque_or_absent), do: :ok
+
+  defp digest_refusal(reason) do
+    {:error,
+     %{standing: :REFUSED_RECEIPT_DIGEST_MISMATCH, reason: reason, authority_boundary: :OBSERVE}}
   end
 
   ## The exact section set the consumer runtime covers when minting

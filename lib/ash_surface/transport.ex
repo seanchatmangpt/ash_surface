@@ -120,6 +120,9 @@ defmodule AshSurface.Transport do
       iex> AshSurface.Transport.select([:http], [:http, :phoenix_channel])
       {:error, {:unadmitted_transport, [:phoenix_channel]}}
 
+      iex> AshSurface.Transport.select([:http, :http], [:http])
+      {:error, {:duplicate_transport, [:http]}}
+
       iex> AshSurface.Transport.select([:http], [:http], preferred: :carrier_pigeon)
       {:error, {:unknown_transport, :carrier_pigeon}}
   """
@@ -366,9 +369,22 @@ defmodule AshSurface.Transport do
   defp validate_preferred(preferred) when preferred in @known_transports, do: :ok
   defp validate_preferred(preferred), do: {:error, {:unknown_transport, preferred}}
 
+  # A transport set is a set: a repeated member would put the same transport
+  # on the frontier twice and let it "win" a tie-break against itself.
   defp validate_transports(transports) when is_list(transports) do
     unknown = Enum.reject(transports, &(&1 in @known_transports))
-    if unknown == [], do: :ok, else: {:error, {:unknown_transport, unknown}}
+    duplicates = transports |> Enum.frequencies() |> Enum.filter(fn {_t, n} -> n > 1 end)
+
+    cond do
+      unknown != [] ->
+        {:error, {:unknown_transport, unknown}}
+
+      duplicates != [] ->
+        {:error, {:duplicate_transport, duplicates |> Enum.map(&elem(&1, 0)) |> Enum.sort()}}
+
+      true ->
+        :ok
+    end
   end
 
   defp validate_transports(_), do: {:error, :transports_must_be_a_list}

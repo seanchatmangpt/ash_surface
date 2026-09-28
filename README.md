@@ -105,6 +105,8 @@ It provides:
 - Zod validation at the untrusted JavaScript boundary;
 - adaptive transport selection before dispatch;
 - explicit receipts for completed vs unknown-after-dispatch outcomes;
+- a bounded dispatch (`timeoutMs`, `signal`) that settles a hung adapter as unknown-after-dispatch;
+- validated `reconcile` replies (`COMPLETED | NOT_OBSERVED | STILL_UNKNOWN`);
 - no TypeScript compilation step.
 
 ```javascript
@@ -143,6 +145,19 @@ Ash action identity
 ```
 
 If a preferred transport is unavailable **before** dispatch, another admitted transport may be selected. Once dispatch has occurred, a timeout/disconnect does not prove non-execution. AshSurface therefore returns `TRANSPORT_OUTCOME_UNKNOWN` and does not silently replay the action over another transport.
+
+Dispatch is bounded per call:
+
+```javascript
+await createPost.invoke(
+  { title: "Ship it" },
+  { timeoutMs: 5_000, signal: abortController.signal },
+);
+```
+
+A `signal` that is already aborted is refused **before** dispatch (`DISPATCH_ABORTED_PRE_DISPATCH`, no adapter call, no receipt). An adapter that never answers within `timeoutMs`, or whose `signal` aborts after dispatch, settles as `TRANSPORT_OUTCOME_UNKNOWN` (`dispatchState: "unknown_after_dispatch"`, cause `DISPATCH_TIMEOUT` / `DISPATCH_ABORTED`) - never a hang, never a replay over another transport. Timers and abort listeners are always released. An invalid `timeoutMs` (non-positive, non-finite, non-number) or a `commandId` that is not a non-empty string is refused before dispatch (`INVALID_OPTIONS`). Default command ids are `cmd_` + a UUID from `crypto.randomUUID`, falling back to `crypto.getRandomValues` and then a non-crypto id, so the client also runs on React Native/Hermes, Node 18 and non-secure browser contexts. Transports are looked up as own properties only, everywhere. A malformed `reconcile` reply is `INVALID_RECONCILE_RESULT`, not trusted. Client registries are null-prototype objects, so contract-supplied resource or action names such as `__proto__` or `constructor` are ordinary keys and cannot reach `Object.prototype`.
+
+On the Elixir side, `AshSurface.Transport.select/3` treats declared/available transport lists as sets: a repeated member is `{:error, {:duplicate_transport, [...]}}`.
 
 ## Projection boundary
 

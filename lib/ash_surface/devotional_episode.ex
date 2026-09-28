@@ -126,13 +126,14 @@ defmodule AshSurface.DevotionalEpisode do
 
     normalized_kind =
       case kind do
+        nil ->
+          raise ArgumentError, "segment #{index} requires kind"
+
         value when is_atom(value) ->
           value
 
         value when is_binary(value) ->
-          value
-          |> String.upcase()
-          |> String.to_existing_atom()
+          existing_segment_kind!(value)
 
         _ ->
           raise ArgumentError, "segment #{index} requires kind"
@@ -171,5 +172,17 @@ defmodule AshSurface.DevotionalEpisode do
     |> :erlang.term_to_binary([:deterministic])
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
+  end
+
+  # A string kind naming no existing atom is an unknown kind, reported with the
+  # same message as an unknown atom kind — never Erlang's generic
+  # `to_existing_atom` ArgumentError, and never a fresh atom from input.
+  defp existing_segment_kind!(value) do
+    value |> String.upcase() |> String.to_existing_atom()
+  rescue
+    ArgumentError ->
+      reraise ArgumentError,
+              [message: "unknown devotional segment kind: #{inspect(value)}"],
+              __STACKTRACE__
   end
 end
