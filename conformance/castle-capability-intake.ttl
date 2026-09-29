@@ -1,0 +1,31 @@
+@prefix eco: <https://ggen.dev/ecosystem#> .
+@prefix surf: <https://ash-surface.dev/ontology/castle-intake#> .
+
+surf:intake
+    a eco:CapabilityProjection ;
+    eco:projectionSource "seanchatmangpt/ggen-ecosystem@50fdfa20c84205a80c6eb94e916cffbedc4b816e" ;
+    eco:ownerRepository "seanchatmangpt/ash_surface" ;
+    eco:ownerCapability "HUMAN_BOARD_SURFACE" ;
+    eco:projectionStanding "CANDIDATE" ;
+    eco:authorityCeiling "CONSTRUCT" ;
+    eco:forbidsCapability "SEMANTIC_TRUTH", "CONSEQUENTIAL_ADMISSIBILITY" .
+
+surf:ash-expo
+    a eco:ProjectedCapability ;
+    eco:sourceRepository "seanchatmangpt/ash_expo" ;
+    eco:sourceSha "024852b92330c76e12d0ab26531ef1e511c71041" ;
+    eco:capability "MOBILE_SURFACE" ;
+    eco:disposition "WRAP" ;
+    eco:runtimePlacement "MOBILE_SURFACE" ;
+    eco:projectionTarget surf:intake ;
+    eco:falsifier "Mobile presentation or cached state becomes independent authority." .
+
+surf:mmdio
+    a eco:ProjectedCapability ;
+    eco:sourceRepository "seanchatmangpt/mmdio" ;
+    eco:sourceSha "afc1f6e890a6d1c17b84d5931b21d3c74a851ebc" ;
+    eco:capability "SEMANTIC_DOCUMENT_PROJECTION" ;
+    eco:disposition "CANDIDATE_WRAP" ;
+    eco:runtimePlacement "POWERLESS_DOCUMENT_PROJECTION" ;
+    eco:projectionTarget surf:intake ;
+    eco:falsifier "Diagram, presentation, or Markdown projection becomes canonical semantic source or actuation authority." .
