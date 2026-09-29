@@ -34,13 +34,17 @@ defmodule AshSurface.Transport do
   and the historical preference law decides unchanged.
   """
 
-  @known_transports [:http, :phoenix_channel]
+  alias AshSurface.Telemetry
+  alias AshSurface.Vocabulary
 
-  # Admitted dimension vocabulary (v26.9.17 F6; ontology.ttl surf:SelectionEdge).
-  @dimensions [:cost, :latency, :privacy]
-  @dimension_classes [:low, :medium, :high]
+  @known_transports Vocabulary.known_transports()
+
+  # Admitted dimension vocabulary (v26.9.17 F6; ontology.ttl surf:SelectionEdge),
+  # single-sourced in AshSurface.Vocabulary.
+  @dimensions Vocabulary.dimensions()
+  @dimension_classes Vocabulary.dimension_classes()
   # Fixed deterministic weighing priority: cost, then latency, then privacy.
-  @dimension_priority [:cost, :latency, :privacy]
+  @dimension_priority Vocabulary.dimension_priority()
 
   defmodule Decision do
     @enforce_keys [:declared, :available, :selected, :preferred, :reason]
@@ -139,17 +143,19 @@ defmodule AshSurface.Transport do
          {:ok, facts} <- admit_facts(raw_facts),
          {:ok, selected, reason, dimensions, frontier} <-
            choose(declared, available, preferred, facts) do
-      {:ok,
-       %Decision{
-         action_id: action_id,
-         declared: declared,
-         available: available,
-         selected: selected,
-         preferred: preferred,
-         reason: reason,
-         dimensions: dimensions,
-         frontier: frontier
-       }}
+      decision = %Decision{
+        action_id: action_id,
+        declared: declared,
+        available: available,
+        selected: selected,
+        preferred: preferred,
+        reason: reason,
+        dimensions: dimensions,
+        frontier: frontier
+      }
+
+      Telemetry.transport_selected(decision)
+      {:ok, decision}
     end
   end
 
@@ -264,9 +270,7 @@ defmodule AshSurface.Transport do
   defp better?(:privacy, class_a, class_b), do: rank(class_a) > rank(class_b)
   defp better?(_dimension, class_a, class_b), do: rank(class_a) < rank(class_b)
 
-  defp rank(:low), do: 0
-  defp rank(:medium), do: 1
-  defp rank(:high), do: 2
+  defp rank(class), do: Enum.find_index(@dimension_classes, &(&1 == class))
 
   # Deterministic frontier winner: compared pairwise in declared order, the
   # first comparable axis with differing classes decides; a full tie falls to
@@ -337,27 +341,34 @@ defmodule AshSurface.Transport do
   defp admit_dimensions(_transport, _dimensions), do: {:error, :transport_facts_must_be_a_map}
 
   defp transport_key(transport) when transport in @known_transports, do: {:ok, transport}
-  defp transport_key("http"), do: {:ok, :http}
-  defp transport_key("phoenix_channel"), do: {:ok, :phoenix_channel}
+
+  defp transport_key(other) when is_binary(other) do
+    case Enum.find(@known_transports, &(Atom.to_string(&1) == other)) do
+      nil -> {:error, {:unknown_transport, [other]}}
+      transport -> {:ok, transport}
+    end
+  end
+
   defp transport_key(other), do: {:error, {:unknown_transport, [other]}}
 
   defp dimension_key(_transport, dimension) when dimension in @dimensions, do: {:ok, dimension}
-  defp dimension_key(_transport, "cost"), do: {:ok, :cost}
-  defp dimension_key(_transport, "latency"), do: {:ok, :latency}
-  defp dimension_key(_transport, "privacy"), do: {:ok, :privacy}
 
-  defp dimension_key(transport, other),
-    do: {:error, {:unknown_dimension, {transport, other}}}
+  defp dimension_key(transport, other) do
+    case is_binary(other) && Enum.find(@dimensions, &(Atom.to_string(&1) == other)) do
+      dimension when is_atom(dimension) and dimension not in [nil, false] -> {:ok, dimension}
+      _ -> {:error, {:unknown_dimension, {transport, other}}}
+    end
+  end
 
   defp class_key(_transport, _dimension, class) when class in @dimension_classes,
     do: {:ok, class}
 
-  defp class_key(_transport, _dimension, "low"), do: {:ok, :low}
-  defp class_key(_transport, _dimension, "medium"), do: {:ok, :medium}
-  defp class_key(_transport, _dimension, "high"), do: {:ok, :high}
-
-  defp class_key(transport, dimension, other),
-    do: {:error, {:unknown_dimension_class, {transport, dimension, other}}}
+  defp class_key(transport, dimension, other) do
+    case is_binary(other) && Enum.find(@dimension_classes, &(Atom.to_string(&1) == other)) do
+      class when is_atom(class) and class not in [nil, false] -> {:ok, class}
+      _ -> {:error, {:unknown_dimension_class, {transport, dimension, other}}}
+    end
+  end
 
   # -- transport-set fences (unchanged) ---------------------------------------
 

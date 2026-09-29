@@ -75,6 +75,8 @@ defmodule AshSurface.IR.EventProjection do
 
   alias AshSurface.CanonicalJSON
   alias AshSurface.Event
+  alias AshSurface.Telemetry
+  alias AshSurface.Vocabulary
 
   @typedoc "Local declaration of the canonical IR action shape (see moduledoc)."
   @type ir_action :: %{
@@ -119,6 +121,17 @@ defmodule AshSurface.IR.EventProjection do
   """
   @spec from_receipt(receipt(), ir_action() | nil) :: {:ok, Event.t()} | {:error, refusal()}
   def from_receipt(receipt, ir_action \\ nil) when is_map(receipt) do
+    receipt |> project(ir_action) |> observe_refusal()
+  end
+
+  defp observe_refusal({:error, refusal} = result) do
+    Telemetry.receipt_refused(refusal)
+    result
+  end
+
+  defp observe_refusal(ok), do: ok
+
+  defp project(receipt, ir_action) do
     with {:ok, subject} <- subject_ref(receipt, ir_action),
          {:ok, occurred} <- occurred_at(receipt),
          :ok <- bind_receipt_digest(receipt) do
@@ -236,15 +249,17 @@ defmodule AshSurface.IR.EventProjection do
     end)
   end
 
-  defp bind_digest_slot(receipt, hash) when is_binary(hash) and byte_size(hash) == 64 do
-    actual = CanonicalJSON.sha256_hex(digest_payload(receipt))
+  defp bind_digest_slot(receipt, hash) do
+    if Vocabulary.digest_shape?(hash) do
+      actual = CanonicalJSON.sha256_hex(digest_payload(receipt))
 
-    if actual == hash,
-      do: :ok,
-      else: digest_refusal({:receipt_digest_mismatch, hash, actual})
+      if actual == hash,
+        do: :ok,
+        else: digest_refusal({:receipt_digest_mismatch, hash, actual})
+    else
+      :ok
+    end
   end
-
-  defp bind_digest_slot(_receipt, _opaque_or_absent), do: :ok
 
   defp digest_refusal(reason) do
     {:error,
@@ -268,12 +283,19 @@ defmodule AshSurface.IR.EventProjection do
 
   ## Zero-config key access: atom or string keys, JSON-decoded or literal maps.
 
+  # Key-presence semantics: the first spelling that is present with a
+  # non-nil value wins, so a stored `false` is a value (never "absent"). A
+  # nil value falls through to the next spelling, as before.
   defp fetch(map, keys) when is_map(map) do
     Enum.find_value(keys, fn key ->
       case Map.fetch(map, key) do
-        {:ok, value} -> value
-        :error -> nil
+        {:ok, value} when not is_nil(value) -> {:found, value}
+        _ -> nil
       end
     end)
+    |> case do
+      {:found, value} -> value
+      nil -> nil
+    end
   end
 end

@@ -28,7 +28,7 @@ defmodule AshSurface.MXEpisodeCoverageTest do
       manifest: %{},
       contract: %{},
       action_ids: [],
-      digest: :crypto.hash(:sha256, "surface-bytes") |> Base.encode16(case: :lower)
+      digest: AshSurface.contract_digest(%{})
     }
 
     Map.merge(

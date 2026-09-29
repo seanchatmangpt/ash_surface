@@ -104,11 +104,56 @@ defmodule AshSurface.IR.Codec do
         schema: build_section(map["schema"], IR.Schema, @schema_fields)
       }
 
-      {:ok, %{ir | digest: digest(to_map(ir))}}
+      with :ok <- validate_facts(ir), do: {:ok, %{ir | digest: digest(to_map(ir))}}
     end
   end
 
   def from_map(other), do: {:error, {:ir_map_required, other}}
+
+  @doc """
+  Types the scalar facts that target projectors read, once, at the decode
+  boundary: `ash.resource` (string, atom or nil), `ash.action` and
+  `ash.action_type` (string, atom or nil), `presentation.order` (nil or an integer of
+  either sign), and `schema.aria` (nil or a map whose `inputs` /
+  `fields` facts are nil, a list or a map). A wrong-typed fact is
+  `{:error, {:invalid_fact, section, field}}` — never coerced, never raised.
+
+  `from_map/1` runs this over every decoded IR; projectors run it again over
+  hand-built IR so both entry paths are total.
+  """
+  @spec validate_facts(IR.t()) :: :ok | {:error, {:invalid_fact, atom(), atom()}}
+  def validate_facts(%IR{} = ir) do
+    ash = ir.ash || %IR.Ash{}
+
+    checks = [
+      {:ash, :resource, name?(ash.resource)},
+      {:ash, :action, name?(ash.action)},
+      {:ash, :action_type, name?(ash.action_type)},
+      {:presentation, :order, order?((ir.presentation || %IR.Presentation{}).order)},
+      {:schema, :aria, aria?((ir.schema || %IR.Schema{}).aria)}
+    ]
+
+    case Enum.find(checks, fn {_, _, ok?} -> not ok? end) do
+      nil -> :ok
+      {section, field, _} -> {:error, {:invalid_fact, section, field}}
+    end
+  end
+
+  defp name?(value), do: is_binary(value) or is_atom(value)
+  defp order?(value), do: is_nil(value) or is_integer(value)
+
+  defp aria?(nil), do: true
+
+  defp aria?(aria) when is_map(aria) and not is_struct(aria) do
+    Enum.all?(aria, fn {key, value} ->
+      key_name = if is_atom(key) or is_binary(key), do: to_string(key)
+
+      key_name not in ["inputs", "fields"] or is_nil(value) or is_list(value) or
+        (is_map(value) and not is_struct(value))
+    end)
+  end
+
+  defp aria?(_), do: false
 
   @doc """
   Content-addresses a canonical map with the existing `AshSurface` digest
@@ -232,7 +277,9 @@ defmodule AshSurface.IR.Codec do
         nil
 
       is_list(value) ->
-        Enum.find_value(value, nil, &json_isomorphic(section, &1))
+        if proper_list?(value),
+          do: Enum.find_value(value, nil, &json_isomorphic(section, &1)),
+          else: {:error, {:not_json_isomorphic, section, value}}
 
       is_map(value) and not is_struct(value) ->
         Enum.find_value(value, nil, fn {k, v} ->
@@ -245,4 +292,8 @@ defmodule AshSurface.IR.Codec do
         {:error, {:not_json_isomorphic, section, value}}
     end
   end
+
+  defp proper_list?([]), do: true
+  defp proper_list?([_ | tail]), do: proper_list?(tail)
+  defp proper_list?(_), do: false
 end

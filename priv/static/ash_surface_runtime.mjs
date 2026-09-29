@@ -11,12 +11,40 @@ import { z } from "zod";
 export const SURFACE_RUNTIME_VERSION = "26.9.17";
 const SUPPORTED_SURFACE_MAJORS = [0, 26];
 const KNOWN_TRANSPORTS = Object.freeze(["http", "phoenix_channel"]);
+const REFUSAL_PREFIX = "REFUSED_";
+const RECONCILE_STATUSES = Object.freeze(["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]);
+const DISPATCH_STATES = Object.freeze(["not_dispatched", "completed", "unknown_after_dispatch"]);
+const DISPATCH_OUTCOMES = Object.freeze(["SUCCESS", "UNKNOWN_AFTER_DISPATCH"]);
+// SHA-256 rendered as lowercase hex (request digests, derived idempotency keys).
+const DIGEST_HEX_LENGTH = 64;
+export const IDEMPOTENCY_PROTOCOL = "ash_surface.idempotency/1";
 // v26.9.17 F6 selection-frontier vocabulary: delegated per-transport dimension
 // facts (cost/latency lower is better; privacy higher is better). Twin of
 // lib/ash_surface/transport.ex (@dimensions / @dimension_classes).
 const KNOWN_DIMENSIONS = Object.freeze(["cost", "latency", "privacy"]);
 const KNOWN_DIMENSION_CLASSES = Object.freeze(["low", "medium", "high"]);
-const DIMENSION_PRIORITY = Object.freeze(["cost", "latency", "privacy"]);
+const DIMENSION_PRIORITY = KNOWN_DIMENSIONS;
+// A refusal code is the prefix plus a reason TOKEN ([A-Za-z0-9_]+). Codes flow
+// into logs, events and receipts, so line terminators and other free text are
+// not admitted (mirrors AshSurface.Vocabulary.refusal_code?/1 exactly).
+const REFUSAL_CODE_PATTERN = new RegExp(`^${REFUSAL_PREFIX}[A-Za-z0-9_]+$`);
+
+/**
+ * The runtime's closed vocabularies, exported as one frozen record so other
+ * languages can pin drift tests against the runtime's own single definitions
+ * (each field is built from the constant the runtime actually uses).
+ */
+export const VOCABULARY = Object.freeze({
+  refusalPrefix: REFUSAL_PREFIX,
+  reconcileStatuses: RECONCILE_STATUSES,
+  knownTransports: KNOWN_TRANSPORTS,
+  dimensionClasses: KNOWN_DIMENSION_CLASSES,
+  dimensions: KNOWN_DIMENSIONS,
+  digestHexLength: DIGEST_HEX_LENGTH,
+  dispatchStates: DISPATCH_STATES,
+  dispatchOutcomes: DISPATCH_OUTCOMES,
+  idempotencyProtocol: IDEMPOTENCY_PROTOCOL,
+});
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 
@@ -40,14 +68,14 @@ const standingSchema = z.union([
   // The open REFUSED class: at least one reason char beyond the prefix —
   // bare "REFUSED" and the empty reason "REFUSED_" are not refusals (mirrors
   // lib/ash_surface/standing.ex "REFUSED_" <> _ rest law).
-  z.string().regex(/^REFUSED_.+/),
+  z.string().regex(REFUSAL_CODE_PATTERN),
 ]);
 
 // F3 refusal guard: every declared possible refusal is a "REFUSED_"-prefixed
 // code with a named reason (mirrors the Elixir REFUSED_* refusal vocabulary,
 // e.g. "REFUSED_UNKNOWN_ACTION"). Off-vocabulary names and the unnamed
 // "REFUSED"/"REFUSED_" are refused at the boundary.
-const refusalCodeSchema = z.string().regex(/^REFUSED_.+/);
+const refusalCodeSchema = z.string().regex(REFUSAL_CODE_PATTERN);
 
 export const surfaceActionSchema = z
   .object({
@@ -113,313 +141,6 @@ export const eventProjectionSchema = z
     authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
   })
   .passthrough();
-
-const evidenceStandingSchema = z.enum(["UNKNOWN", "PARTIAL_ALIVE", "ALIVE", "BLOCKED", "REFUSED"]);
-
-export const possibilitySchema = z
-  .object({
-    possibilityId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    capabilityId: z.string().min(1),
-    label: z.string().min(1),
-    summary: z.string().nullable().optional(),
-    actionRef: z.string().nullable().optional(),
-    whyThisRef: z.string().nullable().optional(),
-    status: z.enum(["CANDIDATE", "PRESERVED", "BLOCKED", "REFUSED"]),
-    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
-    stateDigest: z.string().min(1),
-    costSummary: z.string().nullable().optional(),
-    consequenceSummary: z.string().nullable().optional(),
-    requirements: z.array(z.string()).default([]),
-    evidenceRefs: z.array(z.string()).default([]),
-    expiresAt: z.string().nullable().optional(),
-    authorityCeiling: z.enum(["OBSERVE", "SELECT", "CONSTRUCT"]).default("SELECT"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .passthrough();
-
-export const possibilitySetSchema = z
-  .object({
-    setId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    objective: z.string().min(1),
-    horizon: z.string().nullable().optional(),
-    selectionRef: z.string().nullable().optional(),
-    closureReason: z.string().nullable().optional(),
-    possibilities: z.array(possibilitySchema),
-    constraints: z.array(z.string()).default([]),
-    sourceEpisodeRefs: z.array(z.string()).default([]),
-    evidenceRefs: z.array(z.string()).default([]),
-    standing: evidenceStandingSchema.default("PARTIAL_ALIVE"),
-    mode: z.literal("MAXIMAL_REVERSIBLE_FRONTIER"),
-    stateDigest: z.string().min(1),
-    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .superRefine((value, ctx) => {
-    if (value.standing === "ALIVE" && value.possibilities.length === 0) {
-      ctx.addIssue({ code: "custom", message: "ALIVE possibility set requires at least one option" });
-    }
-    if (new Set(value.possibilities.map((item) => item.possibilityId)).size !== value.possibilities.length) {
-      ctx.addIssue({ code: "custom", message: "possibility ids must be unique" });
-    }
-  });
-
-export const whyThisSchema = z
-  .object({
-    explanationId: z.string().min(1),
-    subjectRef: z.string().min(1),
-    title: z.string().min(1),
-    summary: z.string().min(1),
-    claimKind: z.enum(["HYPOTHESIS", "OBSERVATION", "USER_STATED", "DOCTRINAL"]),
-    evidenceState: evidenceStandingSchema,
-    falsifier: z.string().nullable().optional(),
-    basis: z.array(z.string()).default([]),
-    caveats: z.array(z.string()).default([]),
-    profileRefs: z.array(z.string()).default([]),
-    evidenceRefs: z.array(z.string()).default([]),
-    hypothesisRefs: z.array(z.string()).default([]),
-    stateDigest: z.string().min(1),
-    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .superRefine((value, ctx) => {
-    if (value.claimKind === "HYPOTHESIS" && !value.falsifier) {
-      ctx.addIssue({ code: "custom", message: "HYPOTHESIS explanation requires falsifier" });
-    }
-  });
-
-export const outcomeHypothesisSchema = z
-  .object({
-    hypothesisId: z.string().min(1),
-    subjectRef: z.string().min(1),
-    practiceRef: z.string().min(1),
-    outcomeRef: z.string().min(1),
-    relationship: z.enum(["MAY_SUPPORT", "MAY_HINDER", "ASSOCIATED", "UNKNOWN"]),
-    evidenceState: evidenceStandingSchema,
-    falsifier: z.string().min(1),
-    horizon: z.string().nullable().optional(),
-    evidenceRefs: z.array(z.string()).default([]),
-    observationRefs: z.array(z.string()).default([]),
-    stateDigest: z.string().min(1),
-    causalClaim: z.literal(false),
-    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .passthrough();
-
-export const devotionalSegmentSchema = z
-  .object({
-    position: z.number().int().nonnegative(),
-    kind: z.enum(["SCRIPTURE", "COMMENTARY", "PRAYER", "REFLECTION", "MUSIC", "TRANSITION"]),
-    ref: z.string().min(1),
-    label: z.string().min(1),
-    durationSeconds: z.number().int().nonnegative(),
-    audioRef: z.string().nullable().optional(),
-  })
-  .passthrough();
-
-export const devotionalEpisodeSchema = z
-  .object({
-    episodeId: z.string().min(1),
-    title: z.string().min(1),
-    subtitle: z.string().nullable().optional(),
-    whyThisRef: z.string().nullable().optional(),
-    status: z.enum(["READY", "IN_PROGRESS", "COMPLETED", "BLOCKED"]),
-    durationSeconds: z.number().int().nonnegative(),
-    completionReceiptRef: z.string().nullable().optional(),
-    stateDigest: z.string().min(1),
-    segments: z.array(devotionalSegmentSchema),
-    hypothesisRefs: z.array(z.string()).default([]),
-    sourceRefs: z.array(z.string()).default([]),
-    playbackPolicy: z.literal("STRAIGHT_THROUGH"),
-    continuousPlay: z.literal(true),
-    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .superRefine((value, ctx) => {
-    if (value.status === "COMPLETED" && !value.completionReceiptRef) {
-      ctx.addIssue({ code: "custom", message: "COMPLETED devotional requires completion receipt" });
-    }
-  });
-
-export const commitmentBoundarySchema = z
-  .object({
-    boundaryId: z.string().min(1),
-    subjectRef: z.string().min(1),
-    actionRef: z.string().min(1),
-    consequenceSummary: z.string().min(1),
-    reversibility: z.enum(["REVERSIBLE", "CONDITIONAL", "IRREVERSIBLE"]),
-    confirmationState: z.enum(["UNCONFIRMED", "CONFIRMED", "DECLINED", "EXPIRED"]),
-    constructRef: z.string().nullable().optional(),
-    whyThisRef: z.string().nullable().optional(),
-    expiresAt: z.string().nullable().optional(),
-    externalEffects: z.array(z.string()).default([]),
-    evidenceRefs: z.array(z.string()).default([]),
-    stateDigest: z.string().min(1),
-    confirmationRequired: z.literal(true),
-    nextHandoff: z.literal("BRCE"),
-    authorityCeiling: z.literal("CONSTRUCT"),
-    doAuthority: z.literal(false),
-  })
-  .passthrough();
-
-export const journeyEntrySchema = z
-  .object({
-    entryId: z.string().min(1),
-    kind: z.enum(["PRACTICE", "SERVICE", "ATTENDANCE", "COMMITMENT", "REFLECTION", "OUTCOME", "RECEIPT"]),
-    subjectRef: z.string().min(1),
-    label: z.string().min(1),
-    occurredAt: z.string().min(1),
-    receiptRef: z.string().nullable().optional(),
-    evidenceRefs: z.array(z.string()).default([]),
-    standing: evidenceStandingSchema,
-  })
-  .passthrough();
-
-export const journeySchema = z
-  .object({
-    journeyId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    entries: z.array(journeyEntrySchema),
-    evidenceRefs: z.array(z.string()).default([]),
-    receiptRefs: z.array(z.string()).default([]),
-    privacyScope: z.literal("SUBJECT_PRIVATE"),
-    standing: evidenceStandingSchema,
-    stateDigest: z.string().min(1),
-    authorityBoundary: z.literal("OBSERVE").default("OBSERVE"),
-    doAuthority: z.literal(false).default(false),
-  })
-  .passthrough();
-
-export const personalizationFacetSchema = z
-  .object({
-    facetId: z.string().min(1),
-    dimension: z.string().min(1),
-    valueRef: z.string().min(1),
-    source: z.enum(["USER_STATED", "OBSERVED", "INFERRED"]),
-    standing: evidenceStandingSchema,
-    falsifier: z.string().nullable().optional(),
-    evidenceRefs: z.array(z.string()).default([]),
-  })
-  .superRefine((value, ctx) => {
-    if (value.source === "INFERRED" && !value.falsifier) {
-      ctx.addIssue({ code: "custom", message: "INFERRED personalization facet requires falsifier" });
-    }
-  });
-
-export const personalizationContextSchema = z
-  .object({
-    contextId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    facets: z.array(personalizationFacetSchema),
-    consentRef: z.string().nullable().optional(),
-    evidenceRefs: z.array(z.string()).default([]),
-    standing: evidenceStandingSchema,
-    privacyScope: z.literal("SUBJECT_PRIVATE"),
-    shareScope: z.literal("SUBJECT_ONLY"),
-    stateDigest: z.string().min(1),
-    authorityBoundary: z.literal("OBSERVE"),
-    doAuthority: z.literal(false),
-  })
-  .passthrough();
-
-export const manufactureTraceSchema = z
-  .object({
-    traceId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    artifactRef: z.string().min(1),
-    manufacturerIdentity: z.string().min(1),
-    humanSummary: z.string().nullable().optional(),
-    observedRefs: z.array(z.string()).default([]),
-    admittedRefs: z.array(z.string()).default([]),
-    groundedRefs: z.array(z.string()).default([]),
-    boundedRefs: z.array(z.string()).default([]),
-    alignedRefs: z.array(z.string()).default([]),
-    oStarRefs: z.array(z.string()).default([]),
-    receiptRefs: z.array(z.string()).default([]),
-    falsifiers: z.array(z.string()).default([]),
-    standing: evidenceStandingSchema,
-    stateDigest: z.string().min(1),
-    equation: z.literal("A=mu(O*)"),
-    authorityBoundary: z.literal("OBSERVE"),
-    doAuthority: z.literal(false),
-  })
-  .superRefine((value, ctx) => {
-    const sources = [
-      new Set(value.observedRefs),
-      new Set(value.admittedRefs),
-      new Set(value.groundedRefs),
-      new Set(value.boundedRefs),
-      new Set(value.alignedRefs),
-    ];
-
-    for (const ref of value.oStarRefs) {
-      if (!sources.every((set) => set.has(ref))) {
-        ctx.addIssue({
-          code: "custom",
-          message: "every O* reference must be observed, admitted, grounded, bounded, and aligned",
-        });
-      }
-    }
-
-    if (value.standing === "ALIVE" && value.receiptRefs.length === 0) {
-      ctx.addIssue({ code: "custom", message: "ALIVE manufacture trace requires receipt" });
-    }
-  });
-
-export const humanSurfaceSchema = z
-  .object({
-    surfaceId: z.string().min(1),
-    exactSubject: z.string().min(1),
-    stateDigest: z.string().min(1),
-    standing: evidenceStandingSchema,
-    grammar: z.tuple([
-      z.literal("SEE"),
-      z.literal("UNDERSTAND"),
-      z.literal("EXPLORE"),
-      z.literal("CHOOSE"),
-      z.literal("ACT"),
-      z.literal("LEARN"),
-    ]),
-    areas: z.tuple([
-      z.literal("TODAY"),
-      z.literal("BIBLE"),
-      z.literal("LIFE"),
-      z.literal("ZOE"),
-      z.literal("YOU"),
-    ]),
-    today: jsonRecordSchema,
-    bible: jsonRecordSchema,
-    life: jsonRecordSchema,
-    zoe: jsonRecordSchema,
-    you: jsonRecordSchema,
-    possibilitySets: z.array(possibilitySetSchema).default([]),
-    explanations: z.array(whyThisSchema).default([]),
-    devotionalEpisodes: z.array(devotionalEpisodeSchema).default([]),
-    outcomeHypotheses: z.array(outcomeHypothesisSchema).default([]),
-    commitmentBoundaries: z.array(commitmentBoundarySchema).default([]),
-    journeys: z.array(journeySchema).default([]),
-    personalizationContexts: z.array(personalizationContextSchema).default([]),
-    manufactureTraces: z.array(manufactureTraceSchema).default([]),
-    evidenceRefs: z.array(z.string()).default([]),
-    receiptRefs: z.array(z.string()).default([]),
-    authorityBoundary: z.literal("OBSERVE"),
-    doAuthority: z.literal(false),
-  })
-  .passthrough();
-
-export function parseHumanSurfaceProjection(value) {
-  const parsed = humanSurfaceSchema.safeParse(value);
-  if (!parsed.success) {
-    throw new SurfaceRuntimeError(
-      "INVALID_HUMAN_SURFACE",
-      "AshSurface human projection failed Zod validation",
-      { issues: parsed.error.issues },
-    );
-  }
-  return parsed.data;
-}
 
 export const ashSurfaceContractSchema = z
   .object({
@@ -500,6 +221,23 @@ export const ashSurfaceContractSchema = z
  *   milliseconds). An adapter that has not settled by then yields
  *   TRANSPORT_OUTCOME_UNKNOWN / UNKNOWN_AFTER_DISPATCH (cause code
  *   DISPATCH_TIMEOUT); no cross-transport retry. The timer is always cleared.
+ * @property {string} [idempotencyKey] Only for actions whose profile admits
+ *   `ash_surface.idempotency/1` (else IDEMPOTENCY_NOT_ADMITTED before dispatch).
+ *   8..128 chars of [A-Za-z0-9_.:-], alphanumeric first (else
+ *   INVALID_IDEMPOTENCY_KEY). Defaults to a key derived from (actionId, commandId).
+ *   The key and the canonical request digest are bound into the receipt's
+ *   `idempotency` member and passed to the adapter as `context.idempotency`.
+ */
+
+/**
+ * @typedef {Object} RuntimeEvent
+ * A structured, payload-free observability event delivered to `onEvent`:
+ * `{type, ...ids/codes/transports/durations}` (never input or output values).
+ * Types: transport.selected, dispatch.started, dispatch.completed,
+ * dispatch.unknown_after_dispatch, dispatch.refused_pre_dispatch,
+ * reconcile.result, reconcile.invalid_result, retry.requested, retry.skipped,
+ * retry.replaying, retry.refused.
+ * @property {string} type
  */
 
 // Reconciliation verdict boundary: the documented TransportAdapter.reconcile
@@ -508,7 +246,7 @@ export const ashSurfaceContractSchema = z
 // returned (source refs preserved, never rebuilt).
 export const reconcileResultSchema = z
   .object({
-    status: z.enum(["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]),
+    status: z.enum(RECONCILE_STATUSES),
   })
   .passthrough();
 
@@ -534,7 +272,7 @@ export const reconcileResultSchema = z
  * @property {string[]} available
  * @property {"http"|"phoenix_channel"} selected
  * @property {"http"|"phoenix_channel"} preferred
- * @property {"preferred_available"|"preferred_unavailable"|"dimension_weighed"} reason
+ * @property {"preferred_available"|"preferred_unavailable"|"dimension_weighed"|"retry_pinned_transport"} reason
  * @property {"pre_dispatch_only"} fallback
  * @property {"not_dispatched"|"completed"|"unknown_after_dispatch"} dispatchState
  * @property {"undelegated"|"declared"} dimensions Typed presence of delegated dimension facts.
@@ -560,6 +298,9 @@ export class SurfaceRuntimeError extends Error {
  * @param {Partial<Record<"http"|"phoenix_channel", TransportAdapter>>} options.transports
  * @param {"http"|"phoenix_channel"} [options.prefer="http"]
  * @param {Record<string, ActionSchemas>} [options.schemas] Zod schemas keyed by stable action id.
+ * @param {(event: RuntimeEvent) => void} [options.onEvent] Opt-in observability
+ * hook, called synchronously with frozen payload-free events; a throwing or
+ * rejecting hook is swallowed and never affects dispatch.
  * Each action client exposes `invoke(input, callOptions)` and
  * `invokeWithReceipt(input, callOptions)` where `callOptions` is an
  * {@link InvokeOptions}. `actions` and each `resources[Resource]` record are
@@ -567,7 +308,15 @@ export class SurfaceRuntimeError extends Error {
  * names, and contract ids such as "__proto__" are ordinary keys.
  * `reconcile` validates the adapter reply against `reconcileResultSchema` and
  * rejects a malformed reply with INVALID_RECONCILE_RESULT.
- * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, events: Object, reconcile(commandId: string, transportName?: "http"|"phoenix_channel"): Promise<Object>, get(id: string): Object|null, inspect(id: string): Object}}
+ * `retryUnknown(receiptOrError, {input, signal?, timeoutMs?})` is the explicit,
+ * never-automatic retry of an UNKNOWN_AFTER_DISPATCH receipt (or the
+ * TRANSPORT_OUTCOME_UNKNOWN error carrying it) for an action admitting
+ * `ash_surface.idempotency/1`: it reconciles on the original transport first
+ * and replays (same commandId, same key, same transport unless the profile
+ * admits `crossTransport`) ONLY on NOT_OBSERVED. Resolves
+ * `{status: "COMPLETED"|"STILL_UNKNOWN", replayed: false, reconcile}` or
+ * `{status: "REPLAYED", replayed: true, result, receipt}`.
+ * @returns {{runtimeVersion: string, contract: AshSurfaceContract, actions: Record<string, Object>, resources: Record<string, Record<string, Object>>, events: Object, reconcile(commandId: string, transportName?: "http"|"phoenix_channel"): Promise<Object>, retryUnknown(receiptOrError: Object, options: {input: unknown, signal?: AbortSignal, timeoutMs?: number}): Promise<Object>, get(id: string): Object|null, inspect(id: string): Object}}
  */
 export function createClient(options) {
   if (!options || typeof options !== "object") {
@@ -578,6 +327,7 @@ export function createClient(options) {
   const transports = options.transports ?? {};
   const prefer = options.prefer ?? "http";
   const schemas = options.schemas ?? {};
+  const emit = makeEmitter(options.onEvent);
 
   assertPreferred(prefer);
   assertTransportAdapters(transports);
@@ -588,6 +338,8 @@ export function createClient(options) {
   const actions = Object.create(null);
   const resources = Object.create(null);
   const eventListeners = new Map();
+  const bindings = Object.create(null); // action id -> {action, actionSchemas}
+  const env = { contract, transports, prefer, emit, actions, bindings };
 
   for (const action of contract.surface.actions) {
     if (Object.hasOwn(actions, action.id)) {
@@ -598,6 +350,7 @@ export function createClient(options) {
     }
 
     const actionSchemas = Object.hasOwn(schemas, action.id) ? schemas[action.id] : undefined;
+    bindings[action.id] = { action, actionSchemas };
     const actionClient = Object.freeze({
       id: action.id,
       semanticId: action.semanticId,
@@ -608,26 +361,12 @@ export function createClient(options) {
       action: action.action,
       profile: Object.freeze({ ...action.profile }),
       invoke(input, callOptions) {
-        return invokeWithReceipt(
-          action,
-          input,
-          callOptions ?? {},
-          contract,
-          transports,
-          prefer,
-          actionSchemas,
-        ).then(({ result }) => result);
+        return invokeWithReceipt(env, action, input, callOptions ?? {}, actionSchemas).then(
+          ({ result }) => result,
+        );
       },
       invokeWithReceipt(input, callOptions) {
-        return invokeWithReceipt(
-          action,
-          input,
-          callOptions ?? {},
-          contract,
-          transports,
-          prefer,
-          actionSchemas,
-        );
+        return invokeWithReceipt(env, action, input, callOptions ?? {}, actionSchemas);
       },
       inspect() {
         return inspectAction(action, contract, transports, prefer);
@@ -666,25 +405,16 @@ export function createClient(options) {
     actions,
     resources,
     events,
-    async reconcile(commandId, transportName = prefer) {
-      const adapter = Object.hasOwn(transports, transportName) ? transports[transportName] : undefined;
-      if (!adapter || typeof adapter.reconcile !== "function") {
-        return {
-          commandId,
-          status: "STILL_UNKNOWN",
-          reason: "transport_reconciliation_unsupported",
-        };
-      }
-      const verdict = await adapter.reconcile(commandId);
-      const parsed = reconcileResultSchema.safeParse(verdict);
-      if (!parsed.success) {
-        throw new SurfaceRuntimeError(
-          "INVALID_RECONCILE_RESULT",
-          `${transportName} reconcile reply for ${commandId} failed Zod validation`,
-          { issues: parsed.error.issues },
-        );
-      }
-      return verdict;
+    reconcile(commandId, transportName = prefer) {
+      return reconcileCommand(env, commandId, transportName);
+    },
+    /**
+     * Explicit, never-automatic retry of an UNKNOWN_AFTER_DISPATCH outcome
+     * under the admitted ash_surface.idempotency/1 protocol. See
+     * docs/IDEMPOTENCY.md.
+     */
+    retryUnknown(receiptOrError, callOptions) {
+      return retryUnknown(env, receiptOrError, callOptions ?? {});
     },
     get(id) {
       return Object.hasOwn(actions, id) ? actions[id] : null;
@@ -695,6 +425,99 @@ export function createClient(options) {
       return action.inspect();
     },
   });
+}
+
+async function reconcileCommand(env, commandId, transportName) {
+  const { transports, emit } = env;
+  const adapter = Object.hasOwn(transports, transportName) ? transports[transportName] : undefined;
+  if (!adapter || typeof adapter.reconcile !== "function") {
+    const unsupported = {
+      commandId,
+      status: "STILL_UNKNOWN",
+      reason: "transport_reconciliation_unsupported",
+    };
+    emit("reconcile.result", {
+      commandId,
+      transport: transportName,
+      status: unsupported.status,
+      reason: unsupported.reason,
+    });
+    return unsupported;
+  }
+  const verdict = await adapter.reconcile(commandId);
+  const parsed = reconcileResultSchema.safeParse(verdict);
+  if (!parsed.success) {
+    emit("reconcile.invalid_result", { commandId, transport: transportName });
+    throw new SurfaceRuntimeError(
+      "INVALID_RECONCILE_RESULT",
+      `${transportName} reconcile reply for ${commandId} failed Zod validation`,
+      { issues: parsed.error.issues },
+    );
+  }
+  emit("reconcile.result", { commandId, transport: transportName, status: parsed.data.status });
+  return verdict;
+}
+
+// Explicit retry of an UNKNOWN_AFTER_DISPATCH outcome. Order is law:
+//   1. admit the receipt + action profile + input digest (all pre-dispatch);
+//   2. reconcile on the transport that dispatched originally;
+//   3. replay ONLY on NOT_OBSERVED (COMPLETED / STILL_UNKNOWN never replay),
+//      pinned to the original transport unless the profile admits crossTransport.
+async function retryUnknown(env, receiptOrError, options) {
+  const { emit } = env;
+  let commandId = null;
+  let actionId = null;
+  let plan;
+
+  try {
+    if (options.commandId !== undefined || options.idempotencyKey !== undefined) {
+      throw new SurfaceRuntimeError(
+        "INVALID_OPTIONS",
+        "retryUnknown reuses the receipt's commandId and idempotency key; they cannot be overridden",
+      );
+    }
+    if (!Object.hasOwn(options, "input")) {
+      throw new SurfaceRuntimeError(
+        "INVALID_OPTIONS",
+        "retryUnknown requires options.input (receipts never carry input values)",
+      );
+    }
+
+    const { action, retry } = admitRetryReceipt(env, receiptOrError);
+    actionId = action.id;
+    commandId = retry.commandId;
+    emit("retry.requested", {
+      actionId,
+      commandId,
+      transport: retry.transport,
+      attempt: retry.attempt,
+    });
+    const binding = env.bindings[action.id];
+    plan = prepareDispatch(env, binding.action, options.input, options, binding.actionSchemas, retry);
+
+    const verdict = await reconcileCommand(env, commandId, retry.transport);
+
+    if (verdict.status !== "NOT_OBSERVED") {
+      emit("retry.skipped", { actionId, commandId, reason: verdict.status });
+      return Object.freeze({ status: verdict.status, replayed: false, reconcile: verdict });
+    }
+  } catch (error) {
+    emit("retry.refused", {
+      actionId,
+      commandId,
+      code: errorCode(error),
+    });
+    throw error;
+  }
+
+  emit("retry.replaying", {
+    actionId,
+    commandId,
+    transport: plan.decision.selected,
+    attempt: plan.idempotency.attempt,
+  });
+  const { result, receipt } = await executeDispatch(env, plan);
+  return Object.freeze({ status: "REPLAYED", replayed: true, reconcile: null, result, receipt });
 }
 
 function parseContract(contract) {
@@ -739,67 +562,127 @@ function inspectAction(action, contract, transports, prefer) {
   });
 }
 
-async function invokeWithReceipt(
-  action,
-  input,
-  options,
-  contract,
-  transports,
-  prefer,
-  actionSchemas,
-) {
-  let admittedInput = input;
+// Pre-dispatch admission plus the emitted refusal event. Every SurfaceRuntimeError
+// thrown here happens BEFORE dispatch: nothing was sent, no receipt exists.
+function prepareDispatch(env, action, input, options, actionSchemas, retry) {
+  try {
+    let admittedInput = input;
 
-  if (actionSchemas?.input) {
-    try {
-      admittedInput = actionSchemas.input.parse(input);
-    } catch (cause) {
+    if (actionSchemas?.input) {
+      try {
+        admittedInput = actionSchemas.input.parse(input);
+      } catch (cause) {
+        throw new SurfaceRuntimeError(
+          "INPUT_VALIDATION_FAILED",
+          `input failed Zod validation for ${action.id}`,
+          { cause },
+        );
+      }
+    }
+
+    const { contract, transports, prefer } = env;
+    const declared = declaredTransports(action);
+    const available = availableTransports(action, contract, transports, declared);
+    let decision = selectTransport(action.id, declared, available, prefer, factsFromProfile(action));
+
+    // A replay is pinned to the transport that dispatched originally unless
+    // the admitted protocol explicitly admits cross-transport replay.
+    if (retry && !retry.crossTransport) {
+      if (!available.includes(retry.transport)) {
+        throw new SurfaceRuntimeError(
+          "RETRY_TRANSPORT_UNAVAILABLE",
+          `${retry.transport} dispatched ${action.id} originally and is not available; cross-transport replay is not admitted`,
+        );
+      }
+      decision = {
+        ...decision,
+        selected: retry.transport,
+        preferred: retry.transport,
+        reason: "retry_pinned_transport",
+      };
+    }
+
+    const adapter = Object.hasOwn(transports, decision.selected)
+      ? transports[decision.selected]
+      : undefined;
+    const timeoutMs = admitTimeout(options.timeoutMs, action.id);
+    const commandId = retry ? retry.commandId : admitCommandId(options.commandId, action.id);
+
+    // Abort-before-dispatch is a typed PRE-dispatch refusal: nothing was sent,
+    // so there is no unknown-after-dispatch receipt and no adapter call.
+    if (options.signal && options.signal.aborted === true) {
       throw new SurfaceRuntimeError(
-        "INPUT_VALIDATION_FAILED",
-        `input failed Zod validation for ${action.id}`,
-        { cause },
+        "DISPATCH_ABORTED_PRE_DISPATCH",
+        `signal was already aborted before dispatch for ${action.id}; nothing was dispatched (dispatchState not_dispatched)`,
+        { cause: options.signal.reason },
       );
     }
-  }
 
-  const declared = declaredTransports(action);
-  const available = availableTransports(action, contract, transports, declared);
-  const decision = selectTransport(
-    action.id,
-    declared,
-    available,
-    prefer,
-    factsFromProfile(action),
-  );
-  const adapter = Object.hasOwn(transports, decision.selected)
-    ? transports[decision.selected]
-    : undefined;
-  const timeoutMs = admitTimeout(options.timeoutMs, action.id);
-  const commandId = admitCommandId(options.commandId, action.id);
+    const idempotency = admitIdempotencyForCall(action, admittedInput, options, commandId, retry);
 
-  // Abort-before-dispatch is a typed PRE-dispatch refusal: nothing was sent,
-  // so there is no unknown-after-dispatch receipt and no adapter call.
-  if (options.signal && options.signal.aborted === true) {
-    throw new SurfaceRuntimeError(
-      "DISPATCH_ABORTED_PRE_DISPATCH",
-      `signal was already aborted before dispatch for ${action.id}; nothing was dispatched (dispatchState not_dispatched)`,
-      { cause: options.signal.reason },
-    );
+    return {
+      action,
+      admittedInput,
+      decision,
+      adapter,
+      timeoutMs,
+      commandId,
+      signal: options.signal,
+      idempotency,
+      actionSchemas,
+    };
+  } catch (error) {
+    if (!retry) {
+      env.emit("dispatch.refused_pre_dispatch", {
+        actionId: action.id,
+        code: errorCode(error),
+      });
+    }
+    throw error;
   }
+}
+
+async function invokeWithReceipt(env, action, input, options, actionSchemas) {
+  return executeDispatch(env, prepareDispatch(env, action, input, options, actionSchemas, null));
+}
+
+async function executeDispatch(env, plan) {
+  const { action, decision, commandId, idempotency, actionSchemas } = plan;
+  const emit = env.emit;
+  const started = monotonicNow();
+  const duration = () => Math.max(0, Math.round(monotonicNow() - started));
+
+  emit("transport.selected", {
+    actionId: action.id,
+    commandId,
+    declared: [...decision.declared],
+    available: [...decision.available],
+    selected: decision.selected,
+    preferred: decision.preferred,
+    reason: decision.reason,
+    dimensions: decision.dimensions,
+  });
+  emit("dispatch.started", {
+    actionId: action.id,
+    commandId,
+    transport: decision.selected,
+    ...(idempotency ? { attempt: idempotency.attempt } : {}),
+  });
 
   try {
     // Dispatch happens here; from this line on every failure (including a
     // timeout or abort) is UNKNOWN_AFTER_DISPATCH, never a replay.
     const response = await raceDispatch(
-      adapter.invoke({
+      plan.adapter.invoke({
         action,
-        input: admittedInput,
+        input: plan.admittedInput,
         commandId,
-        contract,
-        signal: options.signal,
+        contract: env.contract,
+        signal: plan.signal,
+        ...(idempotency ? { idempotency: publicIdempotency(idempotency) } : {}),
       }),
-      timeoutMs,
-      options.signal,
+      plan.timeoutMs,
+      plan.signal,
       action.id,
     );
 
@@ -808,27 +691,409 @@ async function invokeWithReceipt(
       try {
         admittedOutput = actionSchemas.output.parse(response);
       } catch (cause) {
+        emit("dispatch.completed", {
+          actionId: action.id,
+          commandId,
+          transport: decision.selected,
+          durationMs: duration(),
+          outputValid: false,
+        });
         throw new SurfaceRuntimeError(
           "OUTPUT_VALIDATION_FAILED",
           `output failed Zod validation for ${action.id}`,
-          { cause, receipt: buildMXReceipt(decision, action, commandId, "completed", response) },
+          {
+            cause,
+            receipt: buildMXReceipt(decision, action, commandId, "completed", response, idempotency),
+          },
         );
       }
     }
 
-    const receipt = buildMXReceipt(decision, action, commandId, "completed", admittedOutput);
+    const receipt = buildMXReceipt(decision, action, commandId, "completed", admittedOutput, idempotency);
+    emit("dispatch.completed", {
+      actionId: action.id,
+      commandId,
+      transport: decision.selected,
+      durationMs: duration(),
+      outputValid: true,
+    });
     return { result: admittedOutput, receipt };
   } catch (cause) {
     if (cause instanceof SurfaceRuntimeError && cause.code === "OUTPUT_VALIDATION_FAILED") {
       throw cause;
     }
 
+    emit("dispatch.unknown_after_dispatch", {
+      actionId: action.id,
+      commandId,
+      transport: decision.selected,
+      durationMs: duration(),
+      cause: errorCode(cause),
+    });
     throw new SurfaceRuntimeError(
       "TRANSPORT_OUTCOME_UNKNOWN",
       `${decision.selected} transport failed after dispatch for ${action.id}; no automatic cross-transport retry was attempted`,
-      { cause, receipt: buildMXReceipt(decision, action, commandId, "unknown_after_dispatch", null) },
+      {
+        cause,
+        receipt: buildMXReceipt(decision, action, commandId, "unknown_after_dispatch", null, idempotency),
+      },
     );
   }
+}
+
+// Event-safe failure classification: a code or class name only, never a
+// message (messages can carry payload values).
+function errorCode(error) {
+  if (error instanceof SurfaceRuntimeError) return error.code;
+  return "ADAPTER_ERROR";
+}
+
+function monotonicNow() {
+  try {
+    const perf = globalThis.performance;
+    if (perf && typeof perf.now === "function") return perf.now();
+  } catch {
+    // fall through
+  }
+  return Date.now();
+}
+
+// Opt-in structured event hook. Called synchronously; a throwing (or
+// rejecting) hook is swallowed and can never affect dispatch. Events carry
+// ids, codes, transports and durations only -- never input or output values.
+function makeEmitter(onEvent) {
+  if (onEvent === undefined || onEvent === null) return () => {};
+  if (typeof onEvent !== "function") {
+    throw new SurfaceRuntimeError("INVALID_OPTIONS", "onEvent must be a function");
+  }
+  return (type, fields) => {
+    try {
+      const outcome = onEvent(Object.freeze({ type, ...fields }));
+      if (outcome && typeof outcome.then === "function") outcome.then(undefined, () => {});
+    } catch {
+      // observability must never affect dispatch
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ash_surface.idempotency/1 -- the separately admitted protocol that alone
+// permits a post-dispatch retry. Twin of lib/ash_surface/idempotency.ex; the
+// key law and request digest are pinned by shared vectors in
+// test/js/idempotency_parity.test.mjs and test/ash_surface/idempotency_test.exs.
+// ---------------------------------------------------------------------------
+
+/** Contract profile shape: `profile.idempotency`. Strict: unknown keys refuse. */
+export const idempotencyProfileSchema = z
+  .object({
+    protocol: z.literal(IDEMPOTENCY_PROTOCOL),
+    crossTransport: z.boolean().default(false),
+    keyHeader: z.string().min(1).optional(),
+  })
+  .strict();
+
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/;
+const DIGEST_PATTERN = new RegExp(`^[0-9a-f]{${DIGEST_HEX_LENGTH}}$`);
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/** @param {unknown} key @returns {boolean} 8..128 chars of [A-Za-z0-9_.:-], alphanumeric first. */
+export function validateIdempotencyKey(key) {
+  return typeof key === "string" && IDEMPOTENCY_KEY_PATTERN.test(key);
+}
+
+/**
+ * Deterministic key: "ik_" + sha256 hex of the canonical {actionId, commandId}.
+ * @param {string} actionId @param {string} commandId @returns {string}
+ */
+export function deriveIdempotencyKey(actionId, commandId) {
+  return `ik_${sha256Hex(canonicalJson({ actionId, commandId }, []))}`;
+}
+
+/**
+ * Canonical request digest binding the action identity to its admitted input:
+ * sha256 hex of canonical {actionId, input}. `undefined` input digests as null.
+ * Non-portable values (floats, unsafe integers, undefined members, lone
+ * surrogates, non-plain objects) throw IDEMPOTENCY_INPUT_NOT_PORTABLE.
+ * @param {string} actionId @param {unknown} input @returns {string}
+ */
+export function computeRequestDigest(actionId, input) {
+  return sha256Hex(canonicalJson({ actionId, input: input === undefined ? null : input }, []));
+}
+
+function notPortable(path, why) {
+  return new SurfaceRuntimeError(
+    "IDEMPOTENCY_INPUT_NOT_PORTABLE",
+    `input is not canonically digestible at ${path.length === 0 ? "<root>" : path.join(".")}: ${why}`,
+  );
+}
+
+// Canonical JSON matching AshSurface.CanonicalJSON over the portable subset:
+// key-sorted (code point == UTF-8 byte order), order-preserving lists, Jason's
+// string escapes (uppercase \u00XX for control chars; "/" and DEL verbatim).
+function canonicalJson(value, path) {
+  if (value === null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) throw notPortable(path, "only safe integers are portable");
+    return Object.is(value, -0) ? "0" : String(value);
+  }
+  if (typeof value === "string") return canonicalString(value, path);
+  if (Array.isArray(value)) {
+    return `[${value.map((item, index) => canonicalJson(item, [...path, index])).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) throw notPortable(path, "not a plain object");
+    const keys = Object.keys(value).sort(compareCodePoints);
+    return `{${keys
+      .map((key) => `${canonicalString(key, path)}:${canonicalJson(value[key], [...path, key])}`)
+      .join(",")}}`;
+  }
+  throw notPortable(path, `unsupported ${typeof value}`);
+}
+
+function compareCodePoints(a, b) {
+  const ia = a[Symbol.iterator]();
+  const ib = b[Symbol.iterator]();
+  for (;;) {
+    const x = ia.next();
+    const y = ib.next();
+    if (x.done || y.done) return x.done === y.done ? 0 : x.done ? -1 : 1;
+    const d = x.value.codePointAt(0) - y.value.codePointAt(0);
+    if (d !== 0) return d;
+  }
+}
+
+const SHORT_ESCAPES = Object.freeze({ 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" });
+
+function canonicalString(str, path) {
+  if (LONE_SURROGATE.test(str)) throw notPortable(path, "lone surrogate");
+  let out = '"';
+  for (let i = 0; i < str.length; i += 1) {
+    const c = str.charCodeAt(i);
+    if (c === 0x22) out += '\\"';
+    else if (c === 0x5c) out += "\\\\";
+    else if (c < 0x20) {
+      out += SHORT_ESCAPES[c] ?? `\\u00${c.toString(16).toUpperCase().padStart(2, "0")}`;
+    } else out += str[i];
+  }
+  return `${out}"`;
+}
+
+function utf8Bytes(str) {
+  const out = [];
+  for (const ch of str) {
+    const cp = ch.codePointAt(0);
+    if (cp < 0x80) out.push(cp);
+    else if (cp < 0x800) out.push(0xc0 | (cp >> 6), 0x80 | (cp & 63));
+    else if (cp < 0x10000) out.push(0xe0 | (cp >> 12), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+    else {
+      out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+    }
+  }
+  return out;
+}
+
+const SHA256_K = Object.freeze([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+// Synchronous, dependency-free SHA-256 (lowercase hex) so the runtime stays
+// executable in Node, browsers and Hermes without node:crypto or async subtle.
+function sha256Hex(str) {
+  const bytes = utf8Bytes(str);
+  const bitLength = bytes.length * 8;
+  bytes.push(0x80);
+  while (bytes.length % 64 !== 56) bytes.push(0);
+  const hi = Math.floor(bitLength / 0x100000000);
+  const lo = bitLength >>> 0;
+  for (const word of [hi, lo]) bytes.push(word >>> 24, (word >>> 16) & 255, (word >>> 8) & 255, word & 255);
+
+  const h = [
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+  ];
+  const w = new Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+
+  for (let off = 0; off < bytes.length; off += 64) {
+    for (let i = 0; i < 16; i += 1) {
+      const j = off + i * 4;
+      w[i] = ((bytes[j] << 24) | (bytes[j + 1] << 16) | (bytes[j + 2] << 8) | bytes[j + 3]) | 0;
+    }
+    for (let i = 16; i < 64; i += 1) {
+      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+    }
+    let [a, b, c, d, e, f, g, hh] = h;
+    for (let i = 0; i < 64; i += 1) {
+      const t1 =
+        (hh + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + SHA256_K[i] + w[i]) | 0;
+      const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      hh = g;
+      g = f;
+      f = e;
+      e = (d + t1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) | 0;
+    }
+    h[0] = (h[0] + a) | 0;
+    h[1] = (h[1] + b) | 0;
+    h[2] = (h[2] + c) | 0;
+    h[3] = (h[3] + d) | 0;
+    h[4] = (h[4] + e) | 0;
+    h[5] = (h[5] + f) | 0;
+    h[6] = (h[6] + g) | 0;
+    h[7] = (h[7] + hh) | 0;
+  }
+
+  return h.map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+// The action's admitted protocol profile, or null when the action does not
+// admit it. A present-but-invalid profile is a typed pre-dispatch refusal:
+// silently ignoring it would let a caller believe a retry is safe.
+function admitIdempotencyProfile(action) {
+  const raw = action.profile?.idempotency;
+  if (raw === undefined || raw === null) return null;
+  const parsed = idempotencyProfileSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new SurfaceRuntimeError(
+      "INVALID_IDEMPOTENCY_PROFILE",
+      `profile.idempotency for ${action.id} does not admit ${IDEMPOTENCY_PROTOCOL}`,
+      { issues: parsed.error.issues },
+    );
+  }
+  return parsed.data;
+}
+
+// Per-call admission: absent profile -> null (and a supplied key refuses);
+// admitted profile -> a validated/derived key bound to the request digest.
+function admitIdempotencyForCall(action, admittedInput, options, commandId, retry) {
+  const profile = admitIdempotencyProfile(action);
+  const supplied = options.idempotencyKey;
+
+  if (!profile) {
+    if (supplied !== undefined && supplied !== null) {
+      throw new SurfaceRuntimeError(
+        "IDEMPOTENCY_NOT_ADMITTED",
+        `${action.id} does not admit ${IDEMPOTENCY_PROTOCOL}; an idempotencyKey cannot be honored`,
+      );
+    }
+    return null;
+  }
+
+  const key = retry
+    ? retry.key
+    : supplied === undefined || supplied === null
+      ? deriveIdempotencyKey(action.id, commandId)
+      : supplied;
+
+  if (!validateIdempotencyKey(key)) {
+    throw new SurfaceRuntimeError(
+      "INVALID_IDEMPOTENCY_KEY",
+      `idempotencyKey for ${action.id} must be 8..128 chars of [A-Za-z0-9_.:-] starting alphanumeric`,
+    );
+  }
+
+  const requestDigest = computeRequestDigest(action.id, admittedInput);
+
+  if (retry && requestDigest !== retry.requestDigest) {
+    throw new SurfaceRuntimeError(
+      "IDEMPOTENCY_DIGEST_MISMATCH",
+      `retry input for ${action.id} does not match the request digest bound into the receipt`,
+    );
+  }
+
+  return Object.freeze({
+    protocol: IDEMPOTENCY_PROTOCOL,
+    key,
+    requestDigest,
+    crossTransport: profile.crossTransport,
+    keyHeader: profile.keyHeader ?? null,
+    attempt: retry ? retry.attempt : 1,
+  });
+}
+
+// What the adapter sees: enough to put the key on the wire; nothing else.
+function publicIdempotency(idempotency) {
+  return Object.freeze({
+    protocol: idempotency.protocol,
+    key: idempotency.key,
+    keyHeader: idempotency.keyHeader,
+    requestDigest: idempotency.requestDigest,
+    attempt: idempotency.attempt,
+  });
+}
+
+// Validates a caller-held receipt (untrusted) into the retry plan pieces.
+function admitRetryReceipt(env, receiptOrError) {
+  const receipt = receiptOrError instanceof SurfaceRuntimeError ? receiptOrError.receipt : receiptOrError;
+
+  if (typeof receipt !== "object" || receipt === null) {
+    throw new SurfaceRuntimeError(
+      "RETRY_REQUIRES_RECEIPT",
+      "retryUnknown requires the UNKNOWN_AFTER_DISPATCH receipt (or the TRANSPORT_OUTCOME_UNKNOWN error carrying it), not a bare id",
+    );
+  }
+  if (receipt.dispatchState !== "unknown_after_dispatch" || receipt.outcome !== DISPATCH_OUTCOMES[1]) {
+    throw new SurfaceRuntimeError(
+      "RETRY_NOT_UNKNOWN",
+      "only an UNKNOWN_AFTER_DISPATCH receipt can be retried; completed and not-dispatched outcomes never replay",
+    );
+  }
+
+  const action = typeof receipt.actionId === "string" && Object.hasOwn(env.bindings, receipt.actionId)
+    ? env.bindings[receipt.actionId].action
+    : undefined;
+  if (!action) {
+    throw new SurfaceRuntimeError("UNKNOWN_ACTION", `unknown action: ${String(receipt.actionId)}`);
+  }
+
+  const profile = admitIdempotencyProfile(action);
+  if (!profile) {
+    throw new SurfaceRuntimeError(
+      "IDEMPOTENCY_NOT_ADMITTED",
+      `${action.id} does not admit ${IDEMPOTENCY_PROTOCOL}; a post-dispatch retry is refused`,
+    );
+  }
+
+  const idem = receipt.idempotency;
+  if (
+    typeof idem !== "object" || idem === null ||
+    idem.protocol !== IDEMPOTENCY_PROTOCOL ||
+    !validateIdempotencyKey(idem.key) ||
+    typeof idem.requestDigest !== "string" || !DIGEST_PATTERN.test(idem.requestDigest) ||
+    !Number.isSafeInteger(idem.attempt) || idem.attempt < 1 ||
+    typeof receipt.commandId !== "string" || receipt.commandId.length === 0 ||
+    !KNOWN_TRANSPORTS.includes(receipt.selected)
+  ) {
+    throw new SurfaceRuntimeError(
+      "RETRY_RECEIPT_INVALID",
+      `receipt for ${action.id} does not carry a valid ${IDEMPOTENCY_PROTOCOL} binding (key, request digest, command, transport)`,
+    );
+  }
+
+  return {
+    action,
+    retry: Object.freeze({
+      commandId: receipt.commandId,
+      key: idem.key,
+      requestDigest: idem.requestDigest,
+      attempt: idem.attempt + 1,
+      transport: receipt.selected,
+      crossTransport: profile.crossTransport,
+    }),
+  };
 }
 
 // Pre-dispatch admission of a caller-supplied commandId: absent (undefined/null)
@@ -941,9 +1206,9 @@ function raceDispatch(dispatched, timeoutMs, signal, actionId) {
   });
 }
 
-function buildMXReceipt(decision, action, commandId, dispatchState, result) {
+function buildMXReceipt(decision, action, commandId, dispatchState, result, idempotency = null) {
   const domainReceiptRef = result?.receiptRef || result?.receipt?.hash || result?.data?.id || null;
-  const outcome = dispatchState === "completed" ? "SUCCESS" : "UNKNOWN_AFTER_DISPATCH";
+  const outcome = dispatchState === "completed" ? DISPATCH_OUTCOMES[0] : DISPATCH_OUTCOMES[1];
 
   const transportReceipt = Object.freeze({
     actionId: decision.actionId,
@@ -968,6 +1233,18 @@ function buildMXReceipt(decision, action, commandId, dispatchState, result) {
     outcome,
     domainReceiptRef,
     transportReceipt,
+    ...(idempotency
+      ? {
+          idempotency: Object.freeze({
+            protocol: idempotency.protocol,
+            key: idempotency.key,
+            requestDigest: idempotency.requestDigest,
+            crossTransport: idempotency.crossTransport,
+            dispatchedTransport: decision.selected,
+            attempt: idempotency.attempt,
+          }),
+        }
+      : {}),
     consequenceReceipt: result?.consequenceReceipt || (result?.data ? { id: result.data.id, data: result.data } : null),
     timestamp: new Date().toISOString(),
   });

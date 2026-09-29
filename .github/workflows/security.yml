@@ -1,0 +1,72 @@
+name: Security
+
+# Why a SCHEDULE and not only pull_request: advisories are published against
+# code that has not changed. mint went red mid-PR on 2026-09-28 (EEF-CVE-2026-
+# 91043/92103/94194) with zero commits touching it. A PR-only audit would have
+# stayed green on main until the next unrelated push. The daily run turns
+# "an advisory landed" into a red badge within 24 hours.
+#
+# Fail-closed: no error-tolerance flags anywhere. A tool that cannot run (network,
+# registry outage) fails the job; it is never reported as a pass.
+#
+# Pin policy: actions are pinned by major version tag, consistent with ci.yml.
+# Pinning to full commit SHAs is a follow-up (needs online resolution of each
+# tag, which this repo's offline authoring could not do); Dependabot's
+# github-actions ecosystem will keep the pins current once converted.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hex-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pins mirror .tool-versions (erlang 28.3 / elixir 1.20.3-otp-28).
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      # Retired packages (hex.audit) and hygiene: the lock must contain no
+      # entries the project no longer requires.
+      - run: mix hex.audit
+      - run: mix deps.unlock --check-unused
+      - name: Lockfile is committed and consistent
+        run: |
+          git diff --exit-code mix.lock
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts
+      # Production deps only (zod). Devtools such as playwright are installed
+      # --no-save in ci.yml and are not part of the shipped surface.
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Signatures and provenance of installed packages
+        run: npm audit signatures
+
+  sbom-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.3"
+          elixir-version: "1.20.3"
+      # Generator is offline and deterministic; a second run must be identical.
+      - run: scripts/sbom.sh "$RUNNER_TEMP/a.cdx.json"
+      - run: scripts/sbom.sh "$RUNNER_TEMP/b.cdx.json"
+      - run: cmp "$RUNNER_TEMP/a.cdx.json" "$RUNNER_TEMP/b.cdx.json"

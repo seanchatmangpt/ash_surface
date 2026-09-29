@@ -140,6 +140,10 @@ extending the compiler.
 
 ## 4. Projector behaviour v2 + legacy adapter
 
+> **Superseded (Unreleased):** the legacy `AshSurface.Projector` behaviour and
+> `from_manifest_projector/1` adapter described below were retired; see
+> `docs/PROJECTORS.md` §4 for the current single-contract migration.
+
 **Owner:** `exp/v16` (behaviour + adapter). [Corrected gapfix-docs-truth-013:
 this paragraph said "at v50-integration time not landed — extant projectors
 run through `AshSurface.project/3` unchanged". Falsified by the wave's final

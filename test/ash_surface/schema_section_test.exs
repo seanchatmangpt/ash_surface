@@ -34,7 +34,7 @@ defmodule AshSurface.SchemaSectionTest do
   # ---------------------------------------------------------------------------
 
   defp surface(actions, resources) do
-    %AshSurface.Surface{
+    AshSurface.TestSupport.VerifiedSurface.seal(%AshSurface.Surface{
       manifest: nil,
       contract: %{
         "surface" => %{"actions" => actions},
@@ -42,11 +42,13 @@ defmodule AshSurface.SchemaSectionTest do
       },
       digest: "digest-schema-section",
       action_ids: Enum.map(actions, & &1["id"])
-    }
+    })
   end
 
   defp project_schemas(actions, resources) do
-    assert {:ok, artifacts, _meta} = Expo.project(surface(actions, resources), prefix: "z")
+    assert {:ok, artifacts, _meta} =
+             AshSurface.project(surface(actions, resources), Expo, prefix: "z")
+
     artifacts["z.schemas.mjs"]
   end
 

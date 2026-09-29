@@ -55,7 +55,7 @@ Two invariants hold at this boundary:
 1. **AshSurface determines nothing about existence, meaning, or DO.** It mints no resources, actions, or types; it decides no authority; it never actuates. Existence and meaning come from Ash; consequence requires the authority and receipts the capability laws already demand.
 2. **AshSurface projects admitted semantics for human interaction.** Everything a human sees, invokes, or edits on a surface is a projection of semantics Ash has already admitted — never a parallel model, never a widening.
 
-Canonical elaboration lives in the sibling documents: [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layer/boundary structure, and [`PROJECTORS.md`](docs/PROJECTORS.md) for the projector contract (`AshSurface.Projector`) and its lawful targets.
+Canonical elaboration lives in the sibling documents: [`ARCHITECTURE.md`](ARCHITECTURE.md) for the layer/boundary structure, and [`PROJECTORS.md`](docs/PROJECTORS.md) for the projector contract (`AshSurface.Projector.IR`) and its lawful targets.
 
 ## Elixir contract
 
@@ -159,9 +159,15 @@ A `signal` that is already aborted is refused **before** dispatch (`DISPATCH_ABO
 
 On the Elixir side, `AshSurface.Transport.select/3` treats declared/available transport lists as sets: a repeated member is `{:error, {:duplicate_transport, [...]}}`.
 
+## Idempotent retry and observability
+
+A post-dispatch retry exists only for actions whose profile admits the separately specified `ash_surface.idempotency/1` protocol (see [docs/IDEMPOTENCY.md](docs/IDEMPOTENCY.md)). It is never automatic: `client.retryUnknown(error, { input })` reconciles on the original transport first and replays (same command, same key, same transport unless `crossTransport` is admitted) only on `NOT_OBSERVED`. `COMPLETED` and `STILL_UNKNOWN` never replay, and an action without the protocol refuses retry with `IDEMPOTENCY_NOT_ADMITTED`. The server-side key law, canonical request digest and pure ledger live in `AshSurface.Idempotency`.
+
+`createClient({ onEvent })` opts in to synchronous, exception-safe, payload-free events (`transport.selected`, `dispatch.started`, `dispatch.completed`, `dispatch.unknown_after_dispatch`, `dispatch.refused_pre_dispatch`, `reconcile.result`, `retry.*`). `VOCABULARY` exports the runtime's closed vocabularies for cross-language drift tests.
+
 ## Projection boundary
 
-Additional consumers implement `AshSurface.Projector` and receive a verified `AshSurface.Surface`. They should consume normalized manifest data rather than re-walking Spark/Ash internals.
+Additional consumers implement `AshSurface.Projector.IR` (`project_ir/2`; recover a verified `AshSurface.Surface` with `AshSurface.Projector.IR.to_surface/1`) and are run through `AshSurface.project/3`. They should consume normalized manifest data rather than re-walking Spark/Ash internals.
 
 Current architectural ownership remains intact:
 
@@ -252,94 +258,17 @@ adapter. AshSurface preserves those lawful alternatives instead of becoming
 their owner.
 
 
-## ZOE human surface v26.9.21
+## ZOE human surface (extracted to `ash_surface_zoe`)
 
-AshSurface now projects the ecosystem into a human grammar without moving
-domain truth, planning, or consequence authority into the UI.
-
-```text
-SEE -> UNDERSTAND -> EXPLORE -> CHOOSE -> ACT -> LEARN
-```
-
-The stable ZOE member areas are:
-
-```text
-TODAY | BIBLE | LIFE | ZOE | YOU
-```
-
-These are projections, not independent application models:
-
-- `Possibility` / `PossibilitySet` project a DfCM maximal reversible frontier.
-- `WhyThis` projects evidence-bounded rationale and requires a falsifier for hypotheses.
-- `PersonalizationContext` keeps USER_STATED, OBSERVED, and INFERRED profile facets distinct,
-  subject-private, and non-authoritative. INFERRED facets require falsifiers.
-- `ManufactureTrace` projects `A=mu(O*)`: every O* reference must be present in the
-  observed/admitted/grounded/bounded/aligned intersection, and ALIVE requires a receipt.
-- `OutcomeHypothesis` projects a practice-to-outcome candidate while fixing `causalClaim=false`.
-- `DevotionalEpisode` composes scripture/commentary/prayer/reflection into one ordered
-  `STRAIGHT_THROUGH` episode so a devotional can be listened to without manually
-  starting every passage.
-- `CommitmentBoundary` makes consequences legible to the human, but stops at
-  `CONSTRUCT` and hands confirmed intent to BRCE. It never owns DO.
-- `Journey` is the subject-private human replay over observed event/evidence/receipt identities.
-- `HumanSurface` composes those projections into TODAY/BIBLE/LIFE/ZOE/YOU.
-- `AshSurface.Projector.Expo` manufactures a `*.human.mjs` artifact alongside
-  schemas/actions/events/receipts/TanStack/client artifacts.
-- It also manufactures a deterministic `*.demo.mjs` consumer court for Wednesday:
-  a DfCM view model, straight-through player, injectable HTML-audio adapter,
-  provenance-visible HTML, and a CONSTRUCT-only BRCE intent boundary. The demo
-  artifact has no client construction or transport invocation path.
-
-The JavaScript runtime exports Zod schemas for every human projection plus
-`parseHumanSurfaceProjection(...)`, including subject-private personalization
-and receipted manufacture-provenance contracts. Human surfaces require
-`authorityBoundary="OBSERVE"` and `doAuthority=false`; commitment boundaries
-require `authorityCeiling="CONSTRUCT"` and `nextHandoff="BRCE"`.
-
-### Deterministic Wednesday demo
-
-`AshSurface.ZoeDemo` manufactures a synthetic, deterministic member surface
-that exercises the full local projection without pretending that private member
-data, live Planning Center state, outcome causality, or production execution has
-been observed.
-
-```elixir
-surface = AshSurface.ZoeDemo.surface()
-map = AshSurface.ZoeDemo.map()
-acceptance = AshSurface.ZoeDemo.acceptance()
-```
-
-The demo fixture shows four preserved alternatives instead of a single opaque
-recommendation: listen to the continuous devotional, read the same episode,
-explore serving, or keep the current rhythm. Its personalization basis is a
-synthetic USER_STATED goal facet, and the candidate mapping carries an explicit
-receipted `A=mu(O*)` trace rather than an opaque recommender score. "Why this?" is explicitly a
-hypothesis with a falsifier. The Life projection shows an UNKNOWN candidate
-relationship between the devotional and a selected consistency outcome. The
-serving path stops at a visible commitment boundary before BRCE.
-
-### Wednesday evidence ceiling
-
-Repository courts can establish the projection contracts, deterministic demo
-fixture, generated Expo artifact syntax, Zod admission/refusal behavior,
-manufactured human-module execution against the demo fixture, and the existing
-manifest -> JavaScript -> HTTP -> Ash consequence -> receipt fixture.
-
-The generated demo consumer now executes the synthetic Wednesday fixture end to
-end inside the repository court: four preserved choices, straight-through local
-playback over all four devotional segments, an injected HTML-audio-compatible
-adapter, visible WhyThis / personalization / `A=mu(O*)` provenance, private
-journey replay, and construction of a BRCE handoff with `dispatched=false`.
-
-They do not by themselves establish:
-
-- live ZOE member/profile data;
-- live Planning Center reads or writes;
-- Bible/audio content licensing or production media availability;
-- a causal life outcome from a religious practice;
-- production deployment or device-route standing;
-- organizational adoption;
-- any consequence not represented by an observed BRCE receipt.
+The ZOE / DfCM devotional human-surface family (`HumanSurface`, `Possibility`,
+`PossibilitySet`, `WhyThis`, `OutcomeHypothesis`, `PersonalizationContext`,
+`ManufactureTrace`, `DevotionalEpisode`, `CommitmentBoundary`, `Journey`,
+`ZoeDemo`), its Zod schemas, and the `*.human.mjs` / `*.demo.mjs` Expo
+artifacts are a domain product, not generalized consumer projection. They live
+in the in-repo package [`packages/ash_surface_zoe`](packages/ash_surface_zoe/README.md)
+with unchanged module names: add `{:ash_surface_zoe, ...}` to use them. Core
+`AshSurface.Projector.Expo` emits only the generic schemas/actions/events/
+receipts/client/TanStack artifacts.
 
 The CI security audit is also a separate gate. As of this implementation the
 runner advisory feed flags the currently locked latest Ash/Mint releases; that

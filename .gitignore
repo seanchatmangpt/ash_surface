@@ -1,6 +1,8 @@
-/_build/
-/deps/
-/node_modules/
+# Anchored patterns missed packages/*/ (the extracted ZOE package has its own
+# _build/deps/node_modules); match at any depth.
+**/_build/
+**/deps/
+**/node_modules/
 .DS_Store
 tmp/
 # Dialyzer/Erlang crash dumps are local diagnostics, never repo artifacts
@@ -9,4 +11,4 @@ tmp/
 erl_crash.dump
 *.dump
 # mix test --cover HTML output
-/cover/
+**/cover/

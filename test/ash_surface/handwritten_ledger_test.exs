@@ -111,9 +111,10 @@ defmodule AshSurface.HandwrittenLedgerTest do
              "HANDWRITTEN row naming the JS runtime template family owner capability " <>
              "(chicago-runtime-ledger-037)"
 
-    assert row.element =~ "SHA-256" and row.element =~ @runtime_provenance_law,
+    assert row.element =~ @runtime_provenance_law,
            "runtime ledger row must carry the byte-provenance note pointing at the " <>
-             "golden whole-file SHA-256 law (#{@runtime_provenance_law})"
+             "runtime source law (#{@runtime_provenance_law}); the whole-file SHA-256 " <>
+             "golden was retired in favour of behavioural checks"
   end
 
   test "the shipped JS runtime's UNSUPPORTED pair is admitted with the same family naming" do

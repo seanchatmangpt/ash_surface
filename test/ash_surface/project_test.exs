@@ -24,14 +24,16 @@ defmodule AshSurface.ProjectTest do
   }
 
   # A lawful second consumer kind (Phoenix-channel-shaped probe). Proves that
-  # project/3 dispatches any module implementing AshSurface.Projector, not just
+  # project/3 dispatches any module implementing AshSurface.Projector.IR, not just
   # the shipped Expo projector, and that the transported state stays within its
   # admitted actions/transports.
   defmodule PhoenixChannelProbe do
-    @behaviour AshSurface.Projector
+    @behaviour AshSurface.Projector.IR
 
     @impl true
-    def project(%AshSurface.Surface{} = surface, opts) do
+    def project_ir(irs, opts) do
+      {:ok, surface} = AshSurface.Projector.IR.to_surface(irs)
+
       {:ok,
        %{
          action_ids:
@@ -57,7 +59,7 @@ defmodule AshSurface.ProjectTest do
       surface.manifest.entrypoints |> Enum.map(&AshSurface.action_id/1) |> Enum.sort()
 
     assert expected_ids == surface.action_ids
-    assert expo_meta == %{prefix: "expo", action_count: 2, human_surface: true}
+    assert expo_meta == %{prefix: "expo", action_count: 2}
     assert phoenix_meta == %{consumer: :phoenix_channel}
 
     # Both consumer kinds carry the same admitted action set, composed from
@@ -158,7 +160,7 @@ defmodule AshSurface.ProjectTest do
     assert {:error, {:unsupported_projector, AshSurface.Projector.Vue}} =
              AshSurface.project(surface, AshSurface.Projector.Vue, [])
 
-    # A loaded module that does not implement project/2 is equally typed.
+    # A loaded module that does not implement project_ir/2 is equally typed.
     assert {:error, {:unsupported_projector, Enum}} = AshSurface.project(surface, Enum, [])
   end
 
@@ -217,8 +219,6 @@ defmodule AshSurface.ProjectTest do
       "#{prefix}.actions.mjs",
       "#{prefix}.events.mjs",
       "#{prefix}.receipts.mjs",
-      "#{prefix}.human.mjs",
-      "#{prefix}.demo.mjs",
       "#{prefix}.mjs",
       "#{prefix}.tanstack.mjs"
     ])

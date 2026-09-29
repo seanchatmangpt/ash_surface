@@ -98,7 +98,7 @@ defmodule AshSurface.MXEpisode do
       iex> planning = AshSurface.PlanningEpisode.create("ws:42", planner_identity: "ash_pplan", policy_identity: "pol:1")
       iex> event = AshSurface.Event.create(observation.exact_subject, 1, "state.changed")
       iex> surface = %AshSurface.Surface{manifest: %{}, contract: %{}, action_ids: [],
-      ...> digest: :crypto.hash(:sha256, "surface-bytes") |> Base.encode16(case: :lower)}
+      ...> digest: AshSurface.contract_digest(%{})}
       iex> {:ok, episode} = AshSurface.MXEpisode.compose(%{
       ...> observation: observation,
       ...> planning_episode: planning,
@@ -127,7 +127,7 @@ defmodule AshSurface.MXEpisode do
 
       iex> observation = AshSurface.Observation.create("sp:ticket:42", %{"status" => "open"})
       iex> unbound = AshSurface.Event.create("sp:other", 1, "state.changed")
-      iex> surface = %AshSurface.Surface{manifest: %{}, contract: %{}, action_ids: [], digest: String.duplicate("a", 64)}
+      iex> surface = %AshSurface.Surface{manifest: %{}, contract: %{}, action_ids: [], digest: AshSurface.contract_digest(%{})}
       iex> planning = AshSurface.PlanningEpisode.create("ws:42", planner_identity: "ash_pplan", policy_identity: "pol:1")
       iex> AshSurface.MXEpisode.compose(%{observation: observation, planning_episode: planning, event: unbound, surface: surface, receipt_hash: "r", subject_repo: "r", subject_head: "h", consequence_id: "c"})
       {:error, {:subject_binding_violation, "sp:other"}}
@@ -334,9 +334,14 @@ defmodule AshSurface.MXEpisode do
 
   # The surface digest is a content address; an episode must never bind a
   # non-canonical one.
-  defp verify_surface_digest(%Surface{digest: digest}) do
-    if is_binary(digest) and digest =~ ~r/^[0-9a-f]{64}$/ do
-      :ok
+  #
+  # Format first (typed `:invalid_surface_digest`), then the trust boundary:
+  # the digest must be the recomputed content address of the surface's own
+  # contract (`:surface_digest_mismatch`) — a well-formed but forged digest
+  # is never bound into an episode.
+  defp verify_surface_digest(%Surface{digest: digest} = surface) do
+    if AshSurface.Vocabulary.digest?(digest) do
+      AshSurface.verify_surface_digest(surface)
     else
       {:error, {:invalid_surface_digest, digest}}
     end

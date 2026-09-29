@@ -1,0 +1,18 @@
+{"corpusVersion":"1.0.0","kind":"reconcile_status","vectors":[
+  {"description":"reconcile reply admission: completed","expected":{"admitted":true},"id":"rs/completed","input":{"verdict":{"status":"COMPLETED"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: not-observed","expected":{"admitted":true},"id":"rs/not-observed","input":{"verdict":{"status":"NOT_OBSERVED"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: still-unknown","expected":{"admitted":true},"id":"rs/still-unknown","input":{"verdict":{"status":"STILL_UNKNOWN"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: passthrough-keys","expected":{"admitted":true},"id":"rs/passthrough-keys","input":{"verdict":{"commandId":"cmd_1","receipt":{"a":1},"status":"COMPLETED"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: lowercase","expected":{"admitted":false},"id":"rs/lowercase","input":{"verdict":{"status":"completed"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: unknown-status","expected":{"admitted":false},"id":"rs/unknown-status","input":{"verdict":{"status":"PENDING"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: success-is-not-a-status","expected":{"admitted":false},"id":"rs/success-is-not-a-status","input":{"verdict":{"status":"SUCCESS"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: unknown-after-dispatch-is-not-a-status","expected":{"admitted":false},"id":"rs/unknown-after-dispatch-is-not-a-status","input":{"verdict":{"status":"UNKNOWN_AFTER_DISPATCH"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: padded","expected":{"admitted":false},"id":"rs/padded","input":{"verdict":{"status":" COMPLETED"}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: null-status","expected":{"admitted":false},"id":"rs/null-status","input":{"verdict":{"status":null}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: number-status","expected":{"admitted":false},"id":"rs/number-status","input":{"verdict":{"status":1}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: missing-status","expected":{"admitted":false},"id":"rs/missing-status","input":{"verdict":{"receipt":{}}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: empty-object","expected":{"admitted":false},"id":"rs/empty-object","input":{"verdict":{}},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: list-verdict","expected":{"admitted":false},"id":"rs/list-verdict","input":{"verdict":["COMPLETED"]},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: string-verdict","expected":{"admitted":false},"id":"rs/string-verdict","input":{"verdict":"COMPLETED"},"level":"MUST","notes":""},
+  {"description":"reconcile reply admission: null-verdict","expected":{"admitted":false},"id":"rs/null-verdict","input":{"verdict":null},"level":"MUST","notes":""}
+]}

@@ -20,7 +20,7 @@ regenerated in the same change:
 |---|---|---|
 | `@golden_version` / `GOLDEN_VERSION` | `test/ash_surface/version_sync_test.exs`, `test/js/version_sync.test.mjs` | pinned literal (text rewrite) |
 | contract identity pins | `manifest_serializer`, `mx_closed_loop_episode/deep`, `expo_schemas/events`, `e2e_hermetic`, `zoela_mx_consumer_fixture`, `receipts_primitives`, `digest_cross_language` `contractJson` fixtures | pinned literals (text rewrite) |
-| `@golden_runtime_sha256` | `test/ash_surface/runtime_source_test.exs` (t09) | SHA-256 over the whole runtime file — recomputed |
+| runtime file | `priv/static/ash_surface_runtime.mjs` | no whole-file SHA golden remains (removed with the runtime-source pin); the `SURFACE_RUNTIME_VERSION` carrier is a text rewrite |
 | `@golden` (5 digests) | `test/ash_surface/digest_test.exs` | `surfaceSchemaVersion` / `generatorIdentity` / `marketplaceIdentity` participate in the contract digest — recomputed |
 | `elixirDigest` (3 digests) | `test/js/digest_cross_language.test.mjs` | same fields inside the embedded contract JSONs — recomputed |
 
@@ -45,11 +45,12 @@ the source tree. Exit codes: `0` verified, `1` drift/self-proof/gate failure,
 
 ## mutation_recipes.sh — the Chicago falsifier (ticket chicago-golden-mutation-041)
 
-`bash scripts/mutation_recipes.sh` proves the three golden guards **can fail**:
-for each family (runtime SHA, contract digest, IR codec golden) it mutates the
-real subject — whitespace injection into the shipped `.mjs`, the
-`generatorIdentity` field rename in `lib/ash_surface.ex`, the `presentation`
-key rename in the codec's `to_map/1` — shows the guard RED, restores, and shows
+`bash scripts/mutation_recipes.sh` proves the golden guards **can fail**:
+for each family (runtime behaviour, contract digest, IR codec golden) it mutates
+the real subject — a behavioural change to the shipped `.mjs` (the post-dispatch
+outcome classification), the `generatorIdentity` field rename in
+`lib/ash_surface.ex`, the field-list assertion of the IR codec golden — shows the
+guard RED, restores, and shows
 it GREEN. Recipes and executed receipts live in
 [mutation_recipes.md](mutation_recipes.md). **Not wired to default CI**; run by
 hand when touching a golden family. Fail-closed semantics: refuses a dirty

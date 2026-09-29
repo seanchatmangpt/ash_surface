@@ -29,7 +29,10 @@ defmodule AshSurface.Standing do
   change and must land on both.
   """
 
-  @base_standings [:ALIVE, :PARTIAL_ALIVE, :BLOCKED, :BUILD_BROKEN, :UNSUPPORTED]
+  alias AshSurface.Vocabulary
+
+  # Single-sourced in AshSurface.Vocabulary (drift-tested against the JS runtime).
+  @base_standings Vocabulary.base_standings()
 
   @type base :: :ALIVE | :PARTIAL_ALIVE | :BLOCKED | :BUILD_BROKEN | :UNSUPPORTED
 
@@ -73,12 +76,7 @@ defmodule AshSurface.Standing do
   @spec valid?(term()) :: boolean()
   def valid?(standing) when standing in @base_standings, do: true
 
-  def valid?(standing) when is_atom(standing) do
-    case Atom.to_string(standing) do
-      "REFUSED_" <> _ -> true
-      _ -> false
-    end
-  end
+  def valid?(standing) when is_atom(standing), do: Vocabulary.refusal_atom?(standing)
 
   def valid?(_standing), do: false
 

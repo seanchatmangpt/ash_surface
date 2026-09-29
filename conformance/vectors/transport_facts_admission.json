@@ -1,0 +1,14 @@
+{"corpusVersion":"1.0.0","kind":"transport_facts_admission","vectors":[
+  {"description":"absent transportFacts is not delegated (empty), never defaulted","expected":{"facts":{}},"id":"tf/absent","input":{"profile":{}},"level":"MUST","notes":""},
+  {"description":"null transportFacts is not delegated","expected":{"facts":{}},"id":"tf/null","input":{"profile":{"transportFacts":null}},"level":"MUST","notes":""},
+  {"description":"binary-key facts normalize","expected":{"facts":{"http":{"cost":"low","privacy":"high"}}},"id":"tf/http-cost-privacy","input":{"profile":{"transportFacts":{"http":{"cost":"low","privacy":"high"}}}},"level":"MUST","notes":""},
+  {"description":"nil-valued dimension is dropped as not delegated","expected":{"facts":{"http":{"latency":"medium"}}},"id":"tf/nil-dimension-dropped","input":{"profile":{"transportFacts":{"http":{"cost":null,"latency":"medium"}}}},"level":"MUST","notes":""},
+  {"description":"transport with no facts","expected":{"facts":{"phoenix_channel":{}}},"id":"tf/empty-transport","input":{"profile":{"transportFacts":{"phoenix_channel":{}}}},"level":"MUST","notes":""},
+  {"description":"unknown class refused","expected":{"error":{"detail":["http","cost","free"],"kind":"unknown_dimension_class"}},"id":"tf/unknown-class","input":{"profile":{"transportFacts":{"http":{"cost":"free"}}}},"level":"MUST","notes":""},
+  {"description":"unknown dimension refused","expected":{"error":{"detail":["http","speed"],"kind":"unknown_dimension"}},"id":"tf/unknown-dimension","input":{"profile":{"transportFacts":{"http":{"speed":"low"}}}},"level":"MUST","notes":""},
+  {"description":"unknown transport refused","expected":{"error":{"detail":["smtp"],"kind":"unknown_transport"}},"id":"tf/unknown-transport","input":{"profile":{"transportFacts":{"smtp":{"cost":"low"}}}},"level":"MUST","notes":""},
+  {"description":"facts must be a map","expected":{"error":{"detail":null,"kind":"facts_must_be_a_map"}},"id":"tf/facts-not-map","input":{"profile":{"transportFacts":"http"}},"level":"MUST","notes":""},
+  {"description":"dimensions must be a map","expected":{"error":{"detail":null,"kind":"transport_facts_must_be_a_map"}},"id":"tf/dimensions-not-map","input":{"profile":{"transportFacts":{"http":["cost"]}}},"level":"MUST","notes":""},
+  {"description":"profile must be a map","expected":{"error":{"detail":null,"kind":"profile_must_be_a_map"}},"id":"tf/profile-not-map","input":{"profile":"http"},"level":"MUST","notes":"JS clients always hold a profile record; NOT_APPLICABLE there."},
+  {"description":"class names are case sensitive","expected":{"error":{"detail":["http","cost","LOW"],"kind":"unknown_dimension_class"}},"id":"tf/class-case-sensitive","input":{"profile":{"transportFacts":{"http":{"cost":"LOW"}}}},"level":"MUST","notes":""}
+]}

@@ -40,6 +40,8 @@ defmodule AshSurface.Projectors.ARIA do
   > unnamed list-form input raises — the shape is law, not a suggestion.
   """
 
+  @behaviour AshSurface.Projector.IR
+
   alias AshSurface.IR
   alias AshSurface.Projector.IREntry
 
@@ -83,10 +85,32 @@ defmodule AshSurface.Projectors.ARIA do
       iex> hd(contract["surfaces"])["live"]
       "polite"
   """
-  @spec project_ir(IR.t() | [IR.t()], keyword()) :: {:ok, map(), map()}
+  @impl true
+  @spec project_ir(AshSurface.Projector.IR.input(), keyword()) ::
+          {:ok, map(), map()} | {:error, {:not_an_ir, term()}}
   def project_ir(ir, opts \\ []) do
-    prefix = Keyword.get(opts, :prefix, @default_prefix)
     irs = List.wrap(ir)
+
+    with nil <- Enum.find(irs, &(not is_struct(&1, IR))),
+         :ok <- validate_facts(irs) do
+      emit(irs, opts)
+    else
+      {:error, _} = error -> error
+      other -> {:error, {:not_an_ir, other}}
+    end
+  end
+
+  defp validate_facts(irs) do
+    Enum.reduce_while(irs, :ok, fn ir, :ok ->
+      case IR.Codec.validate_facts(ir) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp emit(irs, opts) do
+    prefix = Keyword.get(opts, :prefix, @default_prefix)
     contract = contract(irs)
     filename = prefix <> ".json"
 
@@ -178,7 +202,9 @@ defmodule AshSurface.Projectors.ARIA do
   defp politeness(nil), do: "polite"
 
   defp politeness(delegated) do
-    downcased = delegated |> to_string() |> String.downcase()
+    downcased =
+      if is_binary(delegated) or is_atom(delegated),
+        do: delegated |> to_string() |> String.downcase()
 
     if downcased in @politeness do
       downcased
@@ -225,6 +251,11 @@ defmodule AshSurface.Projectors.ARIA do
 
   defp list_form_input(%{} = entry) do
     case fact(entry, "name") || fact(entry, "field") do
+      name when not (is_nil(name) or is_binary(name) or is_atom(name) or is_number(name)) ->
+        raise ArgumentError,
+              "unnamed list-form aria input #{inspect(entry)}; " <>
+                "every input carries a \"name\" (or \"field\") fact"
+
       nil ->
         raise ArgumentError,
               "unnamed list-form aria input #{inspect(entry)}; " <>
@@ -276,7 +307,7 @@ defmodule AshSurface.Projectors.ARIA do
   end
 
   defp order_rank(nil), do: {1, 0}
-  defp order_rank(order) when is_integer(order) and order >= 0, do: {0, order}
+  defp order_rank(order) when is_integer(order), do: {0, order}
 
   defp entry_id(ir), do: IREntry.describe(ir).id
 

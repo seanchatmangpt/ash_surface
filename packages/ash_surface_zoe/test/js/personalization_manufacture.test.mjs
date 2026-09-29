@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   manufactureTraceSchema,
   personalizationContextSchema,
-} from "../../priv/static/ash_surface_runtime.mjs";
+} from "../../priv/static/ash_surface_zoe.mjs";
 
 function validContext() {
   return {

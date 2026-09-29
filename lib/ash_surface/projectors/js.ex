@@ -45,6 +45,8 @@ defmodule AshSurface.Projectors.JS do
   Text interpolated into comments has `*/` neutralized.
   """
 
+  @behaviour AshSurface.Projector.IR
+
   alias AshSurface.Projector.IREntry
   alias AshSurface.Projectors.JS.ZodGuard
 
@@ -96,7 +98,8 @@ defmodule AshSurface.Projectors.JS do
   `meta` carries `:prefix`, `:action_count`, and `:namespace_count`, or
   `{:error, reason}` (see "Admission") with nothing rendered or written.
   """
-  @spec project_ir(AshSurface.IR.t() | [AshSurface.IR.t()], keyword()) ::
+  @impl true
+  @spec project_ir(AshSurface.Projector.IR.input(), keyword()) ::
           {:ok, %{optional(String.t()) => String.t()}, map()} | {:error, term()}
   def project_ir(ir, opts \\ []) do
     with :ok <- check_prefix(Keyword.get(opts, :prefix, @default_prefix)),
@@ -150,7 +153,10 @@ defmodule AshSurface.Projectors.JS do
   defp describe_all(irs) do
     Enum.reduce_while(irs, {:ok, []}, fn
       %AshSurface.IR{} = ir, {:ok, acc} ->
-        {:cont, {:ok, [{IREntry.describe(ir), full_resource(ir)} | acc]}}
+        case AshSurface.IR.Codec.validate_facts(ir) do
+          :ok -> {:cont, {:ok, [{IREntry.describe(ir), full_resource(ir)} | acc]}}
+          {:error, _} = error -> {:halt, error}
+        end
 
       other, _acc ->
         {:halt, {:error, {:not_an_ir, other}}}

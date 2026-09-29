@@ -70,6 +70,7 @@ defmodule AshSurface.MixProject do
         AshSurface.Fixtures.Server,
         AshSurface.Fixtures.VolunteerMilestone,
         AshSurface.TestSupport.CompilerEchoSection,
+        AshSurface.TestSupport.VerifiedSurface,
         Inspect.AshSurface.Fixtures.VolunteerMilestone
       ]
     ]
@@ -108,6 +109,9 @@ defmodule AshSurface.MixProject do
       {:ash, "~> 3.33.1"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
+      # Observability events (AshSurface.Telemetry) call :telemetry directly;
+      # listed explicitly rather than relying on ash pulling it in.
+      {:telemetry, "~> 1.1"},
       # Property-based tests (042 + 043 union; deduped at 051 merge). No `only:` restriction
       # is admissible: ash_a2a (all-env dep) requires stream_data in every env,
       # and ash already pulls it non-optionally. It never enters the boot path
@@ -137,8 +141,14 @@ defmodule AshSurface.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url},
-      files: ~w(lib priv .formatter.exs mix.exs README.md AGENTS.md)
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => @source_url <> "/blob/main/CHANGELOG.md",
+        "Security" => @source_url <> "/blob/main/SECURITY.md"
+      },
+      files:
+        ~w(lib priv .formatter.exs mix.exs README.md AGENTS.md LICENSE CHANGELOG.md SECURITY.md),
+      maintainers: ["Sean Chatman"]
     ]
   end
 
@@ -148,9 +158,16 @@ defmodule AshSurface.MixProject do
       # first failing task, so a failure in either suite fails the whole run.
       "test.all": ["test", "test.js"],
       "test.js": &run_js_suite/1,
+      # The extracted ZOE package (packages/ash_surface_zoe) has its own
+      # deps/_build and suites; deliberately NOT part of `test.all` so core
+      # stays green without it.
+      "test.zoe": &run_zoe_suite/1,
       # Zero-config proof: `mix test.all` re-run through literal `env -i`
       # with only @zero_env_allowlist surviving.
-      "test.zero": &run_all_under_scrubbed_env/1
+      "test.zero": &run_all_under_scrubbed_env/1,
+      # Offline supply-chain hygiene: no unused lock entries, no retired/vulnerable
+      # hex packages. Network-touching (hex.audit) so NOT part of `mix test`.
+      "supply.check": ["deps.unlock --check-unused", "hex.audit"]
     ]
   end
 
@@ -162,6 +179,27 @@ defmodule AshSurface.MixProject do
       {_output, status} ->
         Mix.raise("test.js: npm test exited with status #{status}")
     end
+  end
+
+  defp run_zoe_suite(_args) do
+    dir = Path.expand("packages/ash_surface_zoe", File.cwd!())
+
+    for {cmd, args} <- [{"mix", ["deps.get"]}, {"mix", ["test"]}, {"npm", ["test"]}] do
+      case System.cmd(cmd, args,
+             cd: dir,
+             env: [{"MIX_ENV", "test"}],
+             into: IO.stream(:stdio, :line),
+             stderr_to_stdout: true
+           ) do
+        {_output, 0} ->
+          :ok
+
+        {_output, status} ->
+          Mix.raise("test.zoe: `#{cmd} #{Enum.join(args, " ")}` exited #{status}")
+      end
+    end
+
+    :ok
   end
 
   # `System.cmd/3`'s `:env` option MERGES into the parent environment (verified
