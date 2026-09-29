@@ -8,6 +8,6 @@
     "test:coverage": "node --experimental-test-coverage --test test/js/*.test.mjs"
   },
   "dependencies": {
-    "zod": "4.6.1"
+    "zod": "4.6.5"
   }
 }
