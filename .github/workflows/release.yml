@@ -26,7 +26,7 @@ jobs:
   gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Tag matches mix.exs version
@@ -40,7 +40,7 @@ jobs:
         with:
           otp-version: "28.3"
           elixir-version: "1.20.3"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: mix local.hex --force
@@ -65,7 +65,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
@@ -91,10 +91,10 @@ jobs:
       - name: Record hex build outcome
         run: echo "hex_package=${{ steps.hex.outcome == 'success' }}" | tee dist/HEX_BUILD_OUTCOME.txt
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: "dist/*"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ github.ref_name }}
           path: dist/
@@ -108,7 +108,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-${{ github.ref_name }}
           path: dist
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: hex-publish
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
