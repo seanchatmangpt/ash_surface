@@ -13,7 +13,7 @@ jobs:
       # (test/ash_surface/lineage_court_test.exs) re-judge the real PR #7
       # ancestry claim and the checked-out head; a shallow clone makes them a
       # named skip, so CI would never judge the claim.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -30,14 +30,14 @@ jobs:
           otp-version: "28.3"
           elixir-version: "1.20.3"
       # Key hashes mix.lock too: lockfile-only changes must bust the cache.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: mix deps.get
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: npm install
@@ -52,7 +52,7 @@ jobs:
   javascript:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Assert exact subject
@@ -61,7 +61,7 @@ jobs:
           expected="${{ github.event.pull_request.head.sha || github.sha }}"
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$expected"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: npm install
@@ -91,8 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: npm install
@@ -100,7 +100,7 @@ jobs:
         with:
           otp-version: "28.3"
           elixir-version: "1.20.3"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
@@ -114,12 +114,12 @@ jobs:
   zero-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
           elixir-version: "1.20.3"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: mix local.hex --force
@@ -142,15 +142,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
           elixir-version: "1.20.3"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.mix
@@ -171,15 +171,15 @@ jobs:
   zoe-package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
           elixir-version: "1.20.3"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('mix.exs', 'mix.lock') }}
