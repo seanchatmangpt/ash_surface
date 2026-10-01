@@ -1,7 +1,7 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (1262 tests, pinned floor 1257, 121 `test/**/*_test.exs` files) and
+`mix test` (1264 tests, pinned floor 1257, 123 `test/**/*_test.exs` files) and
 `npm test` (371 tests, 26 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
@@ -27,8 +27,9 @@ npm test
 
 Nothing else. No environment variables, no database, no external network:
 
-- No DB. The deps are `ash`, `spark`, `jason`, `igniter` and `dialyxir`
-  (dev/test, `runtime: false`), plus the delegation deps `ash_r2rml` and
+- No DB. The deps are `ash`, `spark`, `jason`, `telemetry`, `igniter` and
+  `stream_data` (`runtime: false`; `dialyxir` is dev/test only), plus the
+  delegation deps `ash_r2rml` and
   `ash_a2a` (git-pinned, `runtime: false` — see section 3). The fixture
   resource in `test/support/fixtures.ex` uses the in-memory
   `Ash.DataLayer.Ets` data layer; there is no Ecto repo and no Postgres.
@@ -83,7 +84,7 @@ not a setup problem.
 
 The battery pins the full chicago suite set: `scripts/chicago_census.txt`
 is the golden census — one `# floor: <N>` line plus one suite path per
-line (147 suites at this SHA: 121 mix + 26 npm), regenerated with
+line (149 suites at this SHA: 123 mix + 26 npm), regenerated with
 `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
 the floor re-measured from `mix test` whenever suites change. Two
 fail-closed battery steps consume it:
@@ -149,9 +150,10 @@ collaborators:
 - **Real modules, real returns.** Tests call the actual
   `AshSurface.from_manifest/2`, `Observation.create/3`, `Transport.select/3`,
   `createClient`, etc., and assert on returned state (`{:ok, surface}`,
-  digests, projected artifacts, receipts). No `assert_received`, no message
-  spying, no mock frameworks anywhere in `test/` (every occurrence of the
-  word "mock" in the tree is a negative assertion).
+  digests, projected artifacts, receipts). No mock frameworks anywhere in
+  `test/` (every occurrence of the word "mock" in the tree is a negative
+  assertion); `assert_received` appears only in
+  `test/ash_surface/telemetry_coverage2_test.exs`.
 - **Doubles only for injected adapters — and even then, state-asserted.**
   There is no mock framework. The seams are (a) the transport endpoint,
   where tests inject a *real* ephemeral loopback HTTP server

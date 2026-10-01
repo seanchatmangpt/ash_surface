@@ -12,6 +12,6 @@ defmodule AshSurface.CastleCapabilityIntakeRuntimeTest do
     assert mmdio.sha == "afc1f6e890a6d1c17b84d5931b21d3c74a851ebc"
     assert mmdio.placement == :powerless_document_projection
     refute CastleCapabilityIntake.canonical_truth?(mmdio)
-    refute CastleCapabilityIntake.do_authority?(mmdio)
+    refute CastleCapabilityIntake.actuation_authority?(mmdio)
   end
 end

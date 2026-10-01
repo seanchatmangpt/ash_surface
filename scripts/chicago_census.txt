@@ -133,6 +133,8 @@ test/ash_surface/vocabulary_drift_test.exs
 test/ash_surface/vocabulary_test.exs
 test/ash_surface/vocabulary_zod_coverage2_test.exs
 test/ash_surface_test.exs
+test/castle_capability_intake_runtime_test.exs
+test/castle_capability_intake_test.exs
 test/conformance/conformance_replay_test.exs
 test/js/boundary_refusals.test.mjs
 test/js/conformance_replay.test.mjs

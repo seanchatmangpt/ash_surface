@@ -11,8 +11,20 @@ defmodule AshSurface.CastleCapabilityIntake do
   @authority_ceiling :construct
 
   @donors [
-    %{repository: "seanchatmangpt/ash_expo", sha: "024852b92330c76e12d0ab26531ef1e511c71041", capability: :mobile_surface, disposition: :wrap, placement: :mobile_surface},
-    %{repository: "seanchatmangpt/mmdio", sha: "afc1f6e890a6d1c17b84d5931b21d3c74a851ebc", capability: :semantic_document_projection, disposition: :candidate_wrap, placement: :powerless_document_projection}
+    %{
+      repository: "seanchatmangpt/ash_expo",
+      sha: "024852b92330c76e12d0ab26531ef1e511c71041",
+      capability: :mobile_surface,
+      disposition: :wrap,
+      placement: :mobile_surface
+    },
+    %{
+      repository: "seanchatmangpt/mmdio",
+      sha: "afc1f6e890a6d1c17b84d5931b21d3c74a851ebc",
+      capability: :semantic_document_projection,
+      disposition: :candidate_wrap,
+      placement: :powerless_document_projection
+    }
   ]
 
   @spec donors() :: [map()]
@@ -38,6 +50,6 @@ defmodule AshSurface.CastleCapabilityIntake do
   @spec canonical_truth?(term()) :: false
   def canonical_truth?(_), do: false
 
-  @spec do_authority?(term()) :: false
-  def do_authority?(_), do: false
+  @spec actuation_authority?(term()) :: false
+  def actuation_authority?(_), do: false
 end
