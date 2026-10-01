@@ -54,8 +54,10 @@ not a setup problem.
 - `mix test.all` — Elixir suite then JS suite (`npm test`) through a mix
   alias; aborts at the first failing task. Defined in `mix.exs`.
 - `mix test.zero` — `mix test.all` re-run under literal `env -i`; only
-  `HOME` and `PATH` survive (`@zero_env_allowlist` in `mix.exs`). A hidden
-  config dependency fails loudly here, not in CI.
+  variables in `@zero_env_allowlist` (`mix.exs`) survive — currently `HOME`,
+  `PATH`, plus the optional lineage-court overrides
+  `ASH_SURFACE_LINEAGE_GIT_DIR` / `ASH_SURFACE_LINEAGE_HEAD` when set. A
+  hidden config dependency fails loudly here, not in CI.
 - `bash scripts/zero_config_check.sh` — the fresh-local-clone proof: clones
   this tree to a scratch dir, re-runs the battery in
   `env -i PATH HOME ZERO_CONFIG_SANITIZED=1` (npm install before mix test,

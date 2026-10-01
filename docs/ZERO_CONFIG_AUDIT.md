@@ -2,6 +2,14 @@
 
 Receipt for the `env -i` zero-config proof on this tree.
 
+> **2026-09-27 update:** this receipt predates the lineage court (fa6a734,
+> 2026-09-26). The living source of truth is `@zero_env_allowlist` in
+> `mix.exs`; the current allowlisted `test/` env reads are the two
+> `ASH_SURFACE_LINEAGE_GIT_DIR` / `ASH_SURFACE_LINEAGE_HEAD` overrides in
+> `test/ash_surface/lineage_court_test.exs` (unset `ASH_SURFACE_LINEAGE_HEAD`
+> falls back to `git rev-parse HEAD`; unset `ASH_SURFACE_LINEAGE_GIT_DIR`
+> falls back to the canonical `.git`). The body below is retained as written.
+
 - Repo/worktree: `/Users/sac/ash-surface-wt/v24`
 - Branch: `exp/v24` (base `282f3ca`, tree clean before this doc)
 - Date: 2026-09-15
