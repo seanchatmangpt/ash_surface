@@ -33,7 +33,8 @@ defmodule AshSurface.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Manifest-first consumer surfaces for Ash applications",
+      description:
+        "Manifest-first consumer projection/runtime layer for Ash applications — one Ash model, many lawful consumer surfaces",
       source_url: @source_url,
       homepage_url: @source_url,
       package: package(),
