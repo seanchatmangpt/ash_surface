@@ -1,7 +1,7 @@
 defmodule AshSurface.MixProject do
   use Mix.Project
 
-  @version "26.9.17"
+  @version "26.10.1"
   @source_url "https://github.com/seanchatmangpt/ash_surface"
 
   # The only variables allowed to survive `mix test.zero`'s scrub. Anything
@@ -125,17 +125,9 @@ defmodule AshSurface.MixProject do
       # Static success-typing analysis (gapfix-dialyzer-010). Dev-only: the
       # analysis tool never ships and never enters the boot path.
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      # ash_r2rml pinned to git HEAD (7d958a8) overriding ash_a2a's hex
-      # "~> 26.8" requirement — git version 26.9.12 satisfies it.
-      {:ash_r2rml,
-       git: "https://github.com/seanchatmangpt/ash_r2rml.git",
-       ref: "7d958a8c47a5a3459a515ac6f81a4d2d2d84dd16",
-       runtime: false,
-       override: true},
-      # ash_a2a repinned to the released v26.9.22 tag (ASF-26922-07; was
-      # e25ed6e) — pulls rdf ~> 3.0 and the wasmex NIF.
-      {:ash_a2a,
-       git: "https://github.com/seanchatmangpt/ash_a2a.git", tag: "v26.9.22", runtime: false}
+      # ash_r2rml and ash_a2a Hex package dependencies
+      {:ash_r2rml, "~> 26.9", runtime: false},
+      {:ash_a2a, "~> 26.9", runtime: false}
     ]
   end
 

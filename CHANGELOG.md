@@ -7,6 +7,12 @@ from `git log` since the PR #7 merge (`7d5c354`, 2026-09-26) up to `2654cdc`.
 
 ## [Unreleased]
 
+## [26.10.1] - 2026-10-02
+
+### Added
+- Hex package release metadata, description, and dependency alignment (`ash_r2rml ~> 26.9`, `ash_a2a ~> 26.9`).
+- Initial publication on hex.pm.
+
 ### Added
 - Supply-chain gating: `.github/dependabot.yml`, `security.yml` (daily
   `mix hex.audit`, `npm audit`, lock hygiene, SBOM drift), `release.yml`
