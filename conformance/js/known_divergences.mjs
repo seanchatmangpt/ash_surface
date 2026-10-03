@@ -59,9 +59,9 @@ export const KNOWN_DIVERGENCES = Object.freeze({
     }
   },
   "sc/lexical-integral-float": {
-    "reason": "contract value 2.0 parses to the JS number 2, which the ETF twin digests as an integer; Elixir digests the float 2.0",
+    "reason": "contract value 2.0 parses to the JS number 2, which the ETF twin digests as an integer; Elixir digests the float 2.0 (jsActual re-captured after the 26.10.1 bump: the JS-side digest includes surfaceSchemaVersion)",
     "jsActual": {
-      "digest": "1e808e45577f360c59a6e97f59eb953285a18394efcb11a6337101c968bd4e3d"
+      "digest": "78e814090482cb64e7895c97e12498c4223d6e7a9baa611c44762cb3a718ea70"
     }
   },
   "rd/lexical-float-consequence": {

@@ -242,7 +242,7 @@ test("T1 contract: JS twin recomputes every Elixir surface digest from the contr
   const rows = TABLES.contract.map((fixture) => {
     const raw = canonicalTermDigest(JSON.parse(JSON.stringify(fixture.contract)));
     const client = createClient({ contract: JSON.parse(JSON.stringify(fixture.contract)) });
-    assert.equal(client.runtimeVersion, "26.9.17", `${fixture.name}: runtime version`);
+    assert.equal(client.runtimeVersion, "26.10.1", `${fixture.name}: runtime version`);
     const held = canonicalTermDigest(client.contract);
     assert.equal(held, raw, `${fixture.name}: runtime-held contract digests identically`);
     return { fixture: fixture.name, elixir: fixture.elixirDigest, js: held };

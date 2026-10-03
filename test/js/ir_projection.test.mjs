@@ -83,10 +83,15 @@ if (mixReady) {
 }
 
 test("bridge was manufactured by a passing targeted mix run", runtimeSkip, () => {
-  // execFileSync already fails this suite on a non-zero mix exit; the Result
+  // execFileSync already fails this suite on a non-zero mix exit; the summary
   // line additionally proves tests ran and passed (no "Failed:" summary line
-  // exists on a clean run).
-  assert.match(mixOutput, /Result: \d+ passed/);
+  // exists on a clean run). Summary format is toolchain-dependent: newer
+  // ExUnit prints "Result: N passed", older prints "N tests, 0 failures".
+  assert.match(
+    mixOutput,
+    /Result: \d+ passed|\b\d+ tests?, 0 failures/,
+    "targeted ExUnit bridge run must report a passing summary"
+  );
   assert.doesNotMatch(mixOutput, /Failed:/);
 });
 

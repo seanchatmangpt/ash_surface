@@ -64,7 +64,7 @@ const ACTION_ID = "Conformance.Resource#act";
 
 function contractWith(actions) {
   return {
-    surfaceSchemaVersion: "26.9.17",
+    surfaceSchemaVersion: "26.10.1",
     ashManifestSchemaVersion: "1",
     manifest: {},
     surface: { profile: {}, actions },

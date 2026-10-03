@@ -254,7 +254,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
 
   defp lv_ir(resource, action, action_type, opts) do
     %IR{
-      version: "26.9.17",
+      version: "26.10.1",
       digest: "digest-#{resource}-#{action}",
       ash: %IR.Ash{resource: resource, action: action, action_type: action_type, policies: []},
       semantic: %IR.Semantic{predicates: Keyword.get(opts, :predicates, %{})},

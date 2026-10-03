@@ -85,7 +85,13 @@ defmodule AshSurface.SupplyChainTest do
 
   test "git dependencies are pinned to a full commit sha" do
     git = for {name, {:git, _, sha, _}} <- lock(), do: {to_string(name), sha}
-    assert git != []
+
+    # Since the 26.10.1 hex alignment the lock carries zero git deps; the
+    # stronger non-vacuity is "every dep resolves from hex", so a path or
+    # git dep can never silently re-enter the release closure.
+    for {name, {type, _, _, _}} <- lock() do
+      assert type == :hex, "#{name}: lock entry type #{inspect(type)} is not hex"
+    end
 
     for {name, sha} <- git do
       assert sha =~ ~r/\A[0-9a-f]{40}\z/, "#{name} is not pinned to a 40-hex commit"

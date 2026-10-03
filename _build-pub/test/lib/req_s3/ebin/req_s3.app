@@ -1,0 +1,1 @@
+{application,req_s3,[{modules,['Elixir.ReqS3','Elixir.ReqS3.XML']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,xmerl,req]},{description,"req_s3"},{registered,[]},{vsn,"0.2.5"}]}.
