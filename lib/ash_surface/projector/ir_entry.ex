@@ -125,6 +125,8 @@ defmodule AshSurface.Projector.IREntry do
   def do_boundary?(%__MODULE__{authority_boundary: boundary}),
     do: boundary != nil and to_string(boundary) == "DO"
 
+  defp read_fact(%{__struct__: _} = _policy, _fact), do: nil
+
   defp read_fact(%{} = policy, fact) do
     Enum.find_value(policy, fn
       {k, v} when is_atom(k) or is_binary(k) ->

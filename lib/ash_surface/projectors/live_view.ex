@@ -333,6 +333,8 @@ defmodule AshSurface.Projectors.LiveView do
     end)
   end
 
+  defp field_type(%{"type" => %{"kind" => kind}}), do: to_string(kind)
+  defp field_type(%{type: %{kind: kind}}), do: to_string(kind)
   defp field_type(%{"type" => type}), do: to_string(type)
   defp field_type(%{type: type}), do: to_string(type)
   defp field_type(type) when is_binary(type) or is_atom(type), do: to_string(type)
@@ -340,6 +342,12 @@ defmodule AshSurface.Projectors.LiveView do
 
   defp field_required(%{"required" => required}), do: !!required
   defp field_required(%{required: required}), do: !!required
+
+  # The compiler's schema section carries `allow_nil?` (Ash attribute
+  # semantics), not `required`: not-allow-nil is exactly required.
+  defp field_required(%{"allow_nil?" => false}), do: true
+  defp field_required(%{allow_nil?: false}), do: true
+
   defp field_required(_), do: false
 
   defp declared_relationships(%AshSurface.IR{} = ir) do
