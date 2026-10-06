@@ -43,7 +43,8 @@ defmodule AshSurface.Projector.IREntry do
     :receipt_required,
     :capability_iri,
     :label,
-    :zod
+    :zod,
+    :full_resource
   ]
 
   @type t :: %__MODULE__{
@@ -86,9 +87,17 @@ defmodule AshSurface.Projector.IREntry do
     resource = short_name(ash.resource)
     action = to_string(ash.action || "")
 
+    full_resource =
+      case ash.resource do
+        nil -> nil
+        mod when is_atom(mod) -> mod |> to_string() |> String.replace_prefix("Elixir.", "")
+        other -> other
+      end
+
     %__MODULE__{
       id: "#{resource}.#{action}",
       resource: resource,
+      full_resource: full_resource,
       action: action,
       action_type: ash.action_type && to_string(ash.action_type),
       authority_boundary: authority_boundary(ir),

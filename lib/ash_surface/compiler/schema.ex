@@ -167,7 +167,7 @@ defmodule AshSurface.Compiler.Schema do
 
     input_fields =
       Enum.map_join(args, ",\n", fn arg ->
-        "  #{arg["name"]}: #{zod_fragment(arg)}"
+        "  #{zod_key(arg["name"])}: #{zod_fragment(arg)}"
       end)
 
     """
@@ -216,6 +216,15 @@ defmodule AshSurface.Compiler.Schema do
     |> String.replace(~r/[^a-zA-Z0-9]+/, " ")
     |> String.trim()
     |> String.capitalize()
+  end
+
+  # An input field named like an Elixir predicate (`default?`) is not a bare
+  # JS identifier, so it is emitted as a quoted object key — the ZodGuard
+  # admits `key := name | string`.
+  defp zod_key(name) do
+    if Regex.match?(~r/\A[A-Za-z_$][A-Za-z0-9_$]*\z/, name),
+      do: name,
+      else: Jason.encode!(name)
   end
 
   defp sanitize_identifier(id) do

@@ -100,6 +100,12 @@ defmodule AshSurface.Projectors.JS do
     refused `Object`). Default `nil`: namespaces are emitted unprefixed and
     built-in-colliding short names are refused as
     `{:unsafe_js_namespace, name}` exactly as before.
+  - `:namespace_names` — opt-in explicit namespace bindings keyed by the
+    resource's full module name (`"App.Conference.Event" => "AppConfEvent"`),
+    for full-app runs where two resources share a short name (e.g. two
+    `Event` resources). An override wins over `:namespace_prefix` for that
+    resource; overridden names must be safe JS artifacts or the projection
+    refuses. Default `%{}`: no overrides applied.
   - `:target_dir` — when set, the artifact is also written there.
 
   Returns `{:ok, artifacts, meta}` where `artifacts` has exactly one entry and
@@ -113,7 +119,9 @@ defmodule AshSurface.Projectors.JS do
     with :ok <- check_prefix(Keyword.get(opts, :prefix, @default_prefix)),
          ns_prefix = Keyword.get(opts, :namespace_prefix),
          :ok <- check_namespace_prefix(ns_prefix),
-         {:ok, entries, zod_forms} <- admit(List.wrap(ir), ns_prefix) do
+         ns_names = Keyword.get(opts, :namespace_names, %{}),
+         :ok <- check_namespace_names(ns_names),
+         {:ok, entries, zod_forms} <- admit(List.wrap(ir), ns_prefix, ns_names) do
       emit(entries, zod_forms, opts)
     end
   end
@@ -127,10 +135,24 @@ defmodule AshSurface.Projectors.JS do
 
   defp check_namespace_prefix(value), do: {:error, {:invalid_namespace_prefix, value}}
 
+  # Opt-in explicit namespace bindings keyed by the resource's full module
+  # name (`"Xaas.Conference.Event" => "XaasConferenceEvent"`). Values must be
+  # safe JS bindings; keys/shapes are validated before any admission.
+  defp check_namespace_names(names) do
+    if is_map(names) and Enum.all?(names, fn {k, v} -> is_binary(k) and is_binary(v) end) do
+      Enum.find_value(names, :ok, fn {_k, v} ->
+        if safe_binding?(v), do: :ok, else: {:error, {:unsafe_js_namespace, v}}
+      end)
+    else
+      {:error, {:invalid_namespace_names, names}}
+    end
+  end
+
   defp emit(entries, zod_forms, opts) do
     prefix = Keyword.get(opts, :prefix, @default_prefix)
     ns_prefix = Keyword.get(opts, :namespace_prefix)
-    code = render(entries, zod_forms, prefix, ns_prefix)
+    ns_names = Keyword.get(opts, :namespace_names, %{})
+    code = render(entries, zod_forms, prefix, ns_prefix, ns_names)
     filename = prefix <> ".mjs"
 
     case Keyword.get(opts, :target_dir) do
@@ -152,16 +174,18 @@ defmodule AshSurface.Projectors.JS do
 
   ## Admission
 
-  defp admit(irs, ns_prefix) do
+  defp admit(irs, ns_prefix, ns_names) do
     with {:ok, pairs} <- describe_all(irs),
          entries = pairs |> Enum.map(&elem(&1, 0)) |> Enum.sort_by(& &1.id),
          :ok <- check_each(entries, &check_fields/1),
-         :ok <- check_each(entries, &check_namespace(&1, ns_prefix)),
+         :ok <- check_each(entries, &check_namespace(&1, ns_prefix, ns_names)),
          :ok <- check_each(entries, &check_member/1),
-         :ok <- check_short_names(pairs, ns_prefix),
+         :ok <- check_short_names(pairs, ns_prefix, ns_names),
+         entries = Enum.map(entries, &disambiguate_id(&1, ns_prefix, ns_names)),
+         entries = Enum.sort_by(entries, & &1.id),
          :ok <- check_duplicate_ids(entries),
          {:ok, entries, zod_forms} <- admit_zod(entries),
-         :ok <- check_bindings(entries, ns_prefix) do
+         :ok <- check_bindings(entries, ns_prefix, ns_names) do
       {:ok, entries, zod_forms}
     end
   end
@@ -209,8 +233,31 @@ defmodule AshSurface.Projectors.JS do
     end)
   end
 
-  defp check_namespace(%IREntry{resource: name}, ns_prefix) do
-    bound = ns_name(ns_prefix, name)
+  # The JS namespace binding for one entry: an explicit `:namespace_names`
+  # override for its full resource name wins; otherwise `ns_name/2`.
+  defp bound(%IREntry{} = entry, ns_prefix, ns_names) do
+    case entry.full_resource && Map.fetch(ns_names, entry.full_resource) do
+      {:ok, name} -> name
+      _ -> ns_name(ns_prefix, entry.resource)
+    end
+  end
+
+  # After namespace disambiguation the artifact-facing action id follows the
+  # resolved namespace binding (`XaasOcelEvent.destroy`), so ids stay unique
+  # across colliding short names. With no override/prefix (the default), the
+  # binding equals the short name and the id is unchanged.
+  defp disambiguate_id(%IREntry{} = entry, ns_prefix, ns_names) do
+    binding = bound(entry, ns_prefix, ns_names)
+
+    if binding == entry.resource do
+      entry
+    else
+      %{entry | id: "#{binding}.#{entry.action}"}
+    end
+  end
+
+  defp check_namespace(%IREntry{} = entry, ns_prefix, ns_names) do
+    bound = bound(entry, ns_prefix, ns_names)
 
     if safe_binding?(bound), do: :ok, else: {:error, {:unsafe_js_namespace, bound}}
   end
@@ -235,9 +282,9 @@ defmodule AshSurface.Projectors.JS do
       name not in @globals and name not in @artifact_bindings
   end
 
-  defp check_short_names(pairs, ns_prefix) do
+  defp check_short_names(pairs, ns_prefix, ns_names) do
     pairs
-    |> Enum.group_by(fn {entry, _full} -> ns_name(ns_prefix, entry.resource) end, &elem(&1, 1))
+    |> Enum.group_by(fn {entry, _full} -> bound(entry, ns_prefix, ns_names) end, &elem(&1, 1))
     |> Enum.map(fn {short, fulls} -> {short, fulls |> Enum.uniq() |> Enum.sort()} end)
     |> Enum.sort()
     |> Enum.find_value(:ok, fn
@@ -281,11 +328,13 @@ defmodule AshSurface.Projectors.JS do
     end
   end
 
-  defp check_bindings(entries, ns_prefix) do
+  defp check_bindings(entries, ns_prefix, ns_names) do
     schema_consts = entries |> Enum.filter(& &1.zod) |> Enum.map(&schema_const/1)
 
     namespaces =
-      entries |> Enum.map(& &1.resource) |> Enum.uniq() |> Enum.map(&ns_name(ns_prefix, &1))
+      entries
+      |> Enum.map(&bound(&1, ns_prefix, ns_names))
+      |> Enum.uniq()
 
     (schema_consts ++ namespaces ++ @artifact_bindings)
     |> Enum.frequencies()
@@ -298,12 +347,12 @@ defmodule AshSurface.Projectors.JS do
 
   ## Rendering
 
-  defp render(entries, zod_forms, prefix, ns_prefix) do
+  defp render(entries, zod_forms, prefix, ns_prefix, ns_names) do
     [
       header(prefix),
       schema_consts(entries, zod_forms),
-      namespaces(entries, ns_prefix),
-      registries(entries, ns_prefix)
+      namespaces(entries, ns_prefix, ns_names),
+      registries(entries, ns_prefix, ns_names)
     ]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join("\n\n")
@@ -345,9 +394,9 @@ defmodule AshSurface.Projectors.JS do
     |> Enum.join("\n\n")
   end
 
-  defp namespaces(entries, ns_prefix) do
+  defp namespaces(entries, ns_prefix, ns_names) do
     entries
-    |> Enum.group_by(&ns_name(ns_prefix, &1.resource))
+    |> Enum.group_by(&bound(&1, ns_prefix, ns_names))
     |> Enum.sort_by(fn {binding, _} -> binding end)
     |> Enum.map(fn {binding, group} -> namespace_block(binding, group) end)
     |> Enum.join("\n\n")
@@ -403,7 +452,7 @@ defmodule AshSurface.Projectors.JS do
     "Object.freeze({\n" <> fields_body <> "\n" <> indent(2) <> "})"
   end
 
-  defp registries(entries, ns_prefix) do
+  defp registries(entries, ns_prefix, ns_names) do
     """
     /**
      * Every action descriptor, sorted by id. DO-boundary descriptors carry
@@ -412,7 +461,7 @@ defmodule AshSurface.Projectors.JS do
      * descriptor identity is shared.
      */
     export const ACTIONS = Object.freeze([
-    #{Enum.map_join(entries, ",\n", &(indent(2) <> member_ref(&1, ns_prefix)))}
+    #{Enum.map_join(entries, ",\n", &(indent(2) <> member_ref(&1, ns_prefix, ns_names)))}
     ]);
 
     /** Zod boundary schemas by action id, present only where the IR delegated one. */
@@ -422,7 +471,7 @@ defmodule AshSurface.Projectors.JS do
 
     /** Resource namespaces, sorted by resource name. */
     export const NAMESPACES = Object.freeze({
-    #{namespace_registry(entries, ns_prefix)}
+    #{namespace_registry(entries, ns_prefix, ns_names)}
     });
 
     /** Descriptor lookup by action id; null when unknown. */
@@ -460,18 +509,17 @@ defmodule AshSurface.Projectors.JS do
     |> Enum.join(",\n")
   end
 
-  defp namespace_registry(entries, ns_prefix) do
+  defp namespace_registry(entries, ns_prefix, ns_names) do
     entries
-    |> Enum.map(& &1.resource)
-    |> Enum.uniq()
-    |> Enum.sort()
-    |> Enum.map(&ns_name(ns_prefix, &1))
+    |> Enum.uniq_by(& &1.resource)
+    |> Enum.sort_by(& &1.resource)
+    |> Enum.map(&bound(&1, ns_prefix, ns_names))
     |> Enum.map(&(indent(2) <> &1))
     |> Enum.join(",\n")
   end
 
-  defp member_ref(entry, ns_prefix),
-    do: "#{ns_name(ns_prefix, entry.resource)}.#{entry.action}"
+  defp member_ref(entry, ns_prefix, ns_names),
+    do: "#{bound(entry, ns_prefix, ns_names)}.#{entry.action}"
   defp schema_const(entry), do: "#{sanitize(entry.id)}_schema"
   defp schema_ref(%{zod: nil}), do: "null"
   defp schema_ref(entry), do: schema_const(entry)

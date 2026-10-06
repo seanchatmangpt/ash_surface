@@ -108,9 +108,11 @@ defmodule AshSurface.JSNamespacePrefixTest do
       assert JS.project_ir(js_ir("Shop.Cart", "add-item"), namespace_prefix: "Xaas") ==
                {:error, {:unsafe_js_member, "Cart.add-item"}}
 
+      # Duplicate ids are refused under the post-disambiguation id (the
+      # artifact-facing id follows the resolved namespace binding).
       assert JS.project_ir([js_ir("Shop.Cart", :read), js_ir("Shop.Cart", :read)],
                namespace_prefix: "Xaas"
-             ) == {:error, {:duplicate_js_member, "Cart.read"}}
+             ) == {:error, {:duplicate_js_member, "XaasCart.read"}}
     end
 
     test "an invalid :namespace_prefix value is refused typed" do
