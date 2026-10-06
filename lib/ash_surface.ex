@@ -383,23 +383,7 @@ defmodule AshSurface do
       else: {:error, {:surface_digest_mismatch, claimed, actual}}
   end
 
-  defp digest(contract) do
-    contract
-    |> canonical_term()
-    |> :erlang.term_to_binary()
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
-
-  defp canonical_term(term) when is_map(term) do
-    term
-    |> Enum.map(fn {key, value} -> {to_string(key), canonical_term(value)} end)
-    |> Enum.sort_by(&elem(&1, 0))
-  end
-
-  defp canonical_term(term) when is_list(term), do: Enum.map(term, &canonical_term/1)
-  defp canonical_term(term), do: term
-
+  defp digest(contract), do: AshSurface.Digest.content_digest(contract)
   defp normalize_data(value)
        when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
        do: value

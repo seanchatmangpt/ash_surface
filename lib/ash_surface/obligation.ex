@@ -122,10 +122,5 @@ defmodule AshSurface.Obligation do
     }
   end
 
-  defp digest(term) do
-    term
-    |> :erlang.term_to_binary([:deterministic])
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
+  defp digest(term), do: AshSurface.Digest.deterministic_term_digest(term)
 end

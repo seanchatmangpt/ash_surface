@@ -161,29 +161,10 @@ defmodule AshSurface.IR.Codec do
   lowercase hex (64 characters).
   """
   @spec digest(map()) :: String.t()
-  def digest(canonical_map) when is_map(canonical_map) do
-    canonical_map
-    |> canonical_term()
-    |> :erlang.term_to_binary()
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
+  def digest(canonical_map) when is_map(canonical_map),
+    do: AshSurface.Digest.content_digest(canonical_map)
 
   def digest(other), do: raise(ArgumentError, "digest/1 requires a map, got: #{inspect(other)}")
-
-  # The exact AshSurface canon (lib/ash_surface.ex): map keys are stringified
-  # and sorted recursively; list order is preserved and is semantic content;
-  # every other term passes through unchanged. Mirrored only because the
-  # upstream function is private (same standing as AshSurface.Health);
-  # agreement is pinned by tests against real from_manifest/2 surfaces.
-  defp canonical_term(term) when is_map(term) do
-    term
-    |> Enum.map(fn {key, value} -> {to_string(key), canonical_term(value)} end)
-    |> Enum.sort_by(&elem(&1, 0))
-  end
-
-  defp canonical_term(term) when is_list(term), do: Enum.map(term, &canonical_term/1)
-  defp canonical_term(term), do: term
 
   defp section_to_map(nil, _module, _fields), do: nil
 

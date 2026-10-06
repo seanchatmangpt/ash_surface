@@ -348,22 +348,7 @@ defmodule AshSurface.Compiler do
 
   ## Digest (the frozen AshSurface canon, applied to the normalized map)
 
-  defp digest(normalized) do
-    normalized
-    |> canonical_term()
-    |> :erlang.term_to_binary()
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
-
-  defp canonical_term(term) when is_map(term) do
-    term
-    |> Enum.map(fn {key, value} -> {to_string(key), canonical_term(value)} end)
-    |> Enum.sort_by(&elem(&1, 0))
-  end
-
-  defp canonical_term(term) when is_list(term), do: Enum.map(term, &canonical_term/1)
-  defp canonical_term(term), do: term
+  defp digest(normalized), do: AshSurface.Digest.content_digest(normalized)
 
   defp module_name(module), do: module |> Module.split() |> Enum.join(".")
 end
