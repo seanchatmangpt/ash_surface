@@ -1,0 +1,189 @@
+# AIRo risk description for ash_surface (lane W637, AIRo wiring wave).
+# Vocabulary: https://w3id.org/airo# (AIRo 1.0, DelaramGlp/airo @main, airo.ttl,
+# vendored in xaas at sha256 6274d2d8711e046cf38f1b5b2980188094d4aa87b5af79804005a06468fd8469,
+# DelaramGlp/airo@6c67de43).
+# Subject: the projection surface — ash_surface projects Ash resources into
+# transport/projector surfaces (IR, projectors, compilers, transports) whose every
+# crossing is admitted against a closed standing vocabulary with typed REFUSED_*
+# refusal atoms. Its projected surfaces are consumed by external runtimes, so an
+# unadmitted vocabulary drift or a generated artifact shadowing the lib/ source of
+# truth propagates unfaithful projections downstream.
+#
+# Every "VIA <path>" below is a real path in this repository at authoring time;
+# test/airo_risk_description_test.exs asserts their existence.
+
+@prefix airo: <https://w3id.org/airo#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix w637: <https://chatman-ecosystem.dev/airo/ash-surface#> .
+
+#################################################################
+# The AI system
+#################################################################
+
+w637:ProjectionSurface a airo:AISystem ;
+    rdfs:label "ash_surface projection surface (IR, projectors, compilers, transports under standing admission)"@en ;
+    dcterms:description """Projection system: Ash resource extensions are projected into
+    an intermediate representation and then into projector/compiler/transport surfaces
+    (including a JS/zod decode boundary), with every status crossing admitted against a
+    closed base-standing vocabulary plus a typed REFUSED_* refusal class (a refusal
+    must name its reason — bare :REFUSED is not a standing). Consumers include external
+    runtimes and composition packs, so a vocabulary violation or a generated artifact
+    shadowing lib/ propagates an unfaithful surface downstream."""@en ;
+    airo:hasPurpose "Standing-admitted, vocabulary-clean projection of Ash resources to external surfaces."@en ;
+    airo:hasComponent w637:IrAndProjectors , w637:Compilers , w637:Transports , w637:StandingAdmission ;
+    airo:producesOutput w637:ProjectedSurface ;
+    airo:hasAIUser w637:ExternalRuntimeConsumer ;
+    airo:hasLifecyclePhase w637:ProjectionLifecyclePhase .
+
+w637:ProjectionLifecyclePhase a airo:AILifecyclePhase ;
+    rdfs:label "IR projection, compilation, transport, standing-admitted consumption"@en .
+
+w637:ExternalRuntimeConsumer a airo:AIUser ;
+    rdfs:label "External runtimes and composition packs consuming projected surfaces"@en .
+
+w637:IrAndProjectors a airo:AIComponent ;
+    rdfs:label "IR and projector family (including the JS zod decode boundary)"@en ;
+    dcterms:description "VIA lib/ash_surface/ir/event_projection.ex and lib/ash_surface/projectors/js/zod_guard.ex."@en .
+
+w637:Compilers a airo:AIComponent ;
+    rdfs:label "Compiler assembly of projected surfaces"@en ;
+    dcterms:description "VIA lib/ash_surface/compiler.ex and lib/ash_surface/compiler/."@en .
+
+w637:Transports a airo:AIComponent ;
+    rdfs:label "Transport surface"@en ;
+    dcterms:description "VIA lib/ash_surface/transport.ex."@en .
+
+w637:StandingAdmission a airo:AIComponent ;
+    rdfs:label "Standing/vocabulary admission (closed base standings + REFUSED_* class)"@en ;
+    dcterms:description "VIA lib/ash_surface/standing.ex (validate!, valid?, the :\"REFUSED_*\" refusal class — bare :REFUSED is not a standing) and lib/ash_surface/vocabulary.ex (refusal_code?, refusal_atom?, closed base standings)."@en .
+
+w637:ProjectedSurface a airo:Output ;
+    rdfs:label "Projected surfaces crossing to external runtimes and packs"@en .
+
+#################################################################
+# Risk sources (real, documented hazards)
+#################################################################
+
+# RS-1: generated-code shadowing — the fixtureOnly guard class.
+w637:GeneratedCodeShadowing a airo:Hazard ;
+    rdfs:label "Generated or projected code shadowing the lib/ source of truth"@en ;
+    dcterms:description """A generated artifact that emits or shadows lib/ (the source of
+    truth) silently replaces authoritative surfaces. Documented guard class: the
+    ash-extension-pack's aex:fixtureOnly markers on worked-example specs, with every
+    consumer template filtering on fixtureOnly and the
+    100_projection_isolation_contract.rq gate (ggen-marketplace repo,
+    packs/ash-extension-pack/ontology.ttl and
+    packs/ash-extension-pack/gates/100_projection_isolation_contract.rq — cross-repo,
+    described not VIA). In-repo surfaces of the same hazard: stale test-local shadow
+    doubles were re-pointed at the canonical modules in the finish-determinism-027
+    landing (ledgered in VIA HANDWRITTEN.md); pack-side spec surface VIA
+    ontology.ttl (surf:AshSurfaceSpec, aex:AshExtensionSpec, authorship origin
+    declared in-file: no generated header is present)."""@en ;
+    airo:isRiskSourceFor w637:ProjectionSurface .
+
+# RS-2: vocabulary violation — standings/refusals outside the closed vocabulary.
+w637:VocabularyViolation a airo:Hazard ;
+    rdfs:label "A status crossing uses a standing or refusal outside the closed vocabulary"@en ;
+    dcterms:description """A projected surface crossing carries a standing that is not a
+    closed base standing and not a well-formed :\"REFUSED_*\" atom (bare :REFUSED, an
+    unreasoned refusal, or an injected control character in a refusal code).
+    Standing.validate!/1 raises on non-member standings and the REFUSED class is
+    typed as atoms naming their reason VIA lib/ash_surface/standing.ex;
+    refusal codes are prefix-validated and injection-checked VIA
+    lib/ash_surface/vocabulary.ex. Unbounded drift here lets an unadmitted state be
+    consumed as if admitted."""@en ;
+    airo:isRiskSourceFor w637:ProjectionSurface .
+
+#################################################################
+# Risks, consequences, impacts
+#################################################################
+
+w637:UnfaithfulProjectionRisk a airo:Risk ;
+    rdfs:label "Consumers receive an unfaithful or unadmitted projected surface"@en .
+
+w637:ProjectionSurface airo:hasRisk w637:UnfaithfulProjectionRisk .
+
+w637:UnfaithfulProjectionRisk airo:hasConsequence w637:ShadowedTruthConsequence , w637:UnadmittedStateConsequence .
+
+w637:ShadowedTruthConsequence a airo:Consequence ;
+    rdfs:label "A generated/shadow copy diverges from the authoritative lib/ surface"@en ;
+    airo:hasImpact w637:SurfaceFidelityImpact .
+
+w637:UnadmittedStateConsequence a airo:Consequence ;
+    rdfs:label "A vocabulary-violating state is consumed as if admitted"@en ;
+    airo:hasImpact w637:SurfaceFidelityImpact .
+
+w637:SurfaceFidelityImpact a airo:Impact ;
+    rdfs:label "Loss of fidelity/auditability of surfaces consumed by external runtimes"@en ;
+    airo:hasImpactOnStakeholder w637:ExternalRuntimeConsumer .
+
+w637:ProjectionSurface
+    airo:hasLikelihood w637:LowLikelihood ;
+    airo:hasSeverity w637:MediumSeverity .
+
+w637:LowLikelihood a airo:Likelihood ;
+    rdfs:label "Low (qualitative, post-mitigation: standing admission + court stack)"@en .
+
+w637:MediumSeverity a airo:Severity ;
+    rdfs:label "Medium (qualitative: consumer surface fidelity, auditability)"@en .
+
+#################################################################
+# Risk controls (the real gates)
+#################################################################
+
+w637:ProjectionSurface airo:hasRiskControl
+    w637:StandingValidateAdmission , w637:VocabularyGuard , w637:FixtureOnlyIsolationGuard , w637:SurfaceTestCourts , w637:ZodDecodeBoundaryGuard .
+
+w637:StandingValidateAdmission a airo:RiskControl ;
+    rdfs:label "Standing.validate! admission gate (closed base standings + REFUSED_* class)"@en ;
+    dcterms:description """VIA lib/ash_surface/standing.ex: validate!/1 raises on any
+    standing that is not a closed base standing member and not a :\"REFUSED_*\" atom
+    naming its reason; valid?/1 recognizes the same classes. Courted by VIA
+    test/ash_surface/standing_test.exs and the adversarial court VIA
+    test/ash_surface/standing_evidence_adversarial_test.exs."""@en ;
+    airo:mitigatesRiskConcept w637:VocabularyViolation , w637:UnfaithfulProjectionRisk ;
+    airo:detectsRiskConcept w637:VocabularyViolation .
+
+w637:VocabularyGuard a airo:RiskControl ;
+    rdfs:label "Vocabulary guard: closed base standings, refusal prefix, injection checks, drift court"@en ;
+    dcterms:description """VIA lib/ash_surface/vocabulary.ex (@refusal_prefix "REFUSED_",
+    base_standings/0, refusal_code?/1 validating prefix + injected-character safety)
+    with the drift court VIA test/ash_surface/vocabulary_drift_test.exs and
+    test/ash_surface/vocabulary_test.exs pinning the closed vocabulary against
+    drift."""@en ;
+    airo:mitigatesRiskConcept w637:VocabularyViolation , w637:UnfaithfulProjectionRisk .
+
+w637:FixtureOnlyIsolationGuard a airo:RiskControl ;
+    rdfs:label "fixtureOnly projection-isolation guard (pack law, cross-repo) + in-repo authorship ledger"@en ;
+    dcterms:description """Cross-repo control (described, not VIA): the ash-extension-pack
+    marks worked-example specs aex:fixtureOnly and every consumer template filters on
+    fixtureOnly, gated by packs/ash-extension-pack/gates/100_projection_isolation_contract.rq
+    (ggen-marketplace repo, packs/ash-extension-pack/ontology.ttl) — generated code may
+    not shadow lib/. In-repo: authorship origin is declared in VIA ontology.ttl (no
+    generated header) and the shadow-double repair is ledgered in VIA HANDWRITTEN.md
+    (finish-determinism-027)."""@en ;
+    airo:mitigatesRiskConcept w637:GeneratedCodeShadowing , w637:UnfaithfulProjectionRisk ;
+    airo:detectsRiskConcept w637:GeneratedCodeShadowing .
+
+w637:SurfaceTestCourts a airo:RiskControl ;
+    rdfs:label "Surface court stack (verifier, transformer, spark-parity, composition courts)"@en ;
+    dcterms:description """Real-collaborator ExUnit courts over the projected surface:
+    VIA test/ash_surface_verifier_court_test.exs, VIA
+    test/ash_surface_transformer_court_test.exs, VIA
+    test/ash_surface_spark_parity_court_test.exs, VIA
+    test/ash_surface_composition_court.exs, and this file's structural court VIA
+    test/airo_risk_description_test.exs. These carry the in-repo EU-AI-Act-style
+    corpus role: the 1068-line-id corpus itself lives in the xaas repo
+    (docs/eu_ai_act/corpus.json) — described, not VIA, so the in-repo path check stays
+    truthful."""@en ;
+    airo:mitigatesRiskConcept w637:GeneratedCodeShadowing , w637:VocabularyViolation , w637:UnfaithfulProjectionRisk .
+
+w637:ZodDecodeBoundaryGuard a airo:RiskControl ;
+    rdfs:label "JS zod decode-boundary guard on the JS projector surface"@en ;
+    dcterms:description """VIA lib/ash_surface/projectors/js/zod_guard.ex: the JS
+    projector's decode boundary rejects ambiguous schema members (z.undefined()/
+    z.unknown()) and pins authored fixtures; courted by VIA
+    test/ash_surface/decode_boundary_zod_guard_test.exs."""@en ;
+    airo:mitigatesRiskConcept w637:GeneratedCodeShadowing , w637:UnfaithfulProjectionRisk .
