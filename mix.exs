@@ -1,7 +1,7 @@
 defmodule AshSurface.MixProject do
   use Mix.Project
 
-  @version "26.10.1"
+  @version "26.10.7"
   @source_url "https://github.com/seanchatmangpt/ash_surface"
 
   # The only variables allowed to survive `mix test.zero`'s scrub. Anything

@@ -50,7 +50,7 @@ defmodule AshSurface.IrCodecGoldenTest do
   # Any drift in section shape, field serialization, canonicalization, or the
   # digest pipeline breaks these by design.
   @golden %{
-    full: "e8d492473c13cf190bafa6b39cc0def01b0fc6f7cbafafff8d545b52c0365b11",
+    full: "85c0930c29c970d5b20343b36444eecf6ff76b46ef3789b8e918a70a6f4839c9",
     presentation_only: "eb83ace3025f20235104aecc8b13cb15058580ddcb2adc96115316666b742190"
   }
 
@@ -59,14 +59,14 @@ defmodule AshSurface.IrCodecGoldenTest do
   # JSON null, nil fields inside present sections as null.
   @golden_json %{
     full:
-      ~s'{"ash":{"action":"read","action_type":"read","inputs":[{"name":"id","required":true,"type":"uuid"}],"outputs":{"fields":["id","body"]},"policies":[{"name":"can_read","type":"allow"}],"resource":"AshSurface.GoldenPost"},"capability":{"authority_required":false,"capability_id":"cap:post:read","consequence_class":"OBSERVE","receipt_required":true},"presentation":{"format":"compact","group":"content","label":"Posts","order":1,"widget":"table"},"schema":{"aria":{"label":"Posts","role":"table"},"input":{"properties":{"id":{"type":"string"}},"type":"object"},"output":{"properties":{"body":{"type":"string"}},"type":"object"},"zod":"z.object({ id: z.string().uuid() })"},"semantic":{"capability_iri":"https://ash.surface/c/post#read","ontology":"dfcm","predicates":{"describes":"post","grants":"observe"},"shape_id":"shape:post:read:v1","subject_iri":"https://ash.surface/i/user"},"version":"26.10.1"}',
+      ~s'{"ash":{"action":"read","action_type":"read","inputs":[{"name":"id","required":true,"type":"uuid"}],"outputs":{"fields":["id","body"]},"policies":[{"name":"can_read","type":"allow"}],"resource":"AshSurface.GoldenPost"},"capability":{"authority_required":false,"capability_id":"cap:post:read","consequence_class":"OBSERVE","receipt_required":true},"presentation":{"format":"compact","group":"content","label":"Posts","order":1,"widget":"table"},"schema":{"aria":{"label":"Posts","role":"table"},"input":{"properties":{"id":{"type":"string"}},"type":"object"},"output":{"properties":{"body":{"type":"string"}},"type":"object"},"zod":"z.object({ id: z.string().uuid() })"},"semantic":{"capability_iri":"https://ash.surface/c/post#read","ontology":"dfcm","predicates":{"describes":"post","grants":"observe"},"shape_id":"shape:post:read:v1","subject_iri":"https://ash.surface/i/user"},"version":"26.10.7"}',
     presentation_only:
       ~s'{"ash":null,"capability":null,"presentation":{"format":null,"group":null,"label":"Dumb screen","order":null,"widget":null},"schema":null,"semantic":null,"version":null}'
   }
 
   defp full_ir do
     ir = %IR{
-      version: "26.10.1",
+      version: "26.10.7",
       ash: %IR.Ash{
         resource: "AshSurface.GoldenPost",
         action: "read",
@@ -143,7 +143,7 @@ defmodule AshSurface.IrCodecGoldenTest do
        %{base | presentation: %{base.presentation | order: 2}}},
       {"schema: one field (zod string change)", base,
        %{base | schema: %{base.schema | zod: "z.object({ id: z.string() })"}}},
-      {"version: 26.10.1 -> 27.0.0", base, %{base | version: "27.0.0"}},
+      {"version: 26.10.7 -> 27.0.0", base, %{base | version: "27.0.0"}},
       {"honesty: nil ash section -> present-but-all-nil-fields ash section", minimal,
        %{minimal | ash: %IR.Ash{}}},
       {"honesty: present presentation section -> nil section", minimal,
@@ -234,7 +234,7 @@ defmodule AshSurface.IrCodecGoldenTest do
 
     test "nil version serializes as nil (honest, key present)" do
       assert Codec.to_map(build(:presentation_only))["version"] == nil
-      assert Codec.to_map(build(:full))["version"] == "26.10.1"
+      assert Codec.to_map(build(:full))["version"] == "26.10.7"
     end
 
     test "nil fields inside a present section serialize as null, never dropped" do

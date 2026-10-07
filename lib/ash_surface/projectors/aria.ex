@@ -45,7 +45,7 @@ defmodule AshSurface.Projectors.ARIA do
   alias AshSurface.IR
   alias AshSurface.Projector.IREntry
 
-  @calver "26.10.1"
+  @calver "26.10.7"
   @default_prefix "ash_surface_aria"
   @politeness ~w(polite assertive off)
   @reserved ~w(inputs live role)

@@ -83,7 +83,7 @@ defmodule AshSurface.Projectors.JS do
   # Top-level bindings this artifact declares itself.
   @artifact_bindings ~w(z ACTIONS SCHEMAS NAMESPACES getAction dispatchIntent)
 
-  @calver "26.10.1"
+  @calver "26.10.7"
   @default_prefix "ash_surface_client"
 
   @doc """
@@ -491,10 +491,18 @@ defmodule AshSurface.Projectors.JS do
     export function dispatchIntent(id, input) {
       const action = getAction(id);
       if (action === null) {
-        throw new Error("REFUSED_UNKNOWN_ACTION: " + id);
+        throw Object.assign(new Error("REFUSED_UNKNOWN_ACTION: " + id), {
+          refusal: "REFUSED_UNKNOWN_ACTION",
+          standing: "BLOCKED",
+          detail: { actionId: id },
+        });
       }
       if (action.descriptorKind !== "DISPATCH_INTENT") {
-        throw new Error("REFUSED_NOT_DO_BOUNDARY: " + id + " has descriptorKind " + action.descriptorKind);
+        throw Object.assign(new Error("REFUSED_NOT_DO_BOUNDARY: " + id + " has descriptorKind " + action.descriptorKind), {
+          refusal: "REFUSED_NOT_DO_BOUNDARY",
+          standing: "BLOCKED",
+          detail: { actionId: id, descriptorKind: action.descriptorKind },
+        });
       }
       const parsed = action.schema ? action.schema.parse(input) : input;
       return Object.freeze({ kind: "DISPATCH_INTENT", actionId: id, input: parsed });

@@ -155,6 +155,62 @@ defmodule AshSurface.Projectors.JsProjectorTest do
     end
   end
 
+  describe "structured refusal objects" do
+    test "emitted dispatchIntent refusals carry a machine-readable refusal property", %{
+      bridge_code: code
+    } do
+      # Error type/message strings are unchanged (message-regex catch sites in
+      # test/js keep working); the structured payload is additive.
+      assert code =~ ~s(refusal: "REFUSED_UNKNOWN_ACTION")
+      assert code =~ ~s(refusal: "REFUSED_NOT_DO_BOUNDARY")
+      assert code =~ ~s(standing: "BLOCKED")
+      assert code =~ ~s(detail: { actionId: id })
+      assert code =~ "Object.assign(new Error(\"REFUSED_UNKNOWN_ACTION: \" + id)"
+      refute code =~ ~s(throw new Error("REFUSED_)
+    end
+
+    test "the materialized bridge throws structured refusal errors at runtime", %{
+      bridge_code: _code
+    } do
+      # Chicago: execute the real emitted artifact, assert on the thrown state.
+      dir = Path.join(File.cwd!(), @bridge_dir)
+      assert File.exists?(Path.join(dir, @default_artifact))
+
+      {script, status} =
+        System.cmd(
+          "node",
+          [
+            "--input-type=module",
+            "-e",
+            """
+            import { dispatchIntent } from #{inspect(Path.join(dir, @default_artifact))};
+            const cases = [
+              "Nope.missing",
+              "Todo.list",
+            ];
+            for (const id of cases) {
+              try {
+                dispatchIntent(id, {});
+                throw new Error("expected refusal for " + id);
+              } catch (e) {
+                if (!/^REFUSED_/.test(e.message) || typeof e.refusal !== "string" ||
+                    !e.refusal.startsWith("REFUSED_") || e.standing !== "BLOCKED" ||
+                    e.detail.actionId !== id) {
+                  throw new Error("unstructured refusal for " + id + ": " + JSON.stringify({refusal: e.refusal, standing: e.standing, detail: e.detail}));
+                }
+              }
+            }
+            console.log("structured-refusals-ok");
+            """,
+          ],
+          cd: dir
+        )
+
+      assert status == 0, "node runtime check failed:\n#{script}"
+      assert String.trim(script) == "structured-refusals-ok"
+    end
+  end
+
   describe "byte determinism" do
     test "repeated projection over the same IR is byte-identical", %{bridge_code: code} do
       {name, first} = project_code(fixture_irs())

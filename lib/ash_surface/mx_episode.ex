@@ -1,6 +1,6 @@
 defmodule AshSurface.MXEpisode do
   @moduledoc """
-  Composed Machine Experience (MX) closed-loop episode (mx-episode-schema@v26.10.1).
+  Composed Machine Experience (MX) closed-loop episode (mx-episode-schema@v26.10.7).
 
   `compose/1` binds the already-content-addressed parts of one closed loop —
   the observation digest, the PlanningEpisode, the MX receipt hash, the Event,
@@ -15,7 +15,7 @@ defmodule AshSurface.MXEpisode do
 
   The mx-episode-schema verifier is vendored in-repo at
   `priv/verifier/verify_closure_episode.py` (re-bound from repo-closure@v26.9.13
-  to v26.10.1). `verify_file/1` and `verify/1` run it unconditionally: the
+  to v26.10.7). `verify_file/1` and `verify/1` run it unconditionally: the
   previous arrangement pointed tests at an external marketplace checkout
   guarded by `if File.exists?/1`, where an absent checkout silently skipped the
   independent check (fail-open). There is no external dependency and no skip

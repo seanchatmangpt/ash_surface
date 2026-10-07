@@ -11,7 +11,7 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
   -> ZOELA receives resulting event (EventProjection)
   -> MX episode closes (Composed MX receipt envelope)
   -> episode replays against exact CalVer/digests using the vendored in-repo
-     verify_closure_episode.py (mx-episode-schema@v26.10.1): the check runs
+     verify_closure_episode.py (mx-episode-schema@v26.10.7): the check runs
      unconditionally — a missing external checkout can no longer fail-open-skip
      it (finish-experience-023)
   """
@@ -106,7 +106,7 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
     }
 
     assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: profile)
-    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.10.1"
+    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.10.7"
 
     contract_path = Path.join(@tmp_dir, "contract.json")
     receipt_path = Path.join(@tmp_dir, "receipt.json")
@@ -151,11 +151,11 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
       "episode_id" => "MXEpisode/2026-09-13/000002",
       "subject_repo" => "seanchatmangpt/ash_surface",
       "subject_head" => "00f14b1b966900aa129f16a2e51727ef697823ec",
-      "pattern_version" => "v26.10.1",
-      "domain_version" => "v26.10.1",
-      "hddl_version" => "v26.10.1",
-      "fond_version" => "v26.10.1",
-      "verifier_version" => "v26.10.1",
+      "pattern_version" => "v26.10.7",
+      "domain_version" => "v26.10.7",
+      "hddl_version" => "v26.10.7",
+      "fond_version" => "v26.10.7",
+      "verifier_version" => "v26.10.7",
       "selected_decomposition" => [
         "observe_state",
         "project_candidates",
@@ -198,7 +198,7 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
     assert {:ok, :valid} = MXEpisode.verify(composed)
 
     # 9. Step 9: Replay Verification with the vendored in-repo Python verifier
-    # (mx-episode-schema@v26.10.1) — unconditional, never skipped.
+    # (mx-episode-schema@v26.10.7) — unconditional, never skipped.
     assert {:ok, :valid} = MXEpisode.verify_file(episode_path)
   end
 end

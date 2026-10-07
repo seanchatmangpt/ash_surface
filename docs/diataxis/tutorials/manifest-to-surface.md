@@ -45,11 +45,11 @@ The contract map is
 
 ```elixir
 %{
-  "surfaceSchemaVersion" => "26.10.1",
+  "surfaceSchemaVersion" => "26.10.7",
   "ashManifestSchemaVersion" => Ash.Info.Manifest.schema_version(),
-  "generatorIdentity" => "ash_surface:v26.10.1",
+  "generatorIdentity" => "ash_surface:v26.10.7",
   "manifestDigest" => ...,   # digest of the serialized Ash manifest
-  "marketplaceIdentity" => "ggen-marketplace:v26.10.1 CalVer",
+  "marketplaceIdentity" => "ggen-marketplace:v26.10.7 CalVer",
   "manifest" => ...,          # Ash-owned semantics, serialized by Ash
   "surface" => %{"profile" => ..., "actions" => [...]},
 }

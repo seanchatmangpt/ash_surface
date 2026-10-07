@@ -1,11 +1,11 @@
-# Reference: Public API of ash_surface 26.10.1
+# Reference: Public API of ash_surface 26.10.7
 
 Every entry below was verified against the cited file at HEAD. No invented
 APIs; anything not listed here is not a public surface.
 
 ## Top-level module: `AshSurface` (`lib/ash_surface.ex`)
 
-Constants: `AshSurface.schema_version/0` → `"26.10.1"`.
+Constants: `AshSurface.schema_version/0` → `"26.10.7"`.
 
 | Function | Signature | Notes |
 |---|---|---|
@@ -83,7 +83,7 @@ All declare `@behaviour AshSurface.Projector.IR` and implement `project_ir/2`.
   `verify/1`, `verify_file/1` over the vendored verifier
   `priv/verifier/verify_closure_episode.py` (no skip path, no fail-open).
   Thirteen top-level mx-episode-schema fields; CalVer fields pinned to
-  `v26.10.1`.
+  `v26.10.7`.
 - `canonical_json.ex` — `AshSurface.CanonicalJSON.encode/1` — the one
   canonical-JSON law (string-keyed, key-sorted, order-preserving lists).
 - `standing.ex` / `vocabulary.ex` — closed vocabularies: base standings
@@ -101,7 +101,7 @@ All declare `@behaviour AshSurface.Projector.IR` and implement `project_ir/2`.
 
 ## JavaScript runtime (`priv/static/ash_surface_runtime.mjs`)
 
-- `SURFACE_RUNTIME_VERSION = "26.10.1"`; supported surface majors `[0, 26]`
+- `SURFACE_RUNTIME_VERSION = "26.10.7"`; supported surface majors `[0, 26]`
 - `createClient(options)` (line 321): stable `actions[id]`, `resources[resource][action]` namespaces, Zod boundary validation, adaptive transport selection before dispatch, receipts `SUCCESS | UNKNOWN_AFTER_DISPATCH`, reconcile statuses `COMPLETED | NOT_OBSERVED | STILL_UNKNOWN`, bounded dispatch (`timeoutMs`, `signal`)
 - Frozen `VOCABULARY` export; `STANDING_VALUES`
 - Idempotency helpers: `validateIdempotencyKey` (line 800),

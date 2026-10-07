@@ -27,11 +27,11 @@ defmodule AshSurface.Projector.ExpoReceiptsHashTest do
 
   # The named content fields of the envelope fixture, hand-sorted for the
   # canonical bytes. receiptHash itself is deliberately absent.
-  @expected_preimage ~s({"actionId":"Zoela.KingdomNeed#select_option","actorRef":"member_zoela_01","authorityBoundary":"SELECT","correlationId":"cmd_rh_038","domainReceiptRef":"rcpt_srv_9","episodeId":"ep_2026_09_17_001","evidenceRefs":["ev_1","ev_2"],"exactSubject":"Zoela.KingdomNeed:need_42","inputDigest":"in_d3","outcome":"COMPLETED","policyRef":"pol/v26.10.1","postStateDigest":"sd_post_b2","preStateDigest":"sd_pre_a1","replayKey":"rk_001","semanticActionId":"zoe:SelectOption","standingAfter":"ALIVE","standingBefore":"ALIVE","taskNetworkRef":"tn_7","timestamp":"2026-09-17T06:30:00Z","transportReceipt":{"dispatchState":"completed","selected":"http"}})
+  @expected_preimage ~s({"actionId":"Zoela.KingdomNeed#select_option","actorRef":"member_zoela_01","authorityBoundary":"SELECT","correlationId":"cmd_rh_038","domainReceiptRef":"rcpt_srv_9","episodeId":"ep_2026_09_17_001","evidenceRefs":["ev_1","ev_2"],"exactSubject":"Zoela.KingdomNeed:need_42","inputDigest":"in_d3","outcome":"COMPLETED","policyRef":"pol/v26.10.7","postStateDigest":"sd_post_b2","preStateDigest":"sd_pre_a1","replayKey":"rk_001","semanticActionId":"zoe:SelectOption","standingAfter":"ALIVE","standingBefore":"ALIVE","taskNetworkRef":"tn_7","timestamp":"2026-09-17T06:30:00Z","transportReceipt":{"dispatchState":"completed","selected":"http"}})
 
   # Golden vector computed independently of both runtimes:
   # `shasum -a 256` over the literal above.
-  @golden_hash "d67e3a2c576f5e489398798c1bb4fa99cbaf0e83131295ab323ee648899e2a13"
+  @golden_hash "bde4078aadd38adc04d8f94424d6353e907805849c4aa9950664346fe43942d3"
 
   # Canonical insertion order (matches the sorted literal).
   @content_pairs [
@@ -45,7 +45,7 @@ defmodule AshSurface.Projector.ExpoReceiptsHashTest do
     {"exactSubject", "Zoela.KingdomNeed:need_42"},
     {"inputDigest", "in_d3"},
     {"outcome", "COMPLETED"},
-    {"policyRef", "pol/v26.10.1"},
+    {"policyRef", "pol/v26.10.7"},
     {"postStateDigest", "sd_post_b2"},
     {"preStateDigest", "sd_pre_a1"},
     {"replayKey", "rk_001"},

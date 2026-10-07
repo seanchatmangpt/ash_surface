@@ -26,7 +26,7 @@ defmodule AshSurface.IRCodecCoverageTest do
 
   test "integer map keys in a section field stage to their string form and round-trip" do
     ir = %IR{
-      version: "26.10.1",
+      version: "26.10.7",
       schema: %IR.Schema{zod: %{1 => "first", 2 => %{3 => :three}}}
     }
 
