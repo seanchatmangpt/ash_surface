@@ -13,3 +13,35 @@ erl_crash.dump
 # mix test --cover HTML output
 **/cover/
 _build-pub/
+# Root-manifest ggen sync outputs (ggen.toml: ontology.ttl + ash-extension
+# pack @baa5f117). These are downstream-consumer installer/extension products,
+# never ash_surface repo content: (1) zero commit history at every path;
+# (2) CI (manufacture.yml -> ggen-sync-run.yml) treats them as ephemeral
+# receipt evidence, never commits them; (3) generated lib/ash_r2rml/*.ex
+# would collide with the real ash_r2rml dependency's modules (e.g.
+# AshR2RML.Resource also in deps/ash_r2rml/lib/ash_r2rml/resource.ex).
+# Fix drift in the pack/ontology, not here.
+.ggen/
+.ggen-v2/
+.clap-noun-verb/
+ggen.lock
+lib/ash_r2rml/
+lib/audit_trail/
+lib/notification_extension/
+lib/ash_surface/info.ex
+lib/ash_surface/persist.ex
+lib/ash_surface/resource.ex
+lib/ash_surface/verify.ex
+lib/mix/tasks/ash_r2rml.install.ex
+lib/mix/tasks/ash_surface.install.ex
+lib/mix/tasks/audit_trail.install.ex
+lib/mix/tasks/notification_extension.install.ex
+test/ash_r2rml_composition_test.exs
+test/ash_surface_composition_test.exs
+test/audit_trail_composition_test.exs
+test/notification_extension_composition_test.exs
+
+# lane-lease build roots (fan-out campaign)
+target/
+_build-lane*/
+target-lane*/
