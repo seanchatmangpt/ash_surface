@@ -1,0 +1,47 @@
+{
+  "capabilities": {
+    "extendedAgentCard": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false,
+    "streaming": true
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "description": "ash_surface MX/agent surface projection (ash_surface v26.10.8)",
+  "name": "ash_surface",
+  "skills": [
+    {
+      "description": "read action :read on AgentCardRegen.Fixture.VolunteerMilestone (no arguments)",
+      "id": "AgentCardRegen.Fixture.VolunteerMilestone.read",
+      "name": "read",
+      "tags": [
+        "read"
+      ]
+    },
+    {
+      "description": "create action :record on AgentCardRegen.Fixture.VolunteerMilestone (arguments: member_id, milestone_id, cost_physical, reward_spiritual)",
+      "id": "AgentCardRegen.Fixture.VolunteerMilestone.record",
+      "name": "record",
+      "tags": [
+        "create",
+        "member_id",
+        "milestone_id",
+        "cost_physical",
+        "reward_spiritual"
+      ]
+    }
+  ],
+  "supportedInterfaces": [
+    {
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "0.3.0",
+      "url": "http://localhost:4000"
+    }
+  ],
+  "url": "http://localhost:4000",
+  "version": "26.10.8"
+}
