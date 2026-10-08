@@ -64,7 +64,10 @@ defmodule AshSurface.A2ABridge do
                 opts,
                 :description,
                 "ash_surface MX/agent surface projection " <>
-                  "(ash_surface v" <> AshSurface.schema_version() <> ")"
+                  "(ash_surface v" <> AshSurface.schema_version() <> "). " <>
+                  "Authority: this card is descriptive only and grants no " <>
+                  "authority; consequential DO is reachable only through a " <>
+                  "receipted admission boundary."
               ),
             url: Keyword.get(opts, :url, "http://localhost:4000"),
             version: Keyword.get(opts, :version, AshSurface.schema_version())

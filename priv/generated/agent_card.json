@@ -11,7 +11,7 @@
   "defaultOutputModes": [
     "text/plain"
   ],
-  "description": "ash_surface MX/agent surface projection (ash_surface v26.10.8)",
+  "description": "ash_surface MX/agent surface projection (ash_surface v26.10.8). Authority: this card is descriptive only and grants no authority; consequential DO is reachable only through a receipted admission boundary.",
   "name": "ash_surface",
   "skills": [
     {
@@ -42,6 +42,5 @@
       "url": "http://localhost:4000"
     }
   ],
-  "url": "http://localhost:4000",
   "version": "26.10.8"
 }

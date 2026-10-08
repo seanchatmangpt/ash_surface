@@ -35,7 +35,6 @@ defmodule AshSurface.AgentCardArtifact do
     base = %{
       "name" => card.name,
       "description" => card.description,
-      "url" => card.url,
       "version" => card.version,
       "protocolVersion" => card.protocol_version,
       "capabilities" => atom_key_map(card.capabilities),
