@@ -350,3 +350,51 @@ the zero-config story, add `mix test.zero`,
 code ALIVE without an exact consumer execution receipt; never report an
 **[INTEGRATION]** path — a path absent from this branch by design — green
 from this branch; the no-local-DO tripwire runs inside `mix test`).
+
+## Withheld court battery (v26.10.8 campaign)
+
+19 untracked `test/*_court_test.exs` files are deliberately withheld from the
+tracked suite and from `mix test` runs. They are the fixture-backed
+composition/parity/transformer/verifier/igniter court battery generated during
+the v26.10.8 campaign (classification per commit `084011901`); only the 10
+now-green courts (49 tests) landed with `fixture/` in that commit. The
+remaining 19 stay in-tree untracked — the working tree is the durable copy;
+the `/tmp/ash_surface_court_quarantine/` backup is ephemeral.
+
+### Why withheld
+
+- **Spark 2.7.3 docs-gen compile-abort (upstream dep)**:
+  `ash_a2a_verifier_court_test` — `Spark.Options.Docs.get_raw_type_str/1`
+  raises `FunctionClauseError` at test-file compile time, aborting the whole
+  test compile. Blocked on a spark upstream fix.
+- **transformer-source-not-mounted (invalid setup_all)**:
+  `ash_a2a/audit_trail/notification_extension transformer_court_test` — no
+  `lib/generated` sources mounted in the test env. The courts honor
+  `COURT_TRANSFORMER_SOURCE`/`COURT_TRANSFORMER` env overrides for
+  anti-vacuity mutant runs; setting `COURT_TRANSFORMER_SOURCE` to a real
+  generated source is one unblock path.
+- **Persist transformer runtime error (logical table)**:
+  `ash_r2rml` verifier/transformer/spark_parity/composition courts.
+- **parity/verifier reds**: remaining `*_spark_parity_*` /
+  `*_verifier_court_test` (audit_trail, notification_extension, ash_surface),
+  `*_composition_test.exs` x3, `ash_a2a_spark_parity` — extension absent from
+  the compiled fixture surface, DSL structs missing, no `aex:Verifier` rows.
+  Two of these are genuine reds (real failures, not compile-aborts).
+- **igniter idempotence courts**: install tasks absent (r2rml, audit_trail,
+  notification_extension) / scratch-app dep compile fails on
+  `lib/ash_surface/mx_episode.ex` (`AshSurface.schema_version/0` undefined).
+- **aex_spark_dead_surface_court**: 1/1 failed with `AEX_PACK_ROOT` set.
+
+### Quarantine protocol (used during the version bump)
+
+During the spark 2.7.3 bump the whole battery was moved to
+`/tmp/ash_surface_court_quarantine/test/` so `mix test` could run clean, then
+restored byte-identical into `test/`. Verify with `diff -r` before/after;
+never let the quarantine step mutate file content.
+
+### Unblock conditions
+
+- spark upstream fix for `Spark.Options.Docs.get_raw_type_str/1`
+- `COURT_TRANSFORMER_SOURCE` pointing at mounted generated sources
+- the `fixture/burn_in/` landing decision (currently untracked, referenced by
+  no landed court)
