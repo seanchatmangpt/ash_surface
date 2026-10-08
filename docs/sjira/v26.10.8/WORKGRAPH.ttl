@@ -1,0 +1,97 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Canonical RDF for the v26.10.8 fleet campaign on seanchatmangpt/ash_surface.
+# One sj:WorkOrder per campaign work order, grounded in landed commits on
+# main. Shape follows the xaas v26.10.8 canonical workgraph and this repo's
+# archived docs/sjira/v26.10.3/ARD-PRD.ttl vocabulary (GoalCheckpoint,
+# AcceptanceCriterion, Falsifier). Standing is NOT asserted here: it is
+# observed state, projected from the per-commit court evidence named in each
+# order. This graph grants no authority and claims no standing; standing
+# belongs to independent exact-subject courts, not to this document.
+
+sj:WorkOrder a rdfs:Class .
+sj:AcceptanceCriterion a rdfs:Class .
+sj:Falsifier a rdfs:Class .
+sj:DependencyEdge a rdfs:Class .
+
+<#WO-ASHSURF-26108-1> a sj:WorkOrder ;
+    sj:identity "ASHSURF-26108-1" ;
+    dcterms:title "Land the fixture-backed court battery" ;
+    dcterms:description "Land the withheld v26.10.8 campaign court battery with its real fixture corpus (composition specimens alpha/beta/alpha_clash, order_recorder, info mutants, malformed specimens for duplicate event name, duplicate singleton, missing persisted compiled, unknown entity, unknown section) so every campaign court executes over real collaborators, not stubs." ;
+    sj:subject "fixture-backed-court-battery" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:baseSha "1b09218750d7cd9d8b6036f34ff99fb15f317c0e" ;
+    sj:landedCommit "008f0d77589aa5615089d39ca1e777e73a270464", "68f77041b", "084011901adda8f004d98e757bbef684b6def94e" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:promotionRule "verified_by_required_courts_then_receipted" ;
+    sj:replayIdentity "sjira-v26.10.8-ASHSURF-26108-1" ;
+    sj:authorityRequirement "NONE" ;
+    sj:requiredCourt "tests", "compile" ;
+    sj:requiredEvidence "command_exit_codes", "real_output" ;
+    sj:acceptanceItem [ a sj:AcceptanceCriterion ; sj:index 0 ; dcterms:description "mix test executes the landed battery over fixture/composition_specimens and fixture/malformed_specimens with 0 failures on the exact subject 084011901adda8f004d98e757bbef684b6def94e" ] ;
+    sj:falsifierItem [ a sj:Falsifier ; sj:index 0 ; dcterms:description "a landed court passes with fixtures absent or stubbed instead of the real specimen corpus" ], [ a sj:Falsifier ; sj:index 1 ; dcterms:description "any landed court fails on the exact subject 084011901adda8f004d98e757bbef684b6def94e" ] ;
+    sj:projection "jira", "verification" ;
+    sj:pathScope "fixture test docs/sjira" .
+
+<#WO-ASHSURF-26108-2> a sj:WorkOrder ;
+    sj:identity "ASHSURF-26108-2" ;
+    dcterms:title "Persist the serialized A2A agent card as a regenerable artifact" ;
+    dcterms:description "Add AshSurface.AgentCardArtifact (lib/ash_surface/agent_card_artifact.ex) persisting the serialized agent card to priv/generated/agent_card.json, with the lawful regenerator scripts/agent_card_regen.exs and a real execution court (test/ash_surface/agent_card_artifact_test.exs); cross-reference the a2a bridge surface from the docs (1b09218750d7cd9d8b6036f34ff99fb15f317c0e)." ;
+    sj:subject "a2a-agent-card-artifact-and-how-to" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:baseSha "68f77041b" ;
+    sj:landedCommit "1b09218750d7cd9d8b6036f34ff99fb15f317c0e", "8bc9b75095ba54cd2df746951b0734a333a7b353" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:promotionRule "verified_by_required_courts_then_receipted" ;
+    sj:replayIdentity "sjira-v26.10.8-ASHSURF-26108-2" ;
+    sj:authorityRequirement "NONE" ;
+    sj:requiredCourt "tests", "compile" ;
+    sj:requiredEvidence "command_exit_codes", "real_output" ;
+    sj:acceptanceItem [ a sj:AcceptanceCriterion ; sj:index 0 ; dcterms:description "running scripts/agent_card_regen.exs reproduces priv/generated/agent_card.json byte-identically, and test/ash_surface/agent_card_artifact_test.exs passes with 0 failures on 8bc9b75095ba54cd2df746951b0734a333a7b353" ] ;
+    sj:falsifierItem [ a sj:Falsifier ; sj:index 0 ; dcterms:description "regeneration produces bytes that differ from the committed priv/generated/agent_card.json" ], [ a sj:Falsifier ; sj:index 1 ; dcterms:description "the committed agent card was hand-edited instead of emitted by scripts/agent_card_regen.exs" ] ;
+    sj:projection "jira", "verification" ;
+    sj:pathScope "lib/ash_surface/agent_card_artifact.ex priv/generated scripts/agent_card_regen.exs test/ash_surface/agent_card_artifact_test.exs README.md" .
+
+<#WO-ASHSURF-26108-3> a sj:WorkOrder ;
+    sj:identity "ASHSURF-26108-3" ;
+    dcterms:title "Witness the bidirectional nav-coverage court" ;
+    dcterms:description "Add docs/diataxis/README.md as the documentation nav index and the bidirectional nav-coverage court (test/docs_nav_coverage_test.exs) binding each index entry to a real disk path in both directions (008f0d77589aa5615089d39ca1e777e73a270464)." ;
+    sj:subject "diataxis-nav-court" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:baseSha "1b09218750d7cd9d8b6036f34ff99fb15f317c0e" ;
+    sj:landedCommit "008f0d77589aa5615089d39ca1e777e73a270464" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:promotionRule "verified_by_required_courts_then_receipted" ;
+    sj:replayIdentity "sjira-v26.10.8-ASHSURF-26108-3" ;
+    sj:authorityRequirement "NONE" ;
+    sj:requiredCourt "tests" ;
+    sj:requiredEvidence "command_exit_codes", "real_output" ;
+    sj:acceptanceItem [ a sj:AcceptanceCriterion ; sj:index 0 ; dcterms:description "mix test test/docs_nav_coverage_test.exs prints 0 failures, with every docs/diataxis/README.md entry resolving to an existing disk path and every doc file reachable from the index" ] ;
+    sj:falsifierItem [ a sj:Falsifier ; sj:index 0 ; dcterms:description "a nav index entry names a path that does not exist on disk" ], [ a sj:Falsifier ; sj:index 1 ; dcterms:description "a diataxis doc file exists on disk with no inbound index entry" ] ;
+    sj:projection "jira", "verification" ;
+    sj:pathScope "docs/diataxis/README.md test/docs_nav_coverage_test.exs" ;
+    sj:dependency [ a sj:DependencyEdge ; sj:upstream "ASHSURF-26108-1" ; sj:dependencyType "requiresReceipt" ] .
+
+<#WO-ASHSURF-26108-4> a sj:WorkOrder ;
+    sj:identity "ASHSURF-26108-4" ;
+    dcterms:title "Release v26.10.8: CalVer bump across carriers" ;
+    dcterms:description "Bump the release version 26.10.1 -> 26.10.8 via bump_version.sh across all version carriers (mix.exs, conformance MANIFEST lawVersion, conformance vectors, docs version references) per 061b1e9a6dfc83f3a3fdb0899cec898111ce9a3a." ;
+    sj:subject "v26108-calver-bump" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:baseSha "008f0d77589aa5615089d39ca1e777e73a270464" ;
+    sj:landedCommit "061b1e9a6dfc83f3a3fdb0899cec898111ce9a3a" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:promotionRule "verified_by_required_courts_then_receipted" ;
+    sj:replayIdentity "sjira-v26.10.8-ASHSURF-26108-4" ;
+    sj:authorityRequirement "NONE" ;
+    sj:requiredCourt "compile", "tests" ;
+    sj:requiredEvidence "command_exit_codes", "real_output" ;
+    sj:acceptanceItem [ a sj:AcceptanceCriterion ; sj:index 0 ; dcterms:description "mix.exs @version prints 26.10.8, conformance/MANIFEST.json lawVersion reads 26.10.8, and no version carrier on HEAD still names 26.10.1" ] ;
+    sj:falsifierItem [ a sj:Falsifier ; sj:index 0 ; dcterms:description "a version carrier still names a pre-26.10.8 version on HEAD" ], [ a sj:Falsifier ; sj:index 1 ; dcterms:description "a conformance vector digest no longer verifies after the bump" ] ;
+    sj:projection "jira", "receipt" ;
+    sj:pathScope "mix.exs conformance docs" ;
+    sj:dependency [ a sj:DependencyEdge ; sj:upstream "ASHSURF-26108-1" ; sj:dependencyType "requiresReceipt" ] .
