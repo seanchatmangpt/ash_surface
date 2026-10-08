@@ -37,7 +37,7 @@ defmodule AshSurface.DigestParityFixtureTest do
 
   defp parsed do
     document = Jason.decode!(on_disk_bytes())
-    assert %{"generator" => _, "lawVersion" => "26.10.7", "tables" => tables} = document
+    assert %{"generator" => _, "lawVersion" => "26.10.8", "tables" => tables} = document
     tables
   end
 

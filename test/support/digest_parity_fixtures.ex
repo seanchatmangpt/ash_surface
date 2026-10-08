@@ -259,9 +259,9 @@ defmodule AshSurface.DigestParityFixtures do
     ir_staging = %{
       "ash" => staging_actions,
       "semantic" => %{
-        "generatorIdentity" => "ash_surface:v26.10.7",
+        "generatorIdentity" => "ash_surface:v26.10.8",
         "manifestDigest" => Map.fetch!(c2.contract, "manifestDigest"),
-        "surfaceSchemaVersion" => "26.10.7"
+        "surfaceSchemaVersion" => "26.10.8"
       },
       "capability" => nil,
       "presentation" => %{"audience" => "operators"},

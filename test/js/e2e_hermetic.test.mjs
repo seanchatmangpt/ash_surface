@@ -109,9 +109,9 @@ function quarantineNetworkSurfaces() {
 
 function makeSurfaceContract() {
   return {
-    surfaceSchemaVersion: "26.10.7",
+    surfaceSchemaVersion: "26.10.8",
     ashManifestSchemaVersion: "1.1.0",
-    generatorIdentity: "ash_surface:v26.10.7",
+    generatorIdentity: "ash_surface:v26.10.8",
     manifest: {
       resources: [{ name: "KingdomNeed", module: "Zoela.KingdomNeed" }],
     },

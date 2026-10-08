@@ -882,7 +882,7 @@ defmodule ConformanceRegen do
 
   defp full_ir do
     %IR{
-      version: "26.10.7",
+      version: "26.10.8",
       ash: %IR.Ash{
         resource: "Conformance.Post",
         action: "read",

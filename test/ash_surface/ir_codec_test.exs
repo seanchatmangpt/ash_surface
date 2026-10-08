@@ -117,7 +117,7 @@ defmodule AshSurface.IrCodecTest do
 
     test "declared sub-shapes stage to field-complete string-keyed maps" do
       ir = %IR{
-        version: "26.10.7",
+        version: "26.10.8",
         ash: %IR.Ash{
           resource: VolunteerMilestone,
           action: :record,

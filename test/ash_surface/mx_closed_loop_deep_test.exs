@@ -27,7 +27,7 @@ defmodule AshSurface.MXClosedLoopDeepTest do
   @runtime_url "file://" <> Path.expand("../../priv/static/ash_surface_runtime.mjs", __DIR__)
   @action_id "AshSurface.Fixtures.VolunteerMilestone#record"
 
-  # Mirrors the mx-episode-schema@v26.10.7 required-field law used by the
+  # Mirrors the mx-episode-schema@v26.10.8 required-field law used by the
   # vendored in-repo verify_closure_episode.py, plus the subject-binding law
   # this repo's episodes must satisfy (every emitted event binds back to the
   # observation's subject).
@@ -339,14 +339,14 @@ defmodule AshSurface.MXClosedLoopDeepTest do
     assert {:ok, _, _} = DateTime.from_iso8601(receipt["timestamp"])
 
     # Contract provenance the receipt is bound to.
-    assert surface.contract["generatorIdentity"] == "ash_surface:v26.10.7"
-    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.10.7"
+    assert surface.contract["generatorIdentity"] == "ash_surface:v26.10.8"
+    assert surface.contract["marketplaceIdentity"] == "ggen-marketplace:v26.10.8"
     assert surface.digest =~ ~r/^[0-9a-f]{64}$/
     assert surface.contract["manifestDigest"] =~ ~r/^[0-9a-f]{64}$/
   end
 
   # ---------------------------------------------------------------------------
-  # Elixir-side episode law (test-local mirror of mx-episode-schema@v26.10.7,
+  # Elixir-side episode law (test-local mirror of mx-episode-schema@v26.10.8,
   # valid on machines where the marketplace verifier checkout is absent)
   # ---------------------------------------------------------------------------
 
@@ -389,11 +389,11 @@ defmodule AshSurface.MXClosedLoopDeepTest do
       "episode_id" => "MXEpisode/2026-09-15/deep000001",
       "subject_repo" => "seanchatmangpt/ash_surface",
       "subject_head" => "00f14b1b966900aa129f16a2e51727ef697823ec",
-      "pattern_version" => "v26.10.7",
-      "domain_version" => "v26.10.7",
-      "hddl_version" => "v26.10.7",
-      "fond_version" => "v26.10.7",
-      "verifier_version" => "v26.10.7",
+      "pattern_version" => "v26.10.8",
+      "domain_version" => "v26.10.8",
+      "hddl_version" => "v26.10.8",
+      "fond_version" => "v26.10.8",
+      "verifier_version" => "v26.10.8",
       "selected_decomposition" => [
         "observe_state",
         "project_candidates",

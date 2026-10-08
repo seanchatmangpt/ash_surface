@@ -14,7 +14,7 @@ defmodule AshSurface.VersionSyncTest do
 
   use ExUnit.Case, async: true
 
-  @golden_version "26.10.7"
+  @golden_version "26.10.8"
   @runtime_rel "priv/static/ash_surface_runtime.mjs"
   @projector_dir "lib/ash_surface/projectors"
 

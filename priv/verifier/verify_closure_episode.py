@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.11
-"""In-repo episode verifier for ash_surface@v26.10.7 (mx-episode-schema@v26.10.7).
+"""In-repo episode verifier for ash_surface@v26.10.8 (mx-episode-schema@v26.10.8).
 
 Vendored (finish-experience-023) from
 ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py
@@ -7,10 +7,10 @@ ggen-marketplace/domains/repo-closure/verifier/verify_closure_episode.py
 fail-open-skip on a missing marketplace checkout: this file ships inside the
 ash_surface OTP application's priv/ directory and runs unconditionally.
 
-Verifies that an MX episode adheres to mx-episode-schema@v26.10.7 and binds
+Verifies that an MX episode adheres to mx-episode-schema@v26.10.8 and binds
 the exact CalVer identities required for replay:
-  Replay = f(SubjectHead, Pattern@v26.10.7, Domain@v26.10.7, HDDL@v26.10.7,
-             FOND@v26.10.7, Verifier@v26.10.7)
+  Replay = f(SubjectHead, Pattern@v26.10.8, Domain@v26.10.8, HDDL@v26.10.8,
+             FOND@v26.10.8, Verifier@v26.10.8)
 
 CLI:
     python3 verify_closure_episode.py <episode.json>
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-EXPECTED_CALVER = "v26.10.7"
+EXPECTED_CALVER = "v26.10.8"
 REQUIRED_FIELDS = {
     "episode_id",
     "subject_repo",
@@ -96,11 +96,11 @@ def main() -> int:
         "episode_id": "MXEpisode/2026-09-17/000001",
         "subject_repo": "seanchatmangpt/ash_surface",
         "subject_head": "00f14b1b966900aa129f16a2e51727ef697823ec",
-        "pattern_version": "v26.10.7",
-        "domain_version": "v26.10.7",
-        "hddl_version": "v26.10.7",
-        "fond_version": "v26.10.7",
-        "verifier_version": "v26.10.7",
+        "pattern_version": "v26.10.8",
+        "domain_version": "v26.10.8",
+        "hddl_version": "v26.10.8",
+        "fond_version": "v26.10.8",
+        "verifier_version": "v26.10.8",
         "selected_decomposition": ["task_regenerate", "task_compile", "task_inspect", "task_emit_receipt"],
         "observed_transitions": [{"step": "compile", "outcome": "pass"}],
         "cost_score": 1.2,

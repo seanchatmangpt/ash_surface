@@ -83,7 +83,7 @@ defmodule AshSurface.Projectors.JS do
   # Top-level bindings this artifact declares itself.
   @artifact_bindings ~w(z ACTIONS SCHEMAS NAMESPACES getAction dispatchIntent)
 
-  @calver "26.10.7"
+  @calver "26.10.8"
   @default_prefix "ash_surface_client"
 
   @doc """

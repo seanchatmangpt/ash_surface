@@ -38,7 +38,7 @@ defmodule AshSurface.Projectors.LiveViewStatesTest do
     capability = Keyword.get(opts, :capability, %{})
 
     %IR{
-      version: "26.10.7",
+      version: "26.10.8",
       digest: "digest-#{resource}-#{action}",
       ash: %IR.Ash{
         resource: resource,
@@ -53,7 +53,7 @@ defmodule AshSurface.Projectors.LiveViewStatesTest do
         capability_iri: "ash:#{resource}##{action}",
         predicates: Keyword.get(opts, :predicates, %{}),
         shape_id: "shape-#{resource}-#{action}",
-        ontology: "ggen-marketplace:v26.10.7"
+        ontology: "ggen-marketplace:v26.10.8"
       },
       capability: %IR.Capability{
         capability_id: "#{resource}##{action}",

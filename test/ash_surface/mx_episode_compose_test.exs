@@ -88,7 +88,7 @@ defmodule AshSurface.MXEpisodeComposeTest do
     assert mx["subject_head"] == @head
 
     for field <- ~w(pattern_version domain_version hddl_version fond_version verifier_version) do
-      assert mx[field] == "v26.10.7"
+      assert mx[field] == "v26.10.8"
       assert mx[field] == MXEpisode.calver()
     end
 
@@ -116,7 +116,7 @@ defmodule AshSurface.MXEpisodeComposeTest do
 
     authorized = Enum.find(transitions, &(&1["step"] == "authorize_candidate"))
     assert authorized["surface_digest"] == loop.surface.digest
-    assert authorized["marketplace_identity"] == "ggen-marketplace:v26.10.7"
+    assert authorized["marketplace_identity"] == "ggen-marketplace:v26.10.8"
 
     actuate = Enum.find(transitions, &(&1["step"] == "actuate"))
 

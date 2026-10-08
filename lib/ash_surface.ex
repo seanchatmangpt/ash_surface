@@ -15,8 +15,8 @@ defmodule AshSurface do
 
   alias Ash.Info.Manifest
 
-  @surface_schema_version "26.10.7"
-  @generator_identity "ash_surface:v26.10.7"
+  @surface_schema_version "26.10.8"
+  @generator_identity "ash_surface:v26.10.8"
 
   defmodule Surface do
     @moduledoc "A verified Ash surface contract and its exact normalized manifest."
@@ -146,7 +146,7 @@ defmodule AshSurface do
       "ashManifestSchemaVersion" => Manifest.schema_version(),
       "generatorIdentity" => @generator_identity,
       "manifestDigest" => manifest_digest,
-      "marketplaceIdentity" => "ggen-marketplace:v26.10.7",
+      "marketplaceIdentity" => "ggen-marketplace:v26.10.8",
       "manifest" => serialized_manifest,
       "surface" => surface_envelope(manifest, profile)
     }
@@ -161,7 +161,7 @@ defmodule AshSurface do
         id = action_id(entrypoint)
         act_prof = Map.get(actions_profile, id, %{})
 
-        # v26.10.7 delegation: semanticId, authorityBoundary, doAuthority, and
+        # v26.10.8 delegation: semanticId, authorityBoundary, doAuthority, and
         # receiptRequired are delegated facts read from the IR section
         # (custom.ash_surface). They are nil when not delegated — never
         # re-derived here.
