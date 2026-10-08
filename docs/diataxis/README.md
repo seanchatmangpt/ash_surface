@@ -13,6 +13,7 @@ Learning-oriented, end-to-end paths:
 Goal-oriented procedures:
 
 - [`how-to/dispatch-intent-safely.md`](how-to/dispatch-intent-safely.md) — record a human intent and dispatch it to a server-side actuation path without ever replaying a consequential action.
+- [`how-to/expose-a2a-agent-card.md`](how-to/expose-a2a-agent-card.md) — project a resource's compiled `AshA2A` capability index onto the A2A wire as an agent-card fragment via `AshSurface.A2ABridge`.
 
 ## Reference
 

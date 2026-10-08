@@ -93,6 +93,12 @@ All declare `@behaviour AshSurface.Projector.IR` and implement `project_ir/2`.
   `[:cost, :latency, :privacy]` with classes `[:low, :medium, :high]`,
   dispatch outcomes `SUCCESS | UNKNOWN_AFTER_DISPATCH`, digest hex length 64.
   Drift-tested against the JS `VOCABULARY` export.
+- `a2a_bridge.ex` — `AshSurface.A2ABridge`: `agent_card_fragment/2`
+  (`{:ok, %A2A.AgentCard{}} | {:error, :not_compiled}`) and `skills/1`
+  (`{:ok, [AshA2A.Skill{}]} | {:error, :not_compiled}`); projects the
+  resource's compiled `AshA2A` capability index, identity defaults
+  overridable via opts; see
+  [how-to/expose-a2a-agent-card.md](../how-to/expose-a2a-agent-card.md).
 - `health.ex` — `check/0`, `check_surface/2`, `to_map/1`, `ready?/0`; OBSERVE-only.
 - `telemetry.ex` — `events/0`, `transport_selected/1`, plus
   `[:ash_surface, :receipt, :refused]` and `[:ash_surface, :intent, :dispatch]`.
