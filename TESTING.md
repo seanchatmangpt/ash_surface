@@ -142,6 +142,33 @@ census:
   `zoe-package`): the extracted human-surface family has its own suites and is
   deliberately not part of `mix test.all`.
 
+### Playwright surface
+
+`npm test` runs hermetically without a browser: the accessibility suite
+(`test/js/playwright_accessibility.test.mjs`) gates on a Playwright runtime and
+reports 4 skipped tests when it is absent. Installing the runtime per the CI
+recipe (`.github/workflows/ci.yml`): `npm install --no-save --package-lock=false
+playwright@1.63.0 && npx playwright install chromium` — admits the gate and the
+suite runs against real headless Chromium over data: URLs (loopback-only, no
+server boot). Witnessed at `main@d55c576d1`: 371/371 pass, 0 skipped (see
+`~/xaas/docs/sjira/v26.10.6/plans/w901-ash-surface-playwright.md`); re-witnessed
+**ALIVE** at HEAD `154385c82` post-W984mf — 2/2 accessibility courts + boundary
+refusals against real Chromium, 0 skips
+(`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md`).
+
+**Verified 2026-10-08** (lane W984ne, tree @ `154385c82`): the W984mf-era stale
+digest fixture (`test/js/fixtures/digest_cross_language_fixtures.json`, which
+pinned `db26ae10…` where the real pipeline and the JS twin both compute
+`532b4a1a…`, causing the 6 `digest_cross_language_v3` failures disclosed in the
+W984mf receipt) has been regenerated in this tree via
+`AshSurface.DigestParityFixtures.encode()`; `npm test` re-run on this tree:
+**371/371 pass, 0 fail, 0 skipped**, accessibility suite admitted against real
+headless Chromium. Receipt:
+`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md`. (The
+W984mk fixture-regen receipt was not yet on disk at verification time; the
+regenerated fixture bytes were verified directly instead. The regenerated fixture landed in the conformance re-pin commit of
+this change.)
+
 ## 2. What Chicago-style means here
 
 These are state-based tests of real modules, not interaction tests of

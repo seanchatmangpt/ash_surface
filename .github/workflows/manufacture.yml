@@ -17,3 +17,119 @@ jobs:
       ggen_asset_sha256: ad4ab79923d17e32960383aaf5fab8e174bc8d0972872cdf1b3ecc5d11ed9e36
       working_directory: .
       dry_run: false
+
+  # Gen-parity gate (mirrors xaas W134): after a real `ggen sync run` on the
+  # exact checked-out subject, TRACKED drift must be zero (`git diff
+  # --exit-code`). Untracked outputs are gitignored per the W37 doctrine and
+  # are not part of this gate — `git diff` without `--no-index` sees tracked
+  # paths only, so the gate cannot be tripped by generated-but-ignored files.
+  # This job exists in the caller rather than inside ggen-sync-run.yml because
+  # that reusable workflow is pinned to ggen's repo (not extensible here) and
+  # its `changed` output is derived from `git status --porcelain`, which
+  # includes untracked files and would false-fail on gitignored-adjacent
+  # outputs. Install/manifest admission mirrors the pinned reusable workflow
+  # (same release, same asset SHA-256, same pack-policy checks).
+  gen-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Admit immutable inputs
+        env:
+          GGEN_RELEASE: v26.9.9
+          GGEN_ASSET_SHA256: ad4ab79923d17e32960383aaf5fab8e174bc8d0972872cdf1b3ecc5d11ed9e36
+        run: |
+          set -euo pipefail
+          test -f ggen.toml || {
+            echo "REFUSED_MANIFEST: missing ggen.toml" >&2
+            exit 1
+          }
+          printf '%s\n' "$GGEN_RELEASE" | grep -Eq '^v[0-9][0-9A-Za-z.+-]*$' || {
+            echo "REFUSED_GGEN_RELEASE" >&2
+            exit 1
+          }
+          printf '%s\n' "$GGEN_ASSET_SHA256" | grep -Eq '^[0-9a-f]{64}$' || {
+            echo "REFUSED_GGEN_DIGEST" >&2
+            exit 1
+          }
+
+      - name: Admit only exact ggen-marketplace Git packs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import tomllib
+          from pathlib import Path, PurePosixPath
+
+          manifest = tomllib.loads(Path("ggen.toml").read_text(encoding="utf-8"))
+          packs = manifest.get("packs")
+          if not isinstance(packs, dict) or not packs:
+              raise SystemExit("REFUSED_PACK_POLICY: no [packs] entries")
+          expected_git = "https://github.com/seanchatmangpt/ggen-marketplace.git"
+          for alias, ref in sorted(packs.items()):
+              if not isinstance(ref, dict) or ref.get("git") != expected_git:
+                  raise SystemExit(f"REFUSED_PACK_SOURCE: {alias!r}")
+              if not re.fullmatch(r"[0-9a-fA-F]{40}", str(ref.get("version", ""))):
+                  raise SystemExit(f"REFUSED_PACK_PIN: {alias!r} version must be 40-hex")
+              subdir = PurePosixPath(str(ref.get("subdir", "")))
+              if (
+                  subdir.is_absolute()
+                  or ".." in subdir.parts
+                  or len(subdir.parts) < 2
+                  or subdir.parts[0] != "packs"
+              ):
+                  raise SystemExit(f"REFUSED_PACK_SUBDIR: {alias!r}")
+          PY
+
+      - name: Install exact ggen release asset
+        id: install
+        env:
+          GGEN_RELEASE: v26.9.9
+          GGEN_ASSET_SHA256: ad4ab79923d17e32960383aaf5fab8e174bc8d0972872cdf1b3ecc5d11ed9e36
+        run: |
+          set -euo pipefail
+          asset="ggen-x86_64-unknown-linux-gnu.tar.gz"
+          archive="$RUNNER_TEMP/$asset"
+          extract="$RUNNER_TEMP/ggen-release"
+          bin_dir="$RUNNER_TEMP/ggen-bin"
+          url="https://github.com/seanchatmangpt/ggen/releases/download/${GGEN_RELEASE}/${asset}"
+
+          curl --fail --location --retry 3 --retry-all-errors \
+            --proto '=https' --tlsv1.2 \
+            --output "$archive" "$url"
+
+          printf '%s  %s\n' "$GGEN_ASSET_SHA256" "$archive" | sha256sum --check --strict
+
+          mkdir -p "$extract" "$bin_dir"
+          tar -xzf "$archive" -C "$extract"
+          mapfile -t candidates < <(find "$extract" -type f -name ggen -print)
+          if [[ "${#candidates[@]}" -ne 1 ]]; then
+            echo "REFUSED_GGEN_ASSET: expected exactly one ggen binary" >&2
+            exit 1
+          fi
+          install -m 0755 "${candidates[0]}" "$bin_dir/ggen"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: Execute ggen sync run
+        env:
+          GIT_LFS_SKIP_SMUDGE: "1"
+        run: |
+          set -euo pipefail
+          ggen sync run
+
+      - name: Assert zero tracked drift after sync
+        run: |
+          set -euo pipefail
+          git diff --exit-code --no-ext-diff || {
+            echo "GEN_PARITY_FAIL: tracked drift after ggen sync run" >&2
+            git diff --stat --no-ext-diff >&2 || true
+            exit 1
+          }
+          echo "GEN_PARITY_OK: tracked tree byte-identical after ggen sync run"

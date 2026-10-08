@@ -7,6 +7,36 @@ from `git log` since the PR #7 merge (`7d5c354`, 2026-09-26) up to `2654cdc`.
 
 ## [Unreleased]
 
+## [26.10.7] - 2026-10-06
+
+### Added
+- Version seam: `scripts/bump_version.sh` now drives the CalVer bump with
+  golden re-pins across the conformance vectors and version-sync fixtures;
+  gaps found during the bump run are noted in the touched fixture tests
+  (`test/ash_surface/version_sync_test.exs`,
+  `test/js/version_sync.test.mjs`).
+- W43 a2a bridge: `lib/ash_surface/a2a_bridge.ex` with its test surface
+  (`test/ash_surface/a2a_bridge_test.exs`); `mix.exs` keeps the
+  `ash_a2a` dependency line preserved with `runtime: false`.
+- W66 JS projector structured refusal objects:
+  `lib/ash_surface/projectors/js.ex` and
+  `priv/static/ash_surface_runtime.mjs` now emit typed refusal payloads,
+  covered by `test/ash_surface/projectors/js_projector_test.exs` and the
+  JS suite (`test/js/ir_projector_deep.test.mjs`).
+
+### Changed
+- W37 root-sync outputs are now gitignored (`.gitignore`) so generated
+  sync artifacts stop landing at the repo root.
+- W19 known-divergences golden re-capture (`d9ba3544`):
+  `conformance/js/known_divergences.mjs`, `conformance/js/replay.mjs`,
+  `conformance/vectors/ir_codec.json`,
+  `conformance/vectors/surface_contract_digest.json`, and
+  `conformance/MANIFEST.json` re-pinned; `scripts/conformance_regen.exs`
+  and `scripts/bump_version.sh` updated to reproduce them, with the
+  cross-language digest suites re-pinned
+  (`test/js/digest_cross_language*.test.mjs`,
+  `test/js/receipts_primitives.test.mjs`).
+
 ## [26.10.1] - 2026-10-02
 
 ### Added
