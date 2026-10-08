@@ -43,7 +43,7 @@ sj:DependencyEdge a rdfs:Class .
     dcterms:description "Add AshSurface.AgentCardArtifact (lib/ash_surface/agent_card_artifact.ex) persisting the serialized agent card to priv/generated/agent_card.json, with the lawful regenerator scripts/agent_card_regen.exs and a real execution court (test/ash_surface/agent_card_artifact_test.exs); cross-reference the a2a bridge surface from the docs (1b09218750d7cd9d8b6036f34ff99fb15f317c0e)." ;
     sj:subject "a2a-agent-card-artifact-and-how-to" ;
     sj:repository "seanchatmangpt/ash_surface" ;
-    sj:baseSha "68f77041b" ;
+    sj:baseSha "68f77041b885619dc65cc9b5fecd521f4667ad97" ;
     sj:landedCommit "1b09218750d7cd9d8b6036f34ff99fb15f317c0e", "8bc9b75095ba54cd2df746951b0734a333a7b353" ;
     sj:evidenceCeiling "EXECUTED_VERIFIED" ;
     sj:promotionRule "verified_by_required_courts_then_receipted" ;
