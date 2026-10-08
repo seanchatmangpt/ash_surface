@@ -1,3 +1,5 @@
+> **Historical — targets 26.9.16; see CHANGELOG for current.**
+
 # MIGRATION_26_9_16.md — ash_surface 26.9.13 -> 26.9.16 breaking changes
 
 - **Base:** `282f3ca` (chicago zero-config convergence), repo version at base was `26.9.13` (verified: `git show 282f3ca:mix.exs` carries `@version "26.9.13"`); the 26.9.16 bump itself is `version-bump-011`.
