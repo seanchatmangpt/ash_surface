@@ -1,0 +1,286 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix prd: <https://ggen-igniter.dev/sjira/v26.10.3/ash-surface-prd#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Product Requirements Document for ash_surface, grounded in repository
+# capabilities at version 26.10.1 (mix.exs @version, CHANGELOG.md [26.10.1]).
+#
+# This graph authors NO sj:WorkOrder and NO sj:Receipt. It describes observed
+# repository capabilities and their acceptance/falsifier structure. Every
+# claim below is anchored to a real file or test path in
+# seanchatmangpt/ash_surface; standing claims belong to independent courts,
+# not to this document.
+
+prd:ASH-SURFACE-PRD
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-ASH-SURFACE-26.10.3" ;
+    rdfs:label "ash_surface product requirements document" ;
+    dcterms:description "Product requirements for ash_surface, a manifest-first consumer projection/runtime layer for Ash applications: Ash.Info.Manifest is compiled into a typed IR and rendered into lawful consumer projections (JavaScript runtime, Expo, ARIA, VoiceKiosk), with sha256-pinned conformance courts; the layer renders data and JS surfaces, not HEEx/Surface templates, and performs no live Phoenix rendering." ;
+    dcterms:source "docs/sjira/v26.10.3/ARD-PRD.ttl" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:baseSha "2654cdc" ;
+    sj:version "26.10.1" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:evidenceCeiling "IMPLEMENTED_UNVERIFIED" ;
+    sj:replayIdentity "semantic-jira:v26.10.3:PRD-ASH-SURFACE-26.10.3" ;
+    sj:requiresEvidence sj:source-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:projection prd:goal-ir-compilation,
+                  prd:goal-js-surface,
+                  prd:goal-conformance-courts,
+                  prd:goal-deterministic-render,
+                  prd:goal-refusal-dispatch,
+                  prd:goal-digest-verification,
+                  prd:goal-test-inventory,
+                  prd:goal-honest-limitation ;
+    dcterms:hasPart
+        prd:goal-ir-compilation,
+        prd:goal-js-surface,
+        prd:goal-conformance-courts,
+        prd:goal-deterministic-render,
+        prd:goal-refusal-dispatch,
+        prd:goal-digest-verification,
+        prd:goal-test-inventory,
+        prd:goal-honest-limitation ;
+    sj:acceptance prd:root-acceptance ;
+    sj:falsifier prd:falsifier-capability-drift,
+                 prd:falsifier-authority-widening,
+                 prd:falsifier-boundary-violation ;
+    sj:exclusion
+        "No requirement, plan, generated artifact or projection in this document gains DO authority." ,
+        "No goal inherits standing from a neighboring goal; each carries its own evidence path." ,
+        "ash_surface renders data and JavaScript surfaces; it does not compile HEEx/Surface templates and does not perform live Phoenix rendering." ;
+    sj:successorPolicy "Residual capability gaps route to the owning repository while preserving the document subject; they do not fork a second PRD." .
+
+# ── Capabilities (provider-neutral requirement carriers) ──────────────────
+
+prd:cap-ir a sj:Capability ; sj:capabilityId "ash_surface:manifest-ir-compilation" .
+prd:cap-js a sj:Capability ; sj:capabilityId "ash_surface:js-runtime-projection" .
+prd:cap-court a sj:Capability ; sj:capabilityId "ash_surface:conformance-courts" .
+prd:cap-determinism a sj:Capability ; sj:capabilityId "ash_surface:byte-deterministic-render" .
+prd:cap-refusal a sj:Capability ; sj:capabilityId "ash_surface:refused-dispatch-intents" .
+prd:cap-digest a sj:Capability ; sj:capabilityId "ash_surface:digest-verification" .
+prd:cap-tests a sj:Capability ; sj:capabilityId "ash_surface:test-inventory" .
+
+# ── Goal 1: typed IR compilation from Ash.Info.Manifest ───────────────────
+
+prd:goal-ir-compilation
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-001-IR-COMPILATION" ;
+    rdfs:label "Manifest to typed IR compilation" ;
+    dcterms:description "AshSurface.from_manifest/2 accepts an existing %Ash.Info.Manifest{}, validates projection metadata against the exact public Ash action set, stores extension metadata only under custom.ash_surface, and emits a stable SHA-256 content digest over the resulting cross-language contract. Unknown action metadata is refused rather than becoming a dangling client model." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "lib/ash_surface lib/ash_surface.ex README.md" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-ir ;
+    sj:evidenceHorizon "SOURCE_EVIDENCE" ;
+    sj:acceptance prd:acc-ir ;
+    sj:falsifier prd:fals-ir .
+
+prd:acc-ir
+    a sj:AcceptanceCriterion ;
+    rdfs:label "IR compilation acceptance" ;
+    dcterms:description "from_manifest/2 produces a %AshSurface.IR{} whose digest is a stable SHA-256 over the serialized manifest plus surface envelope; metadata naming actions absent from the manifest is refused." .
+
+prd:fals-ir
+    a sj:Falsifier ;
+    rdfs:label "IR compilation falsifier" ;
+    dcterms:description "AshSurface.from_manifest/2 accepts metadata for an action absent from the manifest, or two calls with identical manifest/profile inputs produce different digests; either observation falsifies this goal." .
+
+# ── Goal 2: JavaScript-runtime surface rendering ──────────────────────────
+
+prd:goal-js-surface
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-002-JS-SURFACE" ;
+    rdfs:label "JS-runtime surface rendering" ;
+    dcterms:description "The JavaScript runtime at priv/static/ash_surface_runtime.mjs consumes the AshSurface contract directly: createClient(...), stable actions[id] and resources[resource][action] namespaces, JSDoc-described public APIs, Zod validation at the untrusted JavaScript boundary, adaptive transport selection before dispatch, explicit receipts distinguishing completed from unknown-after-dispatch outcomes, bounded dispatch (timeoutMs, signal) that settles a hung adapter as unknown-after-dispatch, and validated reconcile replies (COMPLETED | NOT_OBSERVED | STILL_UNKNOWN). There is no TypeScript compilation step and no generated .ts/.d.ts artifacts." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "priv/static/ash_surface_runtime.mjs test/js" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-js ;
+    sj:evidenceHorizon "NODE_EXECUTED_EVIDENCE" ;
+    sj:acceptance prd:acc-js ;
+    sj:falsifier prd:fals-js .
+
+prd:acc-js
+    a sj:AcceptanceCriterion ;
+    rdfs:label "JS surface acceptance" ;
+    dcterms:description "node --test test/js/runtime.test.mjs passes against the real runtime; a consumer fixture executes end-to-end: manifest -> surface -> JS runtime -> HTTP dispatch -> Ash consequence -> cryptographic receipt." .
+
+prd:fals-js
+    a sj:Falsifier ;
+    rdfs:label "JS surface falsifier" ;
+    dcterms:description "The runtime dispatches without Zod validation, returns a COMPLETED receipt for an outcome that never produced an Ash consequence, or requires a TypeScript build step; any of these observations falsifies this goal." .
+
+# ── Goal 3: conformance courts ────────────────────────────────────────────
+
+prd:goal-conformance-courts
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-003-CONFORMANCE-COURTS" ;
+    rdfs:label "Sha256-pinned conformance courts" ;
+    dcterms:description "conformance/MANIFEST.json declares corpus ash_surface-conformance, corpusVersion 1.0.0, 11 files, hashAlgorithm sha256, lawVersion 26.10.1, and 547 vectors across 11 vector files (canonical_json, ir_codec, receipt_binding, receipt_digest, reconcile_status, refusal_vocabulary, surface_contract_digest, surface_contract_refusal, transport_facts_admission, transport_outcome, transport_selection). Vectors are executable by Elixir (conformance/elixir/runner.exs, wrapped by test/conformance/conformance_replay_test.exs) and JS (conformance/js/{reference,replay,known_divergences}.mjs), including mutation anti-vacuity checks that require each injected mutation to be detected." ;
+    rdfs:label "Sha256-pinned conformance courts" ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "conformance/ test/conformance/conformance_replay_test.exs" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-court ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:acceptance prd:acc-courts ;
+    sj:falsifier prd:fals-courts .
+
+prd:acc-courts
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Conformance court acceptance" ;
+    dcterms:description "The replay test runs all 547 vectors against both Elixir and JS reference implementations, and every injected mutation in the anti-vacuity pass is detected (an undetected mutation fails the court, per conformance_replay_test.exs:134)." .
+
+prd:fals-courts
+    a sj:Falsifier ;
+    rdfs:label "Conformance court falsifier" ;
+    dcterms:description "A mutation passes the court undetected, or the JS reference and Elixir runner disagree on a vector without a typed entry in conformance/js/known_divergences.mjs; either observation falsifies this goal." .
+
+# ── Goal 4: byte-deterministic render ─────────────────────────────────────
+
+prd:goal-deterministic-render
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-004-DETERMINISTIC-RENDER" ;
+    rdfs:label "Byte-deterministic render" ;
+    dcterms:description "Projector rendering is byte-deterministic: repeating a render of the same surface IR with the same toolchain yields an identical sha256. Expo and VoiceKiosk projectors implement project_ir/2 over the single AshSurface.Projector.IR behaviour; ARIA.project_ir/2 refuses non-IR input with {:error, {:not_an_ir, term}}; AshSurface.project/3 verifies the surface digest before dispatching to a projector." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "lib/ash_surface/projector docs/PROJECTORS.md test" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-determinism ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:acceptance prd:acc-determinism ;
+    sj:falsifier prd:fals-determinism .
+
+prd:acc-determinism
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Deterministic render acceptance" ;
+    dcterms:description "Rendering the same %AshSurface.IR{} twice with the same toolchain produces byte-identical artifacts and identical sha256 digests; non-IR input to an IR projector is refused with a typed error." .
+
+prd:fals-determinism
+    a sj:Falsifier ;
+    rdfs:label "Deterministic render falsifier" ;
+    dcterms:description "Two renders of an identical IR in one process produce differing bytes or digests, or an IR projector accepts non-IR input without a typed refusal; either observation falsifies this goal." .
+
+# ── Goal 5: REFUSED_* dispatch intents and boundary refusals ──────────────
+
+prd:goal-refusal-dispatch
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-005-REFUSAL-DISPATCH" ;
+    rdfs:label "REFUSED_* dispatch intents" ;
+    dcterms:description "The refusal vocabulary is a closed REFUSED_* set enforced across from_manifest, EventProjection and Codec boundaries (per CHANGELOG 26.9.17); unknown action metadata, unsafe JS emission inputs, and out-of-vocabulary dispatch intents are refused with typed values, and refusal vectors are pinned in conformance/vectors/refusal_vocabulary.json." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "lib/ash_surface conformance/vectors/refusal_vocabulary.json" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-refusal ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:acceptance prd:acc-refusal ;
+    sj:falsifier prd:fals-refusal .
+
+prd:acc-refusal
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Refusal acceptance" ;
+    dcterms:description "Every out-of-vocabulary intent maps to a typed REFUSED_* value, and the refusal_vocabulary.json conformance vectors pass on both Elixir and JS sides." .
+
+prd:fals-refusal
+    a sj:Falsifier ;
+    rdfs:label "Refusal falsifier" ;
+    dcterms:description "An out-of-vocabulary intent dispatches or normalizes to a non-REFUSED value, or an unknown-action metadata payload passes from_manifest; either observation falsifies this goal." .
+
+# ── Goal 6: digest verification ───────────────────────────────────────────
+
+prd:goal-digest-verification
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-006-DIGEST-VERIFICATION" ;
+    rdfs:label "Contract digest verification" ;
+    dcterms:description "Each surface carries a stable SHA-256 contract digest; AshSurface.project/3 re-verifies the surface digest before projection, projector input travels as ash_surface.surface IR with digest re-verified (CHANGELOG 26.10.1 projector consolidation), and the digest binds both Ash Manifest and AshSurface schema identities. Digest vectors are pinned in conformance/vectors/{surface_contract_digest,surface_contract_refusal,receipt_digest}.json." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "lib/ash_surface conformance/vectors" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-digest ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:acceptance prd:acc-digest ;
+    sj:falsifier prd:fals-digest .
+
+prd:acc-digest
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Digest verification acceptance" ;
+    dcterms:description "A surface whose digest no longer matches its contract is refused at projection time, and identical inputs always yield the same digest." .
+
+prd:fals-digest
+    a sj:Falsifier ;
+    rdfs:label "Digest verification falsifier" ;
+    dcterms:description "A tampered contract still projects without a typed refusal, or digest re-verification is skipped on some projector path; either observation falsifies this goal." .
+
+# ── Goal 7: test inventory ────────────────────────────────────────────────
+
+prd:goal-test-inventory
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-007-TEST-INVENTORY" ;
+    rdfs:label "Test inventory" ;
+    dcterms:description "The repository test gate is real node-executed and Elixir-executed verification: 1200 tests including 23 property-based tests across 137 suites, 0 failures reported at the 26.10.1 hardening wave; the conformance replay court is part of mix test; the JS suite runs under node --test; coverage floor is 97 (measured 98.30) per CHANGELOG 26.9.17." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "test conformance test/js TESTING.md" ;
+    sj:boundaryClass sj:Core ;
+    sj:requiresCapability prd:cap-tests ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:acceptance prd:acc-tests ;
+    sj:falsifier prd:fals-tests .
+
+prd:acc-tests
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Test inventory acceptance" ;
+    dcterms:description "mix test and npm test pass with zero failures on the declared subject, including the conformance replay court and node-executed consumer fixtures." .
+
+prd:fals-tests
+    a sj:Falsifier ;
+    rdfs:label "Test inventory falsifier" ;
+    dcterms:description "mix test or npm test reports a failure on the declared subject, or the conformance court is excluded from the default mix test run; either observation falsifies this goal." .
+
+# ── Goal 8: honest limitation ─────────────────────────────────────────────
+
+prd:goal-honest-limitation
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "PRD-008-BOUNDARY" ;
+    rdfs:label "Boundary: data/JS surfaces, not HEEx/Surface templates" ;
+    dcterms:description "ash_surface compiles Ash.Info.Manifest to typed IR and renders data and JavaScript surfaces (runtime .mjs, Expo client artifacts, ARIA documents, VoiceKiosk intents). It does NOT compile HEEx/Surface templates and does NOT perform live Phoenix rendering: no .heex output, no Surface component output, no server-side LiveView render path is part of this product. Any LiveView-named artifact is an IR projection target, not a template compilation or live render." ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "README.md ARCHITECTURE.md docs/PROJECTORS.md" ;
+    sj:boundaryClass sj:Core ;
+    sj:evidenceHorizon "SOURCE_EVIDENCE" ;
+    sj:acceptance prd:acc-limitation ;
+    sj:falsifier prd:fals-limitation .
+
+prd:acc-limitation
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Boundary acceptance" ;
+    dcterms:description "The repository contains no HEEx/Surface template compilation and no live Phoenix render path; projection targets remain data and JS artifacts." .
+
+prd:fals-limitation
+    a sj:Falsifier ;
+    rdfs:label "Boundary falsifier" ;
+    dcterms:description "A generated artifact is a compiled HEEx/Surface template or requires a live Phoenix render to be produced; observing that falsifies the stated boundary." .
+
+# ── Root acceptance and shared falsifiers ─────────────────────────────────
+
+prd:root-acceptance
+    a sj:AcceptanceCriterion ;
+    rdfs:label "PRD root acceptance" ;
+    dcterms:description "Every stated goal is anchored to real repository paths at version 26.10.1, carries its own acceptance criterion and executable falsifier, and none of the goals grants or implies DO authority beyond the CONSTRUCT ceiling." .
+
+prd:falsifier-capability-drift
+    a sj:Falsifier ;
+    rdfs:label "Capability drift" ;
+    dcterms:description "A path named in this document no longer exists or no longer exhibits the described behavior at the declared baseSha; that observation falsifies the document's grounding." .
+
+prd:falsifier-authority-widening
+    a sj:Falsifier ;
+    rdfs:label "Projection or analysis gains authority" ;
+    dcterms:description "This PRD, or any ash_surface projection, grants or implies DO authority; that observation falsifies the document's authority ceiling." .
+
+prd:falsifier-boundary-violation
+    a sj:Falsifier ;
+    rdfs:label "Projection boundary violation" ;
+    dcterms:description "ash_surface mints resources, actions, or types, decides authority, or actuates, instead of projecting Ash-admitted semantics; that observation falsifies the core boundary." .
