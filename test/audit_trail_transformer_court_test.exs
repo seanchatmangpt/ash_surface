@@ -1,0 +1,327 @@
+
+
+
+defmodule AuditTrail.ResourceTransformerClosureCourt do
+  @moduledoc """
+  Transformer closure court for `AuditTrail.Resource.Persist` (pack `audit_trail`).
+
+  Chicago school: real Spark compiler, real compiled drafts, no mocks.
+  Non-vacuity: this identical court, run with COURT_TRANSFORMER pointed at the
+  persistent_term mutant (fixture/transformer_mutants/mutant_persistent_term.ex),
+  MUST fail determinism and name the hidden-state file:line.
+  """
+  use ExUnit.Case, async: true
+
+  @package_name "audit_trail"
+  @compiled_key :audit_trail_compiled
+
+  # Subject under court. Default: the generated transformer. The env overrides
+  # swap in a mutant fixture for the anti-vacuity run only.
+  @transformer Module.concat([System.get_env("COURT_TRANSFORMER") || "AuditTrail.Resource.Persist"])
+
+  # Pack's known source-path convention: persist.ex.tmpl renders to
+  # lib/audit_trail/persist.ex, and fixture/mix.exs mounts generated code
+  # at ASH_PACK_GENERATED (default lib/generated). First existing candidate wins;
+  # COURT_TRANSFORMER_SOURCE overrides all candidates (mutant runs).
+  @source_candidates [
+    System.get_env("COURT_TRANSFORMER_SOURCE"),
+    # live-fixture capsule layout: consumer lib/** is copied flat, so the generated
+    # persist.ex is <capsule>/generated/audit_trail/persist.ex (no lib/ level).
+    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "audit_trail/persist.ex"),
+    # fixture mount layout: elixirc_paths appends ASH_PACK_GENERATED under lib/.
+    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "lib/audit_trail/persist.ex"),
+    Path.expand("lib/audit_trail/persist.ex"),
+    Path.expand("lib/audit_trail_generated/lib/audit_trail/persist.ex")
+  ]
+
+  # Contract-permitted Application env reads: none by default. An ontology row
+  # (aex:permittedApplicationKey) would widen this; nothing does today.
+  @permitted_application_reads []
+
+  # Module attributes that never carry semantics (registry bookkeeping only).
+  @benign_attributes [:moduledoc, :doc, :impl, :behaviour, :derive, :type, :typep,
+                      :spec, :compile, :external_resource, :before_compile,
+                      :after_compile, :after_verify, :on_definition, :enforce_keys]
+
+  # The specimen section: the spec's own first DSL section (ordered), so the
+  # specimen declares entities under a section the generated Persist reads.
+  @specimen_section :audit
+
+  # Mutant runs: the subject is a source file, not a compiled dep -- load it once.
+  setup_all do
+    unless Code.ensure_loaded?(@transformer) do
+      Code.compile_file(transformer_source!())
+    end
+
+    :ok
+  end
+
+  # --------------------------------------------------------------------------
+  # Inline Spark.Dsl.Extension specimen (same Spark.Dsl.Extension options as
+  # extension.ex.tmpl: sections + transformers), so the court is self-contained.
+  # Entity shape is the court-canonical `step :name, via: "provenance"`.
+  # --------------------------------------------------------------------------
+  defp specimen_source(transformer) do
+    """
+    defmodule AuditTrail.Resource.Court.Step do
+      defstruct [:name, :via, __spark_metadata__: nil]
+    end
+
+    defmodule AuditTrail.Resource.Court.Specimen do
+      use Spark.Dsl.Extension,
+        sections: [
+          %Spark.Dsl.Section{
+            name: :audit,
+            schema: [],
+            entities: [
+              %Spark.Dsl.Entity{
+                name: :step,
+                args: [:name],
+                target: AuditTrail.Resource.Court.Step,
+                schema: [
+                  name: [type: :atom, doc: "step name"],
+                  via: [type: :string, doc: "provenance"]
+                ]
+              }
+            ]
+          }
+        ],
+        transformers: [#{inspect(transformer)}]
+    end
+    """
+  end
+
+  defp draft_source(specimen, section, steps) do
+    step_lines =
+      Enum.map(steps, fn {name, via} -> ~s(  step :#{name}, via: "#{via}") end)
+      |> Enum.join("\n")
+
+    """
+    defmodule AuditTrail.Resource.Court.Base do
+      use Spark.Dsl, default_extensions: [extensions: [#{inspect(specimen)}]]
+    end
+
+    defmodule AuditTrail.Resource.Court.Draft do
+      use AuditTrail.Resource.Court.Base
+
+      #{section} do
+    #{step_lines}
+      end
+    end
+    """
+  end
+
+  # Compiles a FRESH specimen once, then compiles drafts against it. The specimen
+  # (and with it the entity struct identity) MUST be shared across the two
+  # determinism-leg drafts: the persisted state embeds the entity struct module
+  # name, so per-draft specimens would make two pure-transformer drafts differ by
+  # tag alone (false nondeterminism). Drafts remain independent compilations.
+  defp compile_specimen do
+    tag = System.unique_integer([:positive])
+
+    specimen_src =
+      specimen_source(@transformer)
+      |> String.replace("AuditTrail.Resource.Court.Specimen", "AuditTrail.Resource.Court.Specimen#{tag}")
+      |> String.replace("AuditTrail.Resource.Court.Step", "AuditTrail.Resource.Court.Step#{tag}")
+
+    specimen = Module.concat(["AuditTrail.Resource.Court.Specimen#{tag}"])
+    step_struct = Module.concat(["AuditTrail.Resource.Court.Step#{tag}"])
+
+    compiled = specimen_src |> Code.compile_string() |> Enum.map(&elem(&1, 0))
+
+    # Spark derives nested modules (Specimen.<Section>.Step, .Options), so the
+    # two court-owned modules are asserted present by name, not position.
+    true = specimen in compiled
+    true = step_struct in compiled
+
+    {specimen, step_struct}
+  end
+
+  defp compile_draft({specimen, step_struct}, steps, pre_setup) do
+    tag = System.unique_integer([:positive])
+
+    draft_mod = Module.concat(["AuditTrail.Resource.Court.Draft#{tag}"])
+
+    draft_src =
+      draft_source(specimen, @specimen_section, steps)
+      |> String.replace("AuditTrail.Resource.Court.Base", "AuditTrail.Resource.Court.Base#{tag}")
+      |> String.replace("AuditTrail.Resource.Court.Draft", "AuditTrail.Resource.Court.Draft#{tag}")
+
+    # The ONLY nondeterminism channel the court deliberately opens: pre_setup/0
+    # runs before compilation. An honest transformer must be blind to it.
+    if pre_setup, do: pre_setup.()
+
+    Code.compile_string(draft_src)
+    {draft_mod, step_struct}
+  end
+
+  defp persisted(draft) do
+    case Spark.Dsl.Extension.get_persisted(draft, @compiled_key, :court_missing) do
+      :court_missing -> flunk("persisted key #{inspect(@compiled_key)} missing after transform")
+      value -> value
+    end
+  end
+
+  defp persisted_binary(draft), do: draft |> persisted() |> :erlang.term_to_binary()
+
+  # ===========================================================================
+  # (a) PARITY: persisted state equals the Spark-declared inputs.
+  # ===========================================================================
+  @tag :transformer_closure_court
+  test "(a) parity: persisted state equals the Spark-declared inputs" do
+    specimen = compile_specimen()
+    {draft, _} = compile_draft(specimen, [{:alpha, "court-declared-alpha"}], nil)
+    blob = persisted_binary(draft)
+
+    for token <- ["court-declared-alpha", "alpha"] do
+      assert :binary.match(blob, token) != :nomatch,
+             "declared input #{inspect(token)} missing from persisted state"
+    end
+
+    refute :binary.match(blob, "court-undeclared-sentinel") != :nomatch,
+           "undeclared sentinel leaked into persisted state"
+  end
+
+  # ===========================================================================
+  # (b) DETERMINISM: fresh equivalent drafts persist identical state even with
+  # the court's probe channels flipped between the two compilations.
+  # ===========================================================================
+  @tag :transformer_closure_court
+  test "(b) determinism: fresh equivalent drafts persist identical state" do
+    steps = [{:alpha, "court-declared-alpha"}, {:beta, "court-declared-beta"}]
+
+    # The court deliberately opens ONE nondeterminism channel between the two
+    # compilations: probe values on documented, court-owned channels. An honest
+    # transformer derives only from dsl_state and is blind to them; a transformer
+    # that sneaks config through :persistent_term or Application env sees the
+    # flip and the two equivalent drafts persist different state.
+    specimen = compile_specimen()
+
+    {draft1, _} =
+      compile_draft(specimen, steps, fn ->
+        :persistent_term.put({:audit_trail, :hidden_mode}, :a)
+        Application.put_env(:audit_trail, :hidden_mode, :a)
+      end)
+
+    {draft2, _} =
+      compile_draft(specimen, steps, fn ->
+        :persistent_term.put({:audit_trail, :hidden_mode}, :b)
+        Application.put_env(:audit_trail, :hidden_mode, :b)
+      end)
+
+    assert persisted_binary(draft1) == persisted_binary(draft2),
+           "equivalent drafts persisted different state -- the transformer is not " <>
+             "a pure function of Spark DSL state"
+  end
+
+  # ===========================================================================
+  # (c) HIDDEN-STATE AUDIT: parse the transformer source, name every violation.
+  # ===========================================================================
+  @tag :transformer_closure_court
+  test "(c) hidden-state audit: transformer derives only from Spark DSL state + permitted context" do
+    file = transformer_source!()
+    source = File.read!(file)
+    violations = smell_scan(source, file)
+
+    assert violations == [],
+           "hidden-state smells in #{inspect(file)}:\n" <>
+             Enum.map_join(violations, "\n", fn {line, token, why} ->
+               "  line #{line}: #{token} -- #{why}"
+             end) <>
+             "\n(spec law: transformers derive ONLY from Spark DSL state + contract-permitted context)"
+  end
+
+  defp transformer_source! do
+    candidates = Enum.reject(@source_candidates, &is_nil/1)
+
+    Enum.find(candidates, &File.exists?/1) ||
+      flunk(
+        "court bug: transformer source not found for #{inspect(@transformer)}; tried " <>
+          inspect(candidates) <> " (set COURT_TRANSFORMER_SOURCE to point at it)"
+      )
+  end
+
+  @doc false
+  # Scans quoted transformer source for hidden-state smells. Returns [{line, token, why}].
+  def smell_scan(source, file) do
+    ast = Code.string_to_quoted!(source, file: file)
+
+    {_, {_, violations}} =
+      Macro.prewalk(
+        ast,
+        {MapSet.new(), []},
+        fn
+          # module attribute DEFINITION: record, never flag
+          {:@, _dm, [{attr, _am, args}]} = node, {defined, violations} when is_list(args) ->
+            {node, {MapSet.put(defined, attr), violations}}
+
+          # module attribute READ of a semantic (non-benign) attribute: forbidden
+          {:@, dm, [{attr, _am, nil}]} = node, {defined, violations} ->
+            if attr in @benign_attributes or not MapSet.member?(defined, attr) do
+              {node, {defined, violations}}
+            else
+              {node,
+               {defined,
+                [
+                  {dm[:line], "@#{attr}",
+                   "semantic module attribute read: compile-time smuggled input, not Spark DSL state"}
+                ] ++ violations}}
+            end
+
+          # :persistent_term via alias form (PersistentTerm.get)
+{{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node,
+          {defined, violations}
+          when mod in [:persistent_term, :PersistentTerm] ->
+            {node,
+             {defined,
+              [
+                {m[:line], "PersistentTerm.#{fun}",
+                 "hidden process-global config read: state outside Spark DSL state"}
+              ] ++ violations}}
+
+          # :persistent_term via erlang atom form (:persistent_term.get)
+{{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
+            {node,
+             {defined,
+              [
+                {m[:line], ":persistent_term.#{fun}",
+                 "hidden process-global config read: state outside Spark DSL state"}
+              ] ++ violations}}
+
+          # Process dictionary
+{{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
+          {defined, violations}
+          when fun in [:put, :get, :delete, :get_and_update] ->
+            {node,
+             {defined,
+              [
+                {m[:line], "Process.#{fun}",
+                 "hidden process dictionary access: state outside Spark DSL state"}
+              ] ++ violations}}
+
+          # Application env outside the contract-permitted list
+{{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
+          {defined, violations}
+          when fun in [:get_env, :fetch_env, :fetch_env!, :get_all_env] ->
+            {node,
+             {defined,
+              [
+                {m[:line], "Application.#{fun}",
+                 "application env read outside the contract-permitted list (" <>
+                   permit_note() <> ")"}
+              ] ++ violations}}
+
+          node, acc ->
+            {node, acc}
+      end
+    )
+
+    Enum.reverse(violations)
+  end
+
+  defp permit_note do
+    if @permitted_application_reads == [],
+      do: "no Application env reads are contract-permitted for this spec",
+      else: "only #{inspect(@permitted_application_reads)} are contract-permitted for this spec"
+  end
+end

@@ -1,0 +1,123 @@
+
+
+
+
+
+defmodule AshA2A.DslParityCourtTest do
+  @moduledoc false
+  use ExUnit.Case, async: true
+
+  # Fact rows baked in at generation time from the pack ontology
+  # (aex:SemanticFact / aex:SurfaceFact). The compiled extension under test is the
+  # one this same graph generated -- real collaborators, no doubles.
+  @orphan_check [
+  ]
+
+  @declared [
+    {:"arg", "", "AshA2A.Skill", "action"},
+    {:"arg", "", "AshA2A.Skill", "name"},
+    {:"arg", "", "AshA2A.Skill", "resource"},
+    {:"entity", "a2a", "AshA2A.Skill", "skill"},
+    {:"field", "", "AshA2A.Skill", "action"},
+    {:"field", "", "AshA2A.Skill", "argument_mapping"},
+    {:"field", "", "AshA2A.Skill", "consequence"},
+    {:"field", "", "AshA2A.Skill", "description"},
+    {:"field", "", "AshA2A.Skill", "expose?"},
+    {:"field", "", "AshA2A.Skill", "get?"},
+    {:"field", "", "AshA2A.Skill", "lease_required?"},
+    {:"field", "", "AshA2A.Skill", "name"},
+    {:"field", "", "AshA2A.Skill", "on_cancel"},
+    {:"field", "", "AshA2A.Skill", "resource"},
+    {:"field", "", "AshA2A.Skill", "tags"},
+    {:"oneof", "", "AshA2A.Skill", "change"},
+    {:"oneof", "", "AshA2A.Skill", "external_do"},
+    {:"oneof", "", "AshA2A.Skill", "observe"},
+    {:"oneof", "", "AshA2A.Skill", "unknown"},
+    {:"section", "", "", "a2a"},
+    {:"section", "", "", "authority"},
+    {:"section", "", "", "hooks"},
+    {:"sectionfield", "authority", "", "gate"},
+    {:"sectionfield", "authority", "", "lease_duration_ms"},
+    {:"sectionfield", "hooks", "", "post_dispatch"},
+    {:"sectionfield", "hooks", "", "pre_dispatch"},
+    {:"sectionfield", "a2a", "", "semantic_requests"},
+  ]
+
+  test "every implemented fact has a sparkDeclared visibility (closure, ash_a2a)" do
+    assert @orphan_check == [], """
+    spark parity VIOLATION: implemented facts with no sparkDeclared SurfaceFact:
+
+    #{Enum.map_join(@orphan_check, "\n", &"  - #{&1}")}
+
+    (implemented - sparkDeclared must be the empty set; see
+    gates/110_spark_completeness.rq and ontology.ttl's closure vocabulary.)
+    """
+  end
+
+  test "compiled Spark surface carries every declared fact (ash_a2a)" do
+    fixture = compile_fixture()
+    extension = AshA2A.Dsl
+    assert extension in Spark.extensions(fixture)
+
+    declared = MapSet.new(@declared)
+
+    compiled =
+      extension.sections()
+      |> Enum.flat_map(fn section ->
+        section_name = Atom.to_string(section.name)
+        rows = [{:section, "", "", section_name}]
+
+        entity_rows =
+          Enum.flat_map(section.entities || [], fn entity ->
+            struct_name = if entity.target, do: inspect(entity.target), else: ""
+            field_rows = Enum.map(entity.schema || [], fn {f, _} -> {:field, "", struct_name, Atom.to_string(f)} end)
+            arg_rows = Enum.map(entity.args || [], fn a -> {:arg, "", struct_name, Atom.to_string(a)} end)
+
+            oneof_rows =
+              Enum.flat_map(entity.schema || [], fn {f, opts} ->
+                case opts[:type] do
+                  {:one_of, values} -> Enum.map(values, fn v -> {:oneof, "", struct_name, Atom.to_string(v)} end)
+                  _ -> []
+                end
+              end)
+
+            entity_row = [{:entity, section_name, struct_name, Atom.to_string(entity.name)}]
+            entity_row ++ field_rows ++ arg_rows ++ oneof_rows
+          end)
+
+        sectionfield_rows =
+          Enum.map(section.schema || [], fn {f, _} -> {:sectionfield, section_name, "", Atom.to_string(f)} end)
+
+        rows ++ entity_rows ++ sectionfield_rows
+      end)
+      |> MapSet.new()
+
+    missing = MapSet.difference(declared, compiled)
+    assert MapSet.size(missing) == 0, """
+    spark parity VIOLATION: declared facts absent from the COMPILED extension surface:
+
+    #{Enum.map_join(missing, "\n", &"  - #{inspect(&1)}")}
+
+    (the compiled extension under test is the one this graph generated --
+    introspected via the real Spark.Dsl.Extension sections/0 callback.)
+    """
+  end
+
+  defp compile_fixture do
+    source = """
+    defmodule AshA2A.Dsl.ParityFixture do
+      use Ash.Resource,
+        domain: nil,
+        extensions: [AshA2A.Dsl]
+    attributes do
+        uuid_primary_key :id
+      end
+    end
+    """
+
+    modules = Code.compile_string(source)
+    fixture = AshA2A.Dsl.ParityFixture
+    assert Enum.any?(modules, &match?({^fixture, _}, &1))
+    fixture
+  end
+end
