@@ -56,6 +56,10 @@ WO-2 in `candidates.jsonl` carries `standing: ALIVE` with
 - `mix test test/ash_surface/agent_card_artifact_test.exs`: 2 tests, 0 failures
 - base_sha `68f77041b885619dc65cc9b5fecd521f4667ad97`
 
+## Re-certification scope
+
+Re-certification triggers on a non-empty `git diff --stat 07f8d715..HEAD -- lib/ test/` (code/claim-surface change); docs-only commits are grandfathered.
+
 ## Tag coverage
 
 - `v26.10.8-2` = `dc214d7b5bea46e160afcb247e1af09d96525c27`
