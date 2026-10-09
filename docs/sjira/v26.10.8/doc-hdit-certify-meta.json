@@ -1,6 +1,7 @@
 {
   "certify_command": "doc-hdit certify /tmp/hdit/ash_surface.inputs.json courts/doc_quality.court --docs docs/reference/generated --chain docs/sjira/v26.10.8/doc-hdit.receipts.jsonl --extractor scripts/gen_doc_surface.py",
   "extractor_pin_sha256": "4c862576ab63595f9cd0417b35341af3ec1001f49450e79bf2e4c291a4a4246f",
+  "_denominator_note": "Gated under the module-level denominator law (ggen-marketplace docs/sjira/v26.10.8/DENOMINATOR-SCOPE-DECISION.md @0f3d840ff); per-function coverage figures are the report-only layer. As-of 2026-10-09.",
   "_note": "extractor pinned in receipt is historical; current fleet pin see ggen-marketplace docs/sjira/v26.10.8/PIN-ROTATION-LEDGER.md; pin retained as historical subject identity",
   "extractor_pin_verified": "shasum -a 256 /Users/sac/ggen-marketplace/scripts/gen_doc_surface.py -> 4c862576ab63595f9cd0417b35341af3ec1001f49450e79bf2e4c291a4a4246f (2026-10-09); receipt 'extractor' field a579e210... is the BLAKE3 identity of the same file bytes (src/certify.rs extractor_identity)",
   "gates": {
