@@ -49,10 +49,10 @@ read path.
 
 | field (profile key) | 26.9.13 — local derivation (before) | 26.9.16 — IR delegation (after) |
 |---|---|---|
-| `semanticId` | `Map.get(act_prof, "semanticId", "ash:#{id}")` — local default minted the IRI `ash:<action_id>` when the profile was silent | `AshSurface.IR.delegated(entrypoint, "semanticId")` — value only when the delegating authority stored one; `nil` otherwise; AshSurface never mints an IRI |
-| `authorityBoundary` | inferred from action type: `:read -> "OBSERVE"`, everything else `"DO"` (`Map.get(act_prof, "authorityBoundary", default_boundary)`) | `AshSurface.IR.delegated(entrypoint, "authorityBoundary")` — `nil` when not delegated; action type determines nothing about boundary |
-| `doAuthority` | `Map.get(act_prof, "doAuthority", authority_boundary == "DO")` — coupled to the boundary default, so every non-read action silently carried DO authority | `AshSurface.IR.delegated(entrypoint, "doAuthority")` — `nil` when not delegated; decoupled from boundary and from action type |
-| `receiptRequired` | `Map.get(act_prof, "receiptRequired", true)` — defaulted to `true` | `AshSurface.IR.delegated(entrypoint, "receiptRequired")` — `nil` when not delegated; no default |
+| semanticId | `Map.get(act_prof, "semanticId", "ash:#{id}")` — local default minted the IRI `ash:<action_id>` when the profile was silent | `AshSurface.IR.delegated(entrypoint, "semanticId")` — value only when the delegating authority stored one; nil otherwise; AshSurface never mints an IRI |
+| authorityBoundary | inferred from action type: `:read -> "OBSERVE"`, everything else `"DO"` (`Map.get(act_prof, "authorityBoundary", default_boundary)`) | `AshSurface.IR.delegated(entrypoint, "authorityBoundary")` — nil when not delegated; action type determines nothing about boundary |
+| doAuthority | `Map.get(act_prof, "doAuthority", authority_boundary == "DO")` — coupled to the boundary default, so every non-read action silently carried DO authority | `AshSurface.IR.delegated(entrypoint, "doAuthority")` — nil when not delegated; decoupled from boundary and from action type |
+| receiptRequired | `Map.get(act_prof, "receiptRequired", true)` — defaulted to true | `AshSurface.IR.delegated(entrypoint, "receiptRequired")` — nil when not delegated; no default |
 
 Canonical delegated section shape (per manifest entrypoint action). This is an
 **illustration of the shape, not compilable Elixir** — `term() | absent` is
@@ -99,8 +99,8 @@ over v04/v05 local lines). Landed verbatim on this branch; pin parity verified
 
 | dep | pin (git SHA) | notes |
 |---|---|---|
-| `ash_r2rml` | `7d958a8c47a5a3459a515ac6f81a4d2d2d84dd16` (github.com/seanchatmangpt/ash_r2rml.git) | `runtime: false`, `override: true` — git pin overrides `ash_a2a`'s hex `~> 26.8` requirement; pinned git version 26.9.12 satisfies it numerically |
-| `ash_a2a` | `e25ed6e3252291fd9816747a1b904303cc35c315` (github.com/seanchatmangpt/ash_a2a.git) | `runtime: false`; requires `igniter` in all envs, so `igniter` drops `only: [:dev, :test]` (kept `runtime: false` — no boot-path change) |
+| ash_r2rml | `7d958a8c47a5a3459a515ac6f81a4d2d2d84dd16` (github.com/seanchatmangpt/ash_r2rml.git) | `runtime: false`, `override: true` — git pin overrides ash_a2a's hex `~> 26.8` requirement; pinned git version 26.9.12 satisfies it numerically |
+| ash_a2a | e25ed6e3252291fd9816747a1b904303cc35c315 (github.com/seanchatmangpt/ash_a2a.git) | `runtime: false`; requires `igniter` in all envs, so `igniter` drops `only: [:dev, :test]` (kept `runtime: false` — no boot-path change) |
 
 Consumers upgrading from 26.9.13 (no git deps) should copy the block verbatim —
 including the `override: true` and the `igniter` `only:` removal — then
@@ -217,6 +217,6 @@ inspection.
 |---|---|---|
 | envelope slimming (IR delegation) | `exp/v10` | ALIVE at v50 integration (387/387) — UNKNOWN here (sibling) |
 | deps pins | `exp/v23` | landed verbatim here (cherry-pick `57278d7`); ALIVE at integration per wave law |
-| `Compiler.compile/1` + `Section` behaviour | `exp/v02` | ALIVE at v50 integration — UNKNOWN here (sibling) |
+| `Compiler.compile/1` + Section behaviour | `exp/v02` | ALIVE at v50 integration — UNKNOWN here (sibling) |
 | `Projector.IR` v2 + legacy adapter | `exp/v16` | [corrected gapfix-docs-truth-013, formerly "not landed at v50 integration time"] ALIVE — landed at final integration; behaviour canonical at `lib/ash_surface/projector/ir.ex` (per `V_WAVE.md` final standings) |
 | this document | `exp/v49` | gates in the commit receipt; `mix test` -> 0 on this tree |

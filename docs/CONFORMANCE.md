@@ -20,7 +20,7 @@ implementation does today.
 
 | Path | What |
 |---|---|
-| `conformance/MANIFEST.json` | corpus version, law version, per-file `sha256`, vector counts, level counts. No clock, commit, or host data, so regeneration is byte-identical. |
+| `conformance/MANIFEST.json` | corpus version, law version, per-file sha256, vector counts, level counts. No clock, commit, or host data, so regeneration is byte-identical. |
 | `conformance/vectors/<kind>.json` | one file per vector family (11 files, 547 vectors at 1.0.0). |
 | `conformance/elixir/runner.exs` | the Elixir reference runner: one function per kind, driving the real implementation. |
 | `conformance/js/reference.mjs` | JavaScript twins of the digest laws (canonical JSON, ETF term digest, receipt binding). Use or port these. |
@@ -48,17 +48,17 @@ vector per line:
 
 | kind | input -> expected |
 |---|---|
-| `transport_selection` | `{declared, available, preferred, actionId, profile?.transportFacts}` -> `{decision: {selected, reason, dimensions, frontier, declared, available, preferred, dispatchState, fallback, actionId}}` or `{error}`. Includes the exhaustive small space (declared sets x available orderings x preferred x 13 fact scenarios = 364 rows) and edge cases (empty available, duplicates, unknown/unadmitted transports, unknown dimension/class, ties, `medium`, dominated preference). |
-| `transport_facts_admission` | `{profile}` -> `{facts}` or `{error}` (absent/null facts are "not delegated", never defaulted). |
-| `canonical_json` | `{json: <text>}` -> `{canonical, sha256}` (key order by UTF-8 bytes, unicode, escapes, numbers, nesting). |
-| `surface_contract_digest` | `{contract, generation?}` -> `{digest}` (`from_manifest/2` contract digest; `generation` lets Elixir rebuild the contract, tamper vectors have none). |
-| `surface_contract_refusal` | `{generation}` -> `{error}` (profile / refusal-code admission at contract minting). |
-| `receipt_digest` | `{payloadJson}` -> `{sha256}` (receipt hash law). |
-| `receipt_binding` | `{receipt, irAction?}` -> `{event}` or `{refusal: {standing, reason, authorityBoundary}}` (digest binding, tamper cases, refusal ordering subject -> timestamp -> digest). |
-| `refusal_vocabulary` | `{value}` -> `{refusalCode, standingValid, standingRefused}` (`REFUSED_` + non-empty reason). |
-| `reconcile_status` | `{verdict}` -> `{admitted}` (only `COMPLETED`, `NOT_OBSERVED`, `STILL_UNKNOWN`; other keys pass through). |
-| `ir_codec` | `{map}` -> `{ok: {canonicalMap, digest, roundTripsInput}}` or `{error}` (`false` leaves, nil honesty, forward tolerance, digest). |
-| `transport_outcome` | `{phase: pre_dispatch\|post_dispatch, cause, declared, available, preferred}` -> `{dispatchState, fallbackAllowed, failureOutcome}` (post-dispatch failure -> `dispatched`, fallback closed, `UNKNOWN_AFTER_DISPATCH`; pre-dispatch -> `not_dispatched`, fallback open, no outcome). |
+| transport_selection | `{declared, available, preferred, actionId, profile?.transportFacts}` -> `{decision: {selected, reason, dimensions, frontier, declared, available, preferred, dispatchState, fallback, actionId}}` or `{error}`. Includes the exhaustive small space (declared sets x available orderings x preferred x 13 fact scenarios = 364 rows) and edge cases (empty available, duplicates, unknown/unadmitted transports, unknown dimension/class, ties, medium, dominated preference). |
+| transport_facts_admission | `{profile}` -> `{facts}` or `{error}` (absent/null facts are "not delegated", never defaulted). |
+| canonical_json | `{json: <text>}` -> `{canonical, sha256}` (key order by UTF-8 bytes, unicode, escapes, numbers, nesting). |
+| surface_contract_digest | `{contract, generation?}` -> `{digest}` (`from_manifest/2` contract digest; generation lets Elixir rebuild the contract, tamper vectors have none). |
+| surface_contract_refusal | `{generation}` -> `{error}` (profile / refusal-code admission at contract minting). |
+| receipt_digest | `{payloadJson}` -> `{sha256}` (receipt hash law). |
+| receipt_binding | `{receipt, irAction?}` -> `{event}` or `{refusal: {standing, reason, authorityBoundary}}` (digest binding, tamper cases, refusal ordering subject -> timestamp -> digest). |
+| refusal_vocabulary | `{value}` -> `{refusalCode, standingValid, standingRefused}` (REFUSED_ + non-empty reason). |
+| reconcile_status | `{verdict}` -> `{admitted}` (only COMPLETED, NOT_OBSERVED, STILL_UNKNOWN; other keys pass through). |
+| ir_codec | `{map}` -> `{ok: {canonicalMap, digest, roundTripsInput}}` or `{error}` (false leaves, nil honesty, forward tolerance, digest). |
+| transport_outcome | `{phase: pre_dispatch\|post_dispatch, cause, declared, available, preferred}` -> `{dispatchState, fallbackAllowed, failureOutcome}` (post-dispatch failure -> `dispatched`, fallback closed, `UNKNOWN_AFTER_DISPATCH`; pre-dispatch -> `not_dispatched`, fallback open, no outcome). |
 
 ## How a new projection certifies
 

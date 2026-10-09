@@ -21,8 +21,8 @@ asserted by `test/js/idempotency_parity.test.mjs` and
 | field | meaning |
 | --- | --- |
 | `protocol` | must be exactly `ash_surface.idempotency/1` |
-| `crossTransport` | default `false`. When `true`, a replay may be re-selected among admitted transports (pre-dispatch). Otherwise it is pinned to the transport that dispatched originally |
-| `keyHeader` | optional hint handed to the adapter (`context.idempotency.keyHeader`); the adapter puts the key on the wire |
+| crossTransport | default false. When true, a replay may be re-selected among admitted transports (pre-dispatch). Otherwise it is pinned to the transport that dispatched originally |
+| keyHeader | optional hint handed to the adapter (context.idempotency.keyHeader); the adapter puts the key on the wire |
 
 The profile is strict: an unknown field or wrong protocol is
 `INVALID_IDEMPOTENCY_PROFILE` before dispatch (never silently ignored).
