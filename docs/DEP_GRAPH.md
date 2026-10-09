@@ -11,11 +11,11 @@ claim below is grounded in a cited file; the two law-layer repos were read read-
 
 | Concern | Owner | Grounds |
 |---|---|---|
-| MEANING | `ash_r2rml` | "W3C R2RML and RDF semantic mapping compiler" (`/Users/sac/ash_r2rml/mix.exs:11`); owns the semantic stack `rdf`/`sparql`/`sparql_client`/`json_ld` (`ash_r2rml/mix.exs:129–132`) |
-| CAPABILITY / AUTHORITY / CONSEQUENCE | `ash_a2a` | "exposes Ash actions as A2A agent skills, compiling a verified AgentCard and dispatching inbound A2A messages" (`/Users/sac/ash_a2a/mix.exs:38–40`) |
+| MEANING | ash_r2rml | "W3C R2RML and RDF semantic mapping compiler" (`/Users/sac/ash_r2rml/mix.exs:11`); owns the semantic stack rdf/sparql/sparql_client/json_ld (`ash_r2rml/mix.exs:129–132`) |
+| CAPABILITY / AUTHORITY / CONSEQUENCE | ash_a2a | "exposes Ash actions as A2A agent skills, compiling a verified AgentCard and dispatching inbound A2A messages" (`/Users/sac/ash_a2a/mix.exs:38–40`) |
 | Shared-discovery schema manufacture | the **AshTypescript pattern** (prior art, never a dependency) | `AGENTS.md:11` (#5), `README.md:29` |
 | Human rendering | the **ash_admin pattern** (prior art, never a dependency) | same boundary class as AshSDUI/live_vue, `AGENTS.md:14` (#8) |
-| Composition + human-interaction projection | `ash_surface` (this repo) | `AGENTS.md:9` (#3), `AGENTS.md:12` (#6) |
+| Composition + human-interaction projection | ash_surface (this repo) | `AGENTS.md:9` (#3), `AGENTS.md:12` (#6) |
 
 **MEANING — `ash_r2rml`.** What a resource *means* (its triples, IRIs, ontology
 alignment) is compiled there and nowhere else. It is the only repo of the three
@@ -117,14 +117,14 @@ Current — `mix.exs:57–87` (v26.9.22 pin era, eight deps; the last two git-pi
 
 | dep | constraint | role |
 |---|---|---|
-| `ash` | `~> 3.33.1` | upstream truth |
-| `spark` | `~> 2.7` | DSL/extension substrate |
-| `jason` | `~> 1.4` | JSON |
-| `stream_data` | `~> 1.4`, `runtime: false` (`mix.exs:67`) | property-based tests (042+043 union); no `only:` restriction admissible — `ash_a2a` (all-env dep) requires it in every env |
-| `igniter` | `~> 0.7`, `runtime: false` (`mix.exs:70`) | code generation; no `only:` — `ash_a2a` requires it beyond dev/test |
-| `dialyxir` | `~> 1.4`, `only: [:dev, :test]`, `runtime: false` (`mix.exs:73`) | static success-typing analysis (gapfix-dialyzer-010); never ships |
-| `ash_r2rml` | git pin `7d958a8` (v26.9.12), `runtime: false`, `override: true` (`mix.exs:76–80`) | meaning layer: compile-time delegation target of the semantic section; the pin overrides `ash_a2a`'s hex `~> 26.8` requirement |
-| `ash_a2a` | released tag `v26.9.22` (`tag:` pin), `runtime: false` (`mix.exs:83–86`; repinned from `e25ed6e` by be95b3e, ASF-26922-07 — pulls `rdf ~> 3.0` + the wasmex NIF) | capability/consequence law: compile-time delegation target of the capability section |
+| ash | `~> 3.33.1` | upstream truth |
+| spark | `~> 2.7` | DSL/extension substrate |
+| jason | `~> 1.4` | JSON |
+| stream_data | `~> 1.4`, `runtime: false` (`mix.exs:67`) | property-based tests (042+043 union); no `only:` restriction admissible — ash_a2a (all-env dep) requires it in every env |
+| `igniter` | `~> 0.7`, `runtime: false` (`mix.exs:70`) | code generation; no `only:` — ash_a2a requires it beyond dev/test |
+| dialyxir | `~> 1.4`, `only: [:dev, :test]`, `runtime: false` (`mix.exs:73`) | static success-typing analysis (gapfix-dialyzer-010); never ships |
+| ash_r2rml | git pin `7d958a8` (v26.9.12), `runtime: false`, `override: true` (`mix.exs:76–80`) | meaning layer: compile-time delegation target of the semantic section; the pin overrides ash_a2a's hex `~> 26.8` requirement |
+| ash_a2a | released tag `v26.9.22` (`tag:` pin), `runtime: false` (`mix.exs:83–86`; repinned from e25ed6e by be95b3e, ASF-26922-07 — pulls `rdf ~> 3.0` + the wasmex NIF) | capability/consequence law: compile-time delegation target of the capability section |
 
 **Retraction (gapfix-docs-truth-013).** This section previously showed a
 four-dep table cited as `mix.exs:43–48` and declared the target "**unchanged:

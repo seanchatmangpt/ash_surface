@@ -69,10 +69,10 @@ metadata), plus npm `zod` (MIT), at the time of writing.
 | License | Count | Notes |
 | --- | --- | --- |
 | MIT | 47 | permissive |
-| Apache-2.0 (incl. `Apache 2`) | 38 | permissive; `content_type` declares the non-SPDX `Apache 2` |
+| Apache-2.0 (incl. `Apache 2`) | 38 | permissive; content_type declares the non-SPDX `Apache 2` |
 | MIT / Apache-2.0 dual | 1 | permissive |
-| BSD 2-Clause | 1 | permissive (`yamerl`; non-SPDX spelling of BSD-2-Clause) |
-| **MPL-2.0** | 1 | **flag**: `open_api_spex` (transitive via `ash_ai`/`ash_json_api`) |
+| BSD 2-Clause | 1 | permissive (yamerl; non-SPDX spelling of BSD-2-Clause) |
+| **MPL-2.0** | 1 | **flag**: open_api_spex (transitive via ash_ai/ash_json_api) |
 
 MPL-2.0 is weak file-level copyleft: modifications to MPL files must be shared,
 but linking from a permissive/proprietary work is allowed and it does not

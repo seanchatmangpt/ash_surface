@@ -13,7 +13,7 @@ Constants: `AshSurface.schema_version/0` → `"26.10.8"`.
 | `from_manifest/2` | `Manifest.t(), keyword() -> {:ok, Surface.t()} \| {:error, term()}` | `:profile` opt; refuses unknown action ids |
 | `project/3` | `Surface.t(), module(), keyword() -> {:ok, artifacts, meta} \| {:error, term()}` | facade over `AshSurface.Projector.IR`; refuses modules without `project_ir/2` |
 | `action_id/1` | `Entrypoint.t() -> String.t()` | `"Resource#action"` |
-| `delegated/2` | `Entrypoint.t(), String.t() -> term() \| nil` | reads `custom.ash_surface` delegated facts |
+| `delegated/2` | `Entrypoint.t(), String.t() -> term() \| nil` | reads custom.ash_surface delegated facts |
 | `runtime_path/0` / `runtime_source/0` | | path to / source of `priv/static/ash_surface_runtime.mjs` |
 | `contract_digest/1` | `map() -> String.t()` | lowercase sha256 over canonical term encoding |
 | `verify_surface_digest/1` | `Surface.t() -> :ok \| {:error, {:surface_digest_mismatch, claimed, actual}}` | |
@@ -43,10 +43,10 @@ All declare `@behaviour AshSurface.Projector.IR` and implement `project_ir/2`.
 
 | Module | File | Input | Output |
 |---|---|---|---|
-| `AshSurface.Projectors.JS` | `lib/ash_surface/projectors/js.ex` | `%AshSurface.IR{}`(s) | one `.mjs` (default prefix `ash_surface_client`); JSDoc + embedded Zod; fail-closed admission: `{:not_an_ir, ...}`, `{:unsafe_js_namespace, ...}`, `{:unsafe_js_member, ...}`, `{:js_namespace_collision, ...}`, `{:duplicate_js_member, ...}`, `{:js_binding_collision, ...}`, `{:invalid_prefix, ...}`, `{:unadmitted_field, ...}`, `{:unadmitted_zod, ...}` |
+| `AshSurface.Projectors.JS` | `lib/ash_surface/projectors/js.ex` | `%AshSurface.IR{}`(s) | one `.mjs` (default prefix ash_surface_client); JSDoc + embedded Zod; fail-closed admission: `{:not_an_ir, ...}`, `{:unsafe_js_namespace, ...}`, `{:unsafe_js_member, ...}`, `{:js_namespace_collision, ...}`, `{:duplicate_js_member, ...}`, `{:js_binding_collision, ...}`, `{:invalid_prefix, ...}`, `{:unadmitted_field, ...}`, `{:unadmitted_zod, ...}` |
 | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | `%AshSurface.IR{}` list | navigation/table/form/relationship structure maps; no Phoenix dependency; controls are intent references, never direct calls |
 | `AshSurface.Projectors.ARIA` | `lib/ash_surface/projectors/aria.ex` | `%AshSurface.IR{}`(s) | ARIA contract map (semantics, never markup); optional `.json` emission; live regions OBSERVE-only; byte-deterministic ordering |
-| `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | `ash_surface.surface` IR | six artifacts: `schemas.mjs`, `actions.mjs`, `events.mjs`, `receipts.mjs`, client `.mjs`, `tanstack.mjs` (default prefix `zoela_surface`) |
+| `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | `ash_surface.surface` IR | six artifacts: `schemas.mjs`, `actions.mjs`, `events.mjs`, `receipts.mjs`, client `.mjs`, `tanstack.mjs` (default prefix zoela_surface) |
 | `AshSurface.Projector.VoiceKiosk` | `lib/ash_surface/projector/voice_kiosk.ex` | `ash_surface.surface` IR | one `{prefix}.voice.json`; authority-required actions phrased as confirmations |
 
 ## Module map (all paths under `lib/ash_surface/`)

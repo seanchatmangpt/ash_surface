@@ -71,11 +71,11 @@ existence, meaning, or DO-authority — it carries admitted facts.**
 
 | Section | Struct | Fields | Edge owner (truth source) |
 |---|---|---|---|
-| `:ash` | `IR.Ash` | `resource`, `action`, `action_type`, `inputs`, `outputs`, `policies` | Ash manifest (re-states, never re-decides) |
-| `:semantic` | `IR.Semantic` | `subject_iri`, `capability_iri`, `predicates`, `shape_id`, `ontology` | meaning edge (r2rml) |
-| `:capability` | `IR.Capability` | `capability_id`, `consequence_class`, `authority_required`, `receipt_required` | capability edge (a2a) |
-| `:presentation` | `IR.Presentation` | `label`, `group`, `order`, `widget`, `format` | rendering edge (admin-pattern); the ONLY metadata ash_surface owns |
-| `:schema` | `IR.Schema` | `input`, `output`, `zod`, `aria` | schema edge (shared-discovery) |
+| `:ash` | `IR.Ash` | resource, action, action_type, inputs, outputs, policies | Ash manifest (re-states, never re-decides) |
+| `:semantic` | `IR.Semantic` | subject_iri, capability_iri, predicates, shape_id, ontology | meaning edge (r2rml) |
+| `:capability` | `IR.Capability` | capability_id, `consequence_class`, `authority_required`, receipt_required | capability edge (a2a) |
+| `:presentation` | `IR.Presentation` | label, group, order, widget, format | rendering edge (admin-pattern); the ONLY metadata ash_surface owns |
+| `:schema` | `IR.Schema` | `input`, output, zod, aria | schema edge (shared-discovery) |
 
 Plus envelope fields `version` and `digest`
 (`canonical_term -> term_to_binary -> SHA-256 -> lower hex`).
@@ -107,13 +107,13 @@ Four projection lanes leave the IR (`pi_LiveView`, `pi_JS`, `pi_ARIA`,
 
 | Lane | Module | Canonical path | Admitted on | Contract | Emits |
 |---|---|---|---|---|---|
-| `pi_JS` | `AshSurface.Projectors.JS` | `lib/ash_surface/projectors/js.ex` | `exp/v18` (`7d8e705`) | `project_ir/2` over `AshSurface.IR` | one `{prefix}.mjs` (default `ash_surface_client`) |
-| `pi_ARIA` | `AshSurface.Compiler.Aria` | `lib/ash_surface/compiler/aria.ex` | `exp/v08` (`88dc562`), deepened `exp/v34` (`725503e`) | `build/2` pure section builder (data only) | per-input ARIA contracts mounted at `IR.Schema.aria` |
-| `pi_LiveView` (structure) | `AshSurface.Compiler.Presentation` | `lib/ash_surface/compiler/presentation.ex` | `exp/v06`, carried `exp/v50` | `build/2` presentation reader | `label/group/order/widget/format` at `IR.Presentation` |
-| `pi_voice` | `AshSurface.Projector.VoiceKiosk` | `lib/ash_surface/projector/voice_kiosk.ex` | `exp/v20` (`41a5a48`), carried `exp/v50` | legacy `project/2` + `project_ir/2` | `{prefix}.voice.json` sorted voice intents |
+| pi_JS | `AshSurface.Projectors.JS` | `lib/ash_surface/projectors/js.ex` | `exp/v18` (`7d8e705`) | `project_ir/2` over `AshSurface.IR` | one `{prefix}.mjs` (default ash_surface_client) |
+| pi_ARIA | `AshSurface.Compiler.Aria` | `lib/ash_surface/compiler/aria.ex` | `exp/v08` (`88dc562`), deepened `exp/v34` (`725503e`) | `build/2` pure section builder (data only) | per-input ARIA contracts mounted at IR.Schema.aria |
+| pi_LiveView (structure) | `AshSurface.Compiler.Presentation` | `lib/ash_surface/compiler/presentation.ex` | `exp/v06`, carried `exp/v50` | `build/2` presentation reader | `label/group/order/widget/format` at `IR.Presentation` |
+| pi_voice | `AshSurface.Projector.VoiceKiosk` | `lib/ash_surface/projector/voice_kiosk.ex` | `exp/v20` (`41a5a48`), carried `exp/v50` | legacy `project/2` + `project_ir/2` | `{prefix}.voice.json` sorted voice intents |
 | reference (landed) | `AshSurface.Projector.Expo` | `lib/ash_surface/projector/expo.ex` | base `282f3ca` | legacy `project/2` | `{prefix}.schemas/.actions/.events/.receipts/.mjs/.tanstack.mjs` (the former `.human`/`.demo` artifacts moved to `AshSurfaceZoe.Projector.Human` in `packages/ash_surface_zoe`) |
-| `pi_LiveView` (projection) | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | landed at v50 final integration (feat `2b93c85`) | `project_ir/2` over `%AshSurface.IR{}` structs (declares `Projector.IR`; §1) | ash_admin-style structure map: navigation/table/forms/relationships + intent-only action controls |
-| `pi_ARIA` (projection) | `AshSurface.Projectors.ARIA` | `lib/ash_surface/projectors/aria.ex` | landed at v50 final integration (feat `8827f41`, `exp/v19` line) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch) | ARIA contract map (+ optional `.json` emission) from delegated `IR.Schema.aria`/`IR.Presentation` facts |
+| pi_LiveView (projection) | `AshSurface.Projectors.LiveView` | `lib/ash_surface/projectors/live_view.ex` | landed at v50 final integration (feat `2b93c85`) | `project_ir/2` over `%AshSurface.IR{}` structs (declares `Projector.IR`; §1) | ash_admin-style structure map: navigation/table/forms/relationships + intent-only action controls |
+| pi_ARIA (projection) | `AshSurface.Projectors.ARIA` | `lib/ash_surface/projectors/aria.ex` | landed at v50 final integration (feat `8827f41`, `exp/v19` line) | `project_ir/2` over `%AshSurface.IR{}` structs (duck-dispatch) | ARIA contract map (+ optional `.json` emission) from delegated IR.Schema.aria/`IR.Presentation` facts |
 
 Notes per lane:
 
@@ -139,11 +139,11 @@ Notes per lane:
   |---|---|
   | `{:js_namespace_collision, short, [full_names]}` | `Blog.Post` and `Forum.Post` both shorten to `Post`; one frozen namespace would keep only the last member |
   | `{:duplicate_js_member, id}` | the same action id twice in one namespace |
-  | `{:unsafe_js_namespace, name}` | not an ASCII identifier, a reserved word, an ECMAScript global (`Object`, `Error`, `JSON`, ...), or a binding the artifact declares itself (`z`, `ACTIONS`, `SCHEMAS`, `NAMESPACES`, `getAction`, `dispatchIntent`) |
-  | `{:unsafe_js_member, id}` | a non-identifier action name or `__proto__` (reserved words stay legal members: `Post.delete`) |
+  | `{:unsafe_js_namespace, name}` | not an ASCII identifier, a reserved word, an ECMAScript global (Object, Error, JSON, ...), or a binding the artifact declares itself (z, ACTIONS, SCHEMAS, NAMESPACES, getAction, dispatchIntent) |
+  | `{:unsafe_js_member, id}` | a non-identifier action name or __proto__ (reserved words stay legal members: Post.delete) |
   | `{:js_binding_collision, name}` | two schema constants, or a schema constant and a namespace, share a name |
   | `{:invalid_prefix, prefix}` | the `:prefix` option is not a non-empty string |
-  | `{:unadmitted_field, id, field}` | a descriptor field (`label`, `capability_iri`, ...) is neither a string nor nil |
+  | `{:unadmitted_field, id, field}` | a descriptor field (label, capability_iri, ...) is neither a string nor nil |
   | `{:unadmitted_zod, id, reason}` | the Zod string is outside the admitted grammar |
 
   The Zod grammar (`AshSurface.Projectors.JS.ZodGuard`) is a `z`-rooted
@@ -381,7 +381,7 @@ correction markers) is the registry of record.]
 
 | Element | Branch (commit) | Canonical path (post-integration) |
 |---|---|---|
-| `AshSurface.project/3` facade (legacy `AshSurface.Projector` behaviour retired, see §4) | base `282f3ca` | `lib/ash_surface.ex` |
+| `AshSurface.project/3` facade (legacy AshSurface.Projector behaviour retired, see §4) | base `282f3ca` | `lib/ash_surface.ex` |
 | `project_ir/2` behaviour (sole contract) + `project/3` | `exp/v16` (`01545e3`) | `lib/ash_surface/projector/ir.ex` |
 | Five-section `AshSurface.IR` | `exp/v01` -> `exp/v18` | `lib/ash_surface/ir.ex` |
 | Flat-entry reader (`entries/1`, `describe/1`, `do_boundary?/1`) | `exp/v18` (`7d8e705`), renamed `Projector.IREntry` at v50 final integration (`4aacae5`) | `lib/ash_surface/projector/ir_entry.ex` |
@@ -392,7 +392,7 @@ correction markers) is the registry of record.]
 | ARIA section (data) + v34 depth | `exp/v08` (`88dc562`), `exp/v34` (`725503e`) | `lib/ash_surface/compiler/aria.ex` |
 | Voice kiosk projector | `exp/v20` (`41a5a48`), `exp/v50` | `lib/ash_surface/projector/voice_kiosk.ex` |
 | IR codec (serialization + content addressing) | `exp/v09` | `lib/ash_surface/ir/codec.ex` |
-| Expo reference projector | base `282f3ca` (`eaee5c6`) | `lib/ash_surface/projector/expo.ex` |
+| Expo reference projector | base `282f3ca` (eaee5c6) | `lib/ash_surface/projector/expo.ex` |
 
 Sibling test truth: `exp/v16` `test/ash_surface/projector/ir_projector_test.exs`
 (adapter passthrough, typed refusals), `exp/v18`
