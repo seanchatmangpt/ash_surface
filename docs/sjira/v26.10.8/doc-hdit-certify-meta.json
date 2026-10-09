@@ -1,0 +1,25 @@
+{
+  "certify_command": "doc-hdit certify /tmp/hdit/ash_surface.inputs.json courts/doc_quality.court --docs docs/reference/generated --chain docs/sjira/v26.10.8/doc-hdit.receipts.jsonl --extractor scripts/gen_doc_surface.py",
+  "extractor_pin_sha256": "4c862576ab63595f9cd0417b35341af3ec1001f49450e79bf2e4c291a4a4246f",
+  "extractor_pin_verified": "shasum -a 256 /Users/sac/ggen-marketplace/scripts/gen_doc_surface.py -> 4c862576ab63595f9cd0417b35341af3ec1001f49450e79bf2e4c291a4a4246f (2026-10-09); receipt 'extractor' field a579e210... is the BLAKE3 identity of the same file bytes (src/certify.rs extractor_identity)",
+  "gates": {
+    "Phi_halluc": 0.0,
+    "Q_density": 1.0,
+    "S_coverage": 0.9995866060355518
+  },
+  "generated_docs_sha256": {
+    "docs/reference/generated/explanation.md": "3e3292f937ab9be5058e1d02b08e2de41a66e781e39e313e052db41bda186393",
+    "docs/reference/generated/how_to.md": "fbd020c649d7010b083e8e3c3a9045c3f0aa4bf0a9787571dc0526b64ee9867",
+    "docs/reference/generated/reference.md": "cc08bf273371758f4203be5d384ff17a0f31923479b879b48f282b75234e9388"
+  },
+  "receipt_hash": "488a29bf638068d7b0bbb9a2b9336c82d1ba013f4ccb75b6c2279fcff3d5db9e",
+  "repo_head_at_certify": "dc214d7b5",
+  "scaffold_source": "doc-hdit scaffold --code <extractor code surface> --templates packs/rust-doc-hdit-pack/templates (AGENT-FORBIDDEN tables rendered from code-surface facts, not hand-written)",
+  "subject_digest": "5ab9a0c874b17f639828814c7436cd73597a9269ff037028d8705cbea3fdb487",
+  "thresholds": {
+    "Phi_halluc_max": 0.001,
+    "Q_density_min": 0.65,
+    "S_coverage_min": 0.9
+  },
+  "verdict": "ACCEPTED"
+}
