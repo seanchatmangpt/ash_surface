@@ -26,7 +26,7 @@ jobs:
   gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Tag matches mix.exs version
@@ -65,7 +65,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: hex-publish
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
