@@ -107,7 +107,7 @@ defmodule AshSurface.MixProject do
 
   defp deps do
     [
-      {:ash, "~> 3.33.1"},
+      {:ash, "~> 3.37.0"},
       {:spark, "~> 2.7"},
       {:jason, "~> 1.4"},
       # Observability events (AshSurface.Telemetry) call :telemetry directly;
