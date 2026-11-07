@@ -130,7 +130,12 @@ defmodule AshSurface.MixProject do
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       # ash_r2rml and ash_a2a Hex package dependencies
       {:ash_r2rml, "~> 26.9", runtime: false},
-      {:ash_a2a, "~> 26.9", runtime: false}
+      {:ash_a2a, "~> 26.9", runtime: false},
+      # A2A.AgentCard / A2A.Skill structs are expanded at compile time and used
+      # at runtime by AshSurface.A2ABridge + AgentCardArtifact. Declared here so
+      # the a2a beams are guaranteed on the load path in any build order
+      # (post-deps-wipe rebuild exposed the previously order-dependent build).
+      {:a2a, "~> 0.2"}
     ]
   end
 
