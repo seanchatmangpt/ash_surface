@@ -102,11 +102,22 @@ defmodule AshSurface.SchemaSectionTest do
 
   # The one canon: expo.ex's map_zod_type/1 bytes for nesting-bearing kinds.
   @canon_nested_map "z.record(z.string(), z.unknown())"
-  @canon_nested_array "z.array(z.unknown())"
-  @canon_enum "z.unknown()"
+  @canon_nested_array "z.array(z.guid())"
+  @canon_array_of_records "z.array(z.record(z.string(), z.unknown()))"
+  @canon_array_of_arrays "z.array(z.array(z.boolean()))"
+  @canon_array_of_strings "z.array(z.string())"
+  # F1-enum re-pin (docs/zod-port/receipts/wave3-f1en.md): enum kinds with
+  # Ash-carried values project to a sorted string z.enum, byte-matching the
+  # reference (~/ash_typescript codegen/schema_core.ex format_enum_values:
+  # sort_by to_string, quoted, ZodSchemaGenerator.format_enum "z.enum([..])").
+  # Executed accept/reject: test/ash_surface/enum_zod_court_test.exs.
+  @enum_ap "z.enum([\"active\", \"paused\"])"
+  @enum_apa "z.enum([\"active\", \"archived\", \"paused\"])"
+  @enum_a "z.enum([\"a\"])"
   @canon_union "z.unknown()"
-  @canon_enum_optional "z.unknown().optional().nullable()"
-  @canon_array_optional "z.array(z.unknown()).optional().nullable()"
+  @enum_a_optional "z.enum([\"a\"]).nullable().optional()"
+  # nil-able field = .nullable().optional() (zod_type.ex moduledoc; expo.ex:478).
+  @canon_array_optional "z.array(z.guid()).nullable().optional()"
 
   # A maximal serialized resource: nested map (carrying enum + nested array of
   # maps inside), enum with values, array with item_type, union with members.
@@ -134,8 +145,8 @@ defmodule AshSurface.SchemaSectionTest do
   defp deep_double_block do
     [
       "  alerts: #{@canon_nested_map},",
-      "  status: #{@canon_enum},",
-      "  tags: #{@canon_nested_array},",
+      "  status: #{@enum_ap},",
+      "  tags: #{@canon_array_of_strings},",
       "  target: #{@canon_union}"
     ]
     |> Enum.join("\n")
@@ -189,31 +200,30 @@ defmodule AshSurface.SchemaSectionTest do
     test "an array of maps with nested fields (double nesting) stays flat" do
       type = nested_array_type(nested_map_type([tfield("score", s_type("float"))]))
 
-      assert projected_block(typed_field(type)) == "  f: #{@canon_nested_array}"
+      assert projected_block(typed_field(type)) == "  f: #{@canon_array_of_records}"
     end
 
     test "an array of arrays stays flat and the item_type payload never leaks" do
       code = projected_code(typed_field(nested_array_type(nested_array_type(s_type("boolean")))))
 
       assert projected_block(typed_field(nested_array_type(nested_array_type(s_type("boolean"))))) ==
-               "  f: #{@canon_nested_array}"
+               "  f: #{@canon_array_of_arrays}"
 
       refute code =~ "\"item_type\""
     end
   end
 
   describe "enums and unions where Ash carries them" do
-    test "an enum with an Ash-carried values payload projects to the unknown canon" do
+    test "an enum with an Ash-carried values payload projects to a sorted z.enum (reference parity)" do
       assert projected_block(typed_field(enum_type(["active", "paused", "archived"]))) ==
-               "  f: #{@canon_enum}"
+               "  f: #{@enum_apa}"
     end
 
-    test "no enum literal is fabricated from the values payload (one canon, no second reading)" do
+    test "string enums render as z.enum only, never z.literal unions (reference parity)" do
       code = projected_code(typed_field(enum_type(["active", "paused"])))
 
-      for fabrication <- ["z.enum(", "z.literal(", "active", "paused"] do
-        refute code =~ fabrication, "fabricated #{inspect(fabrication)} from enum values"
-      end
+      assert code =~ @enum_ap
+      refute code =~ "z.literal(", "string enum must not render as a literal union"
     end
 
     test "a union with Ash-carried members projects to the unknown canon" do
@@ -246,7 +256,8 @@ defmodule AshSurface.SchemaSectionTest do
       # decorate. Drift here must be a conscious canon change, not silence.
       fields = %{"f" => %{"type" => enum_type(["a"]), "allow_nil" => true}}
 
-      assert projected_block(fields) == "  f: #{@canon_enum}"
+      # F1-enum: the serializer's "allow_nil" now decorates (nullable + optional).
+      assert projected_block(fields) == "  f: #{@enum_a}.nullable().optional()"
     end
 
     test "same kinds with rebuilt nested payload content and ordering project byte-identically" do
@@ -283,13 +294,13 @@ defmodule AshSurface.SchemaSectionTest do
            "f" => %{
              "type" => nested_array_type(nested_map_type([tfield("score", s_type("float"))]))
            }
-         }, @canon_nested_array},
+         }, @canon_array_of_records},
         {"enum with ash-carried values", %{"f" => %{"type" => enum_type(["active", "paused"])}},
-         @canon_enum},
+         @enum_ap},
         {"union with ash-carried members",
          %{"f" => %{"type" => union_type([member("url", s_type("string"))])}}, @canon_union},
         {"enum with allow_nil?", %{"f" => %{"type" => enum_type(["a"]), "allow_nil?" => true}},
-         @canon_enum_optional},
+         @enum_a_optional},
         {"nested array with allow_nil?",
          %{"f" => %{"type" => nested_array_type(s_type("uuid")), "allow_nil?" => true}},
          @canon_array_optional}

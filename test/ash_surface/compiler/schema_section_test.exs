@@ -49,11 +49,11 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
       {"string", "z.string()"},
       {"integer", "z.number().int()"},
       {"boolean", "z.boolean()"},
-      {"uuid", "z.string().uuid()"},
+      {"uuid", "z.guid()"},
       {"float", "z.number()"},
-      {"decimal", "z.number()"},
-      {"utc_datetime", "z.string()"},
-      {"datetime", "z.string()"},
+      {"decimal", "z.string()"},
+      {"utc_datetime", "z.iso.datetime()"},
+      {"datetime", "z.iso.datetime()"},
       {"map", "z.record(z.string(), z.unknown())"},
       {"array", "z.array(z.unknown())"},
       {"exotic_unmapped", "z.unknown()"}
@@ -67,16 +67,16 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
       end
     end
 
-    test "allow_nil? arguments gain .optional().nullable()" do
+    test "allow_nil? arguments gain .nullable()" do
       schema = build!([action("act", [arg("f", "integer", true)])])["act"]
 
-      assert input_block(schema) == "  f: z.number().int().optional().nullable()"
+      assert input_block(schema) == "  f: z.number().int().nullable()"
     end
 
-    test "argument definitions without a type degrade to optional unknown" do
+    test "argument definitions without a type degrade to unknown" do
       schema = build!([action("act", [%{"name" => "f", "allow_nil?" => false}])])["act"]
 
-      assert input_block(schema) == "  f: z.unknown().optional()"
+      assert input_block(schema) == "  f: z.unknown()"
     end
 
     test "multiple arguments join deterministically in discovery order" do
@@ -96,7 +96,7 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
                """
                  member_id: z.string(),
                  cost_physical: z.number().int(),
-                 note: z.string().optional().nullable()
+                 note: z.string().nullable()
                """
                |> String.trim_trailing()
     end
@@ -118,16 +118,16 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
     test "declared returns map through the same frozen table" do
       schema = build!([action("act", [], %{"type" => %{"kind" => "uuid"}})])["act"]
 
-      assert schema.zod =~ ~r/export const act_outputSchema = z\.string\(\)\.uuid\(\);\n\z/
+      assert schema.zod =~ ~r/export const act_outputSchema = z\.guid\(\);\n\z/
     end
 
-    test "allow_nil? returns gain .optional().nullable()" do
+    test "allow_nil? returns gain .nullable()" do
       schema =
         build!([
           action("act", [], %{"type" => %{"kind" => "integer"}, "allow_nil?" => true})
         ])["act"]
 
-      assert schema.zod =~ "act_outputSchema = z.number().int().optional().nullable();"
+      assert schema.zod =~ "act_outputSchema = z.number().int().nullable();"
     end
   end
 
@@ -144,7 +144,7 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
       assert schema.zod == """
              export const Volunteer_Milestone_record_milestone_inputSchema = z.object({
                member_id: z.string(),
-               cost_physical: z.number().int().optional().nullable()
+               cost_physical: z.number().int().nullable()
              }).passthrough();
 
              export const Volunteer_Milestone_record_milestone_outputSchema = z.undefined();
@@ -342,7 +342,11 @@ defmodule AshSurface.Compiler.SchemaSectionTest do
       # The section's arguments iterate in the SAME order the projector
       # iterated its fields map, so the emitted text must be identical.
       args =
-        Enum.map(fields, fn {name, fdef} -> Map.put(fdef, "name", name) end)
+        Enum.map(fields, fn {name, fdef} ->
+          # Twinned with Section.Schema: a nil-able argument is omittable.
+          fdef = if fdef["allow_nil?"] == true, do: Map.put(fdef, "optional", true), else: fdef
+          Map.put(fdef, "name", name)
+        end)
 
       assert {:ok, ir, _meta} = Schema.build(discovery([action("Canon.Resource#act", args)]))
       section_block = extract_input_block(ir["Canon.Resource#act"].zod)

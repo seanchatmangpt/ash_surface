@@ -1,0 +1,89 @@
+[
+ {
+  "id": "Form.create",
+  "label": "valid",
+  "expect": "pass",
+  "payload": {
+   "name": "abc1",
+   "kind": "basic",
+   "code": "123"
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "match with \\d rejects uppercase",
+  "expect": "fail",
+  "payload": {
+   "name": "ABC",
+   "kind": "basic",
+   "code": "123"
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "allow_empty false",
+  "expect": "fail",
+  "payload": {
+   "name": "",
+   "kind": "basic",
+   "code": "123"
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "arg match 3 digits",
+  "expect": "fail",
+  "payload": {
+   "name": "a",
+   "kind": "basic",
+   "code": "12a"
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "enum violated",
+  "expect": "fail",
+  "payload": {
+   "name": "a",
+   "kind": "gold",
+   "code": "123"
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "level max",
+  "expect": "fail",
+  "payload": {
+   "name": "a",
+   "kind": "basic",
+   "code": "123",
+   "level": 10
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "array item min_length",
+  "expect": "fail",
+  "payload": {
+   "name": "a",
+   "kind": "basic",
+   "code": "123",
+   "tags": [
+    "x"
+   ]
+  }
+ },
+ {
+  "id": "Form.create",
+  "label": "typed struct count min",
+  "expect": "fail",
+  "payload": {
+   "name": "a",
+   "kind": "basic",
+   "code": "123",
+   "stats": {
+    "count": -1
+   }
+  }
+ }
+]

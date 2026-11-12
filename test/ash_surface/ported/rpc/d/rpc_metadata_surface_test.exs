@@ -1,0 +1,881 @@
+defmodule AshSurface.Ported.Rpc.D.RpcMetadataSurfaceTest do
+  @moduledoc """
+  Surface port of the runtime half of `rpc_metadata_test.exs`. Action results are caller-built
+  real `Task` structs carrying the metadata the reference actions attach (`Ash.Resource.put_metadata/3`
+  with the values their after_action hooks set); the pipeline parses `metadataFields`, applies
+  `show_metadata` / `metadata_names` from the entry, and formats the envelope. No action executes.
+  The DSL-level metadata projection half is covered by `metadata_projection_test.exs`.
+  """
+  use ExUnit.Case, async: false
+
+  alias AshSurface.Ported.{Rpc, Task}
+  alias AshSurface.RuntimeParity.Rpc.{Pipeline, Support}
+  alias AshSurface.Ported.RFP
+
+  # The unconstrained-map metadata actions have no entry in the shared fixture table; add them
+  # here (the shared `Rpc.entries/0` is read-only for this lane) and re-assert on each test;
+  # `Pipeline.run_with_result/2` is called directly so the table is not replaced.
+  setup do
+    extra = [
+      Pipeline.entry(
+        :read_tasks_with_unconstrained_map_metadata,
+        Task,
+        :read_with_unconstrained_map_metadata,
+        show_metadata: nil
+      ),
+      Pipeline.entry(
+        :create_task_with_unconstrained_map_metadata,
+        Task,
+        :create_with_unconstrained_map_metadata,
+        show_metadata: nil
+      )
+    ]
+
+    Support.install(RFP.manifest(), Rpc.entries() ++ extra)
+    :ok
+  end
+
+  @read_meta [some_string: "default_value", some_number: 123]
+  @create_meta [some_string: "created", some_number: 456, some_boolean: false]
+  @update_meta [some_string: "updated", some_number: 789, some_boolean: true]
+  @destroy_meta [some_string: "destroyed", some_number: 999, some_boolean: nil]
+
+  defp meta(record, pairs),
+    do: Enum.reduce(pairs, record, fn {k, v}, acc -> Ash.Resource.put_metadata(acc, k, v) end)
+
+  # The record the reference action would return for `params`, built by hand (no execution).
+  defp result_for(%{"action" => action} = params, task) do
+    title = get_in(params, ["input", "title"]) || (task && task.title)
+    record = struct(Task, id: (task && task.id) || Ash.UUID.generate(), title: title)
+
+    cond do
+      String.starts_with?(action, "read_tasks_with_mapped_metadata") ->
+        [meta(record, meta_1: "metadata_value", is_valid?: true, field_2: 999)]
+
+      String.starts_with?(action, "read_tasks_with_typed_map_metadata") ->
+        [
+          meta(record,
+            audit_entries: [
+              %{field_name: "title", old_value: "Old Title"},
+              %{field_name: "completed", old_value: "false"}
+            ],
+            completion_info: %{completed_at: "2025-01-15T10:30:00Z", completed_by: "user_123"}
+          )
+        ]
+
+      String.starts_with?(action, "read_tasks_with_unconstrained_map_metadata") ->
+        [
+          meta(record,
+            raw_audit: %{
+              "_id" => "audit-1",
+              "_type" => "audit.event",
+              "_createdAt" => "2026-04-14T00:00:00Z",
+              "nested" => %{"_rev" => "rev-1", "field_name" => "title"}
+            },
+            raw_events: [
+              %{"_id" => "evt-1", "event_type" => "created"},
+              %{"_id" => "evt-2", "event_type" => "updated"}
+            ]
+          )
+        ]
+
+      String.starts_with?(action, "read_tasks_with_metadata") ->
+        [meta(record, @read_meta)]
+
+      String.starts_with?(action, "list_tasks") ->
+        [record]
+
+      action == "create_task_with_unconstrained_map_metadata" ->
+        meta(record,
+          raw_result: %{
+            "_id" => "doc-42",
+            "_type" => "task",
+            "_createdAt" => "2026-04-14T12:00:00Z"
+          }
+        )
+
+      String.starts_with?(action, "create_task") ->
+        meta(record, @create_meta)
+
+      String.starts_with?(action, "update_task") ->
+        meta(record, @update_meta)
+
+      String.starts_with?(action, "destroy_task") ->
+        meta(record, @destroy_meta)
+    end
+  end
+
+  # not `Rpc.run/2`: that re-installs the shared entry table and would drop the extra entries
+  defp run(params, task), do: Pipeline.run_with_result(params, result_for(params, task))
+
+  describe "READ actions - show_metadata: nil (all fields)" do
+    test "allows selecting all metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_all",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString", "someNumber", "someBoolean"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # All metadata fields should be merged into record (camelCase)
+      assert task_result["someString"] == "default_value"
+      assert task_result["someNumber"] == 123
+      assert is_nil(task_result["someBoolean"])
+    end
+
+    test "allows selecting subset of metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_all",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only requested metadata field
+      assert task_result["someString"] == "default_value"
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+
+    test "allows selecting no metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_all",
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # No metadata fields when not requested
+      refute Map.has_key?(task_result, "someString")
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+  end
+
+  describe "READ actions - show_metadata: false (disabled)" do
+    test "does not allow selecting metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_false",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+
+      # Metadata fields should not be included even if requested
+      if tasks != [] do
+        task_result = List.first(tasks)
+        refute Map.has_key?(task_result, "someString")
+        refute Map.has_key?(task_result, "someNumber")
+        refute Map.has_key?(task_result, "someBoolean")
+      end
+    end
+
+    test "works without metadataFields parameter" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_false",
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # No metadata fields
+      refute Map.has_key?(task_result, "someString")
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+  end
+
+  describe "READ actions - show_metadata: [] (empty list)" do
+    test "does not allow selecting metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_empty",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+
+      # Metadata fields should not be included even if requested
+      if tasks != [] do
+        task_result = List.first(tasks)
+        refute Map.has_key?(task_result, "someString")
+        refute Map.has_key?(task_result, "someNumber")
+        refute Map.has_key?(task_result, "someBoolean")
+      end
+    end
+  end
+
+  describe "READ actions - show_metadata: [:some_string] (one field)" do
+    test "allows selecting only the exposed field" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_one",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only the exposed field
+      assert task_result["someString"] == "default_value"
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+
+    test "does not include non-exposed fields even if requested" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_one",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString", "someNumber"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only the exposed field (someNumber is filtered out)
+      assert task_result["someString"] == "default_value"
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+  end
+
+  describe "READ actions - show_metadata: [:some_string, :some_number] (two fields)" do
+    test "allows selecting both exposed fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_two",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString", "someNumber"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Both exposed fields
+      assert task_result["someString"] == "default_value"
+      assert task_result["someNumber"] == 123
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+
+    test "allows selecting subset of exposed fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_two",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only requested field (subset of exposed)
+      assert task_result["someString"] == "default_value"
+      refute Map.has_key?(task_result, "someNumber")
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+
+    test "does not include non-exposed fields even if requested" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata_two",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString", "someNumber", "someBoolean"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only exposed fields (someBoolean is filtered out)
+      assert task_result["someString"] == "default_value"
+      assert task_result["someNumber"] == 123
+      refute Map.has_key?(task_result, "someBoolean")
+    end
+  end
+
+  describe "CREATE actions - show_metadata: nil (all fields)" do
+    test "returns all metadata fields as separate metadata object" do
+      params = %{
+        "action" => "create_task_metadata_all",
+        "input" => %{"title" => "New Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "New Task"
+
+      # All metadata fields in separate metadata object (camelCase)
+      assert result["metadata"]["someString"] == "created"
+      assert result["metadata"]["someNumber"] == 456
+      assert result["metadata"]["someBoolean"] == false
+    end
+  end
+
+  describe "CREATE actions - show_metadata: false (disabled)" do
+    test "does not include metadata field" do
+      params = %{
+        "action" => "create_task_metadata_false",
+        "input" => %{"title" => "New Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "New Task"
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "CREATE actions - show_metadata: [] (empty list)" do
+    test "does not include metadata field" do
+      params = %{
+        "action" => "create_task_metadata_empty",
+        "input" => %{"title" => "New Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "New Task"
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "CREATE actions - show_metadata: [:some_string] (one field)" do
+    test "returns only the exposed metadata field" do
+      params = %{
+        "action" => "create_task_metadata_one",
+        "input" => %{"title" => "New Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "New Task"
+
+      # Only exposed field (camelCase)
+      assert result["metadata"]["someString"] == "created"
+      refute Map.has_key?(result["metadata"], "someNumber")
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "CREATE actions - show_metadata: [:some_string, :some_number] (two fields)" do
+    test "returns both exposed metadata fields" do
+      params = %{
+        "action" => "create_task_metadata_two",
+        "input" => %{"title" => "New Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "New Task"
+
+      # Both exposed fields (camelCase)
+      assert result["metadata"]["someString"] == "created"
+      assert result["metadata"]["someNumber"] == 456
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "UPDATE actions - show_metadata: nil (all fields)" do
+    test "returns all metadata fields as separate metadata object" do
+      task = create_task("Original")
+
+      params = %{
+        "action" => "update_task_metadata_all",
+        "identity" => task.id,
+        "input" => %{"title" => "Updated"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "Updated"
+
+      # All metadata fields (camelCase)
+      assert result["metadata"]["someString"] == "updated"
+      assert result["metadata"]["someNumber"] == 789
+      assert result["metadata"]["someBoolean"] == true
+    end
+  end
+
+  describe "UPDATE actions - show_metadata: false (disabled)" do
+    test "does not include metadata field" do
+      task = create_task("Original")
+
+      params = %{
+        "action" => "update_task_metadata_false",
+        "identity" => task.id,
+        "input" => %{"title" => "Updated"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "Updated"
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "UPDATE actions - show_metadata: [] (empty list)" do
+    test "does not include metadata field" do
+      task = create_task("Original")
+
+      params = %{
+        "action" => "update_task_metadata_empty",
+        "identity" => task.id,
+        "input" => %{"title" => "Updated"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "Updated"
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "UPDATE actions - show_metadata: [:some_string] (one field)" do
+    test "returns only the exposed metadata field" do
+      task = create_task("Original")
+
+      params = %{
+        "action" => "update_task_metadata_one",
+        "identity" => task.id,
+        "input" => %{"title" => "Updated"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "Updated"
+
+      # Only exposed field (camelCase)
+      assert result["metadata"]["someString"] == "updated"
+      refute Map.has_key?(result["metadata"], "someNumber")
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "UPDATE actions - show_metadata: [:some_string, :some_number] (two fields)" do
+    test "returns both exposed metadata fields" do
+      task = create_task("Original")
+
+      params = %{
+        "action" => "update_task_metadata_two",
+        "identity" => task.id,
+        "input" => %{"title" => "Updated"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"]["title"] == "Updated"
+
+      # Both exposed fields (camelCase)
+      assert result["metadata"]["someString"] == "updated"
+      assert result["metadata"]["someNumber"] == 789
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "DESTROY actions - show_metadata: nil (all fields)" do
+    test "returns all metadata fields as separate metadata object" do
+      task = create_task("To Delete")
+
+      params = %{
+        "action" => "destroy_task_metadata_all",
+        "identity" => task.id
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"] == %{}
+
+      # All metadata fields (camelCase)
+      assert result["metadata"]["someString"] == "destroyed"
+      assert result["metadata"]["someNumber"] == 999
+      assert is_nil(result["metadata"]["someBoolean"])
+    end
+  end
+
+  describe "DESTROY actions - show_metadata: false (disabled)" do
+    test "does not include metadata field" do
+      task = create_task("To Delete")
+
+      params = %{
+        "action" => "destroy_task_metadata_false",
+        "identity" => task.id
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"] == %{}
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "DESTROY actions - show_metadata: [] (empty list)" do
+    test "does not include metadata field" do
+      task = create_task("To Delete")
+
+      params = %{
+        "action" => "destroy_task_metadata_empty",
+        "identity" => task.id
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"] == %{}
+
+      # No metadata field
+      refute Map.has_key?(result, "metadata")
+    end
+  end
+
+  describe "DESTROY actions - show_metadata: [:some_string] (one field)" do
+    test "returns only the exposed metadata field" do
+      task = create_task("To Delete")
+
+      params = %{
+        "action" => "destroy_task_metadata_one",
+        "identity" => task.id
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"] == %{}
+
+      # Only exposed field (camelCase)
+      assert result["metadata"]["someString"] == "destroyed"
+      refute Map.has_key?(result["metadata"], "someNumber")
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "DESTROY actions - show_metadata: [:some_string, :some_number] (two fields)" do
+    test "returns both exposed metadata fields" do
+      task = create_task("To Delete")
+
+      params = %{
+        "action" => "destroy_task_metadata_two",
+        "identity" => task.id
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      assert result["data"] == %{}
+
+      # Both exposed fields (camelCase)
+      assert result["metadata"]["someString"] == "destroyed"
+      assert result["metadata"]["someNumber"] == 999
+      refute Map.has_key?(result["metadata"], "someBoolean")
+    end
+  end
+
+  describe "READ actions - metadata_field_names mapping" do
+    test "allows requesting metadata fields using mapped names" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_mapped_metadata",
+        "fields" => ["id", "title"],
+        # Request using mapped names (what the client will use)
+        "metadataFields" => ["meta1", "isValid", "field2"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Metadata should be returned with mapped names (camelCase)
+      assert task_result["meta1"] == "metadata_value"
+      assert task_result["isValid"] == true
+      assert task_result["field2"] == 999
+    end
+
+    test "allows requesting subset of mapped metadata fields" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_mapped_metadata",
+        "fields" => ["id", "title"],
+        # Request only some mapped fields
+        "metadataFields" => ["meta1", "field2"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Only requested metadata fields with mapped names
+      assert task_result["meta1"] == "metadata_value"
+      assert task_result["field2"] == 999
+      refute Map.has_key?(task_result, "isValid")
+    end
+
+    test "allows requesting using original field names but returns mapped names" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_mapped_metadata",
+        "fields" => ["id", "title"],
+        # Request using original snake_case names (still works)
+        "metadataFields" => ["meta_1", "field_2"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Output always uses mapped names regardless of how they were requested
+      assert task_result["meta1"] == "metadata_value"
+      assert task_result["field2"] == 999
+      refute Map.has_key?(task_result, "isValid")
+      # Original names are not in the output
+      refute Map.has_key?(task_result, "meta_1")
+      refute Map.has_key?(task_result, "field_2")
+    end
+
+    test "works when no metadata fields are requested" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_mapped_metadata",
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # No metadata fields when not requested
+      refute Map.has_key?(task_result, "meta1")
+      refute Map.has_key?(task_result, "isValid")
+      refute Map.has_key?(task_result, "field2")
+    end
+  end
+
+  describe "default behavior (no show_metadata specified)" do
+    test "read action with metadata uses existing behavior" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_metadata",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["someString", "someNumber", "someBoolean"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Metadata fields merged into records (default behavior, camelCase)
+      assert task_result["someString"] == "default_value"
+      assert task_result["someNumber"] == 123
+      assert is_nil(task_result["someBoolean"])
+    end
+
+    test "action without metadata shows no metadata" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "list_tasks",
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+
+      # No metadata field or fields
+      refute Map.has_key?(result, "metadata")
+
+      if tasks != [] do
+        task = List.first(tasks)
+        refute Map.has_key?(task, "someString")
+        refute Map.has_key?(task, "someNumber")
+        refute Map.has_key?(task, "someBoolean")
+      end
+    end
+  end
+
+  describe "READ actions - typed map metadata nested key formatting" do
+    test "typed map metadata values have camelCase nested keys" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_typed_map_metadata",
+        "fields" => ["id", "title"],
+        "metadataFields" => ["auditEntries", "completionInfo"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      tasks = result["data"]
+      task_result = Enum.find(tasks, &(&1["id"] == task.id))
+
+      # Nested keys in {:array, :map} metadata should be camelCase
+      first_entry = List.first(task_result["auditEntries"])
+      assert first_entry["fieldName"] == "title"
+      assert first_entry["oldValue"] == "Old Title"
+      refute Map.has_key?(first_entry, "field_name")
+      refute Map.has_key?(first_entry, "old_value")
+
+      # Nested keys in :map metadata should be camelCase
+      assert task_result["completionInfo"]["completedAt"] == "2025-01-15T10:30:00Z"
+      assert task_result["completionInfo"]["completedBy"] == "user_123"
+      refute Map.has_key?(task_result["completionInfo"], "completed_at")
+      refute Map.has_key?(task_result["completionInfo"], "completed_by")
+    end
+  end
+
+  describe "unconstrained map metadata preserves caller-provided keys" do
+    test "READ action: :map and {:array, :map} metadata pass through unchanged" do
+      task = create_task("Test Task")
+
+      params = %{
+        "action" => "read_tasks_with_unconstrained_map_metadata",
+        "fields" => ["id"],
+        "metadataFields" => ["rawAudit", "rawEvents"]
+      }
+
+      result = run(params, task)
+
+      assert result["success"] == true
+      task_result = Enum.find(result["data"], &(&1["id"] == task.id))
+
+      raw_audit = task_result["rawAudit"]
+      assert raw_audit["_id"] == "audit-1"
+      assert raw_audit["_type"] == "audit.event"
+      assert raw_audit["_createdAt"] == "2026-04-14T00:00:00Z"
+      # Nested maps also pass through — snake_case and underscore-prefixed
+      # keys both survive verbatim.
+      assert raw_audit["nested"]["_rev"] == "rev-1"
+      assert raw_audit["nested"]["field_name"] == "title"
+
+      assert [first, second] = task_result["rawEvents"]
+      assert first["_id"] == "evt-1"
+      assert first["event_type"] == "created"
+      assert second["_id"] == "evt-2"
+      assert second["event_type"] == "updated"
+    end
+
+    test "CREATE action: :map metadata passes through unchanged" do
+      params = %{
+        "action" => "create_task_with_unconstrained_map_metadata",
+        "input" => %{"title" => "Sanity Task"},
+        "fields" => ["id", "title"]
+      }
+
+      result = run(params, nil)
+
+      assert result["success"] == true
+      raw = result["metadata"]["rawResult"]
+      assert raw["_id"] == "doc-42"
+      assert raw["_type"] == "task"
+      assert raw["_createdAt"] == "2026-04-14T12:00:00Z"
+    end
+  end
+
+  # Helper function to create tasks
+  defp create_task(title), do: struct(Task, id: Ash.UUID.generate(), title: title)
+end

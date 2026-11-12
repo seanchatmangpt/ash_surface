@@ -14,7 +14,7 @@ defmodule AshSurface.MXEpisodeCoverageTest do
 
   alias AshSurface.{Event, MXEpisode, Observation, PlanningEpisode, Surface}
 
-  @scratch Path.expand("../../_build/test/mx_episode_coverage", __DIR__)
+  @scratch AshSurface.TestTmp.scoped(Path.expand("../../_build/test/mx_episode_coverage", __DIR__))
 
   defp loop(overrides) do
     observation = Observation.create("sp:ticket:cov", %{"status" => "open"})

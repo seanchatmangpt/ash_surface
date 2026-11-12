@@ -1,0 +1,73 @@
+[
+ {
+  "label": "invalid_attribute",
+  "expect": true,
+  "payload": {
+   "message": "m",
+   "shortMessage": "s",
+   "vars": {},
+   "fields": [
+    "f"
+   ],
+   "path": [
+    "a",
+    0
+   ],
+   "type": "invalid_attribute"
+  },
+  "target": "default"
+ },
+ {
+  "label": "with details",
+  "expect": true,
+  "payload": {
+   "message": "m",
+   "shortMessage": "s",
+   "vars": {},
+   "fields": [
+    "f"
+   ],
+   "path": [
+    "a",
+    0
+   ],
+   "type": "invalid_attribute",
+   "details": {
+    "k": 1
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown type rejected by discriminator",
+  "expect": false,
+  "payload": {
+   "message": "m",
+   "shortMessage": "s",
+   "vars": {},
+   "fields": [
+    "f"
+   ],
+   "path": [
+    "a",
+    0
+   ],
+   "type": "not_a_type"
+  },
+  "target": "default"
+ },
+ {
+  "label": "missing message",
+  "expect": false,
+  "payload": {
+   "type": "invalid_attribute"
+  },
+  "target": "default"
+ },
+ {
+  "label": "not an object",
+  "expect": false,
+  "payload": "boom",
+  "target": "default"
+ }
+]

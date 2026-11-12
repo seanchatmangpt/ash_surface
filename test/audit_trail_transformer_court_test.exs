@@ -1,6 +1,3 @@
-
-
-
 defmodule AuditTrail.ResourceTransformerClosureCourt do
   @moduledoc """
   Transformer closure court for `AuditTrail.Resource.Persist` (pack `audit_trail`).
@@ -17,7 +14,9 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
 
   # Subject under court. Default: the generated transformer. The env overrides
   # swap in a mutant fixture for the anti-vacuity run only.
-  @transformer Module.concat([System.get_env("COURT_TRANSFORMER") || "AuditTrail.Resource.Persist"])
+  @transformer Module.concat([
+                 System.get_env("COURT_TRANSFORMER") || "AuditTrail.Resource.Persist"
+               ])
 
   # Pack's known source-path convention: persist.ex.tmpl renders to
   # lib/audit_trail/persist.ex, and fixture/mix.exs mounts generated code
@@ -29,7 +28,10 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
     # persist.ex is <capsule>/generated/audit_trail/persist.ex (no lib/ level).
     Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "audit_trail/persist.ex"),
     # fixture mount layout: elixirc_paths appends ASH_PACK_GENERATED under lib/.
-    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "lib/audit_trail/persist.ex"),
+    Path.join(
+      System.get_env("ASH_PACK_GENERATED", "lib/generated"),
+      "lib/audit_trail/persist.ex"
+    ),
     Path.expand("lib/audit_trail/persist.ex"),
     Path.expand("lib/audit_trail_generated/lib/audit_trail/persist.ex")
   ]
@@ -39,9 +41,23 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
   @permitted_application_reads []
 
   # Module attributes that never carry semantics (registry bookkeeping only).
-  @benign_attributes [:moduledoc, :doc, :impl, :behaviour, :derive, :type, :typep,
-                      :spec, :compile, :external_resource, :before_compile,
-                      :after_compile, :after_verify, :on_definition, :enforce_keys]
+  @benign_attributes [
+    :moduledoc,
+    :doc,
+    :impl,
+    :behaviour,
+    :derive,
+    :type,
+    :typep,
+    :spec,
+    :compile,
+    :external_resource,
+    :before_compile,
+    :after_compile,
+    :after_verify,
+    :on_definition,
+    :enforce_keys
+  ]
 
   # The specimen section: the spec's own first DSL section (ordered), so the
   # specimen declares entities under a section the generated Persist reads.
@@ -121,7 +137,10 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
 
     specimen_src =
       specimen_source(@transformer)
-      |> String.replace("AuditTrail.Resource.Court.Specimen", "AuditTrail.Resource.Court.Specimen#{tag}")
+      |> String.replace(
+        "AuditTrail.Resource.Court.Specimen",
+        "AuditTrail.Resource.Court.Specimen#{tag}"
+      )
       |> String.replace("AuditTrail.Resource.Court.Step", "AuditTrail.Resource.Court.Step#{tag}")
 
     specimen = Module.concat(["AuditTrail.Resource.Court.Specimen#{tag}"])
@@ -145,7 +164,10 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
     draft_src =
       draft_source(specimen, @specimen_section, steps)
       |> String.replace("AuditTrail.Resource.Court.Base", "AuditTrail.Resource.Court.Base#{tag}")
-      |> String.replace("AuditTrail.Resource.Court.Draft", "AuditTrail.Resource.Court.Draft#{tag}")
+      |> String.replace(
+        "AuditTrail.Resource.Court.Draft",
+        "AuditTrail.Resource.Court.Draft#{tag}"
+      )
 
     # The ONLY nondeterminism channel the court deliberately opens: pre_setup/0
     # runs before compilation. An honest transformer must be blind to it.
@@ -269,8 +291,7 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
             end
 
           # :persistent_term via alias form (PersistentTerm.get)
-{{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node,
-          {defined, violations}
+          {{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node, {defined, violations}
           when mod in [:persistent_term, :PersistentTerm] ->
             {node,
              {defined,
@@ -280,7 +301,7 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # :persistent_term via erlang atom form (:persistent_term.get)
-{{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
+          {{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
             {node,
              {defined,
               [
@@ -289,7 +310,7 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Process dictionary
-{{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:put, :get, :delete, :get_and_update] ->
             {node,
@@ -300,7 +321,7 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Application env outside the contract-permitted list
-{{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:get_env, :fetch_env, :fetch_env!, :get_all_env] ->
             {node,
@@ -313,8 +334,8 @@ defmodule AuditTrail.ResourceTransformerClosureCourt do
 
           node, acc ->
             {node, acc}
-      end
-    )
+        end
+      )
 
     Enum.reverse(violations)
   end

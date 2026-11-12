@@ -5,7 +5,7 @@ defmodule AshSurface.Projector.ExpoTest do
   alias AshSurface.Fixtures.VolunteerMilestone
   alias AshSurface.Projector.Expo
 
-  @tmp_dir Path.expand("../../../_build/test/projector_expo", __DIR__)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../../_build/test/projector_expo", __DIR__))
 
   setup do
     File.rm_rf!(@tmp_dir)

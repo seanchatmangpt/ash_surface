@@ -60,7 +60,7 @@ defmodule AshSurface.IR.Codec do
   @ash_fields ~w(action action_type inputs outputs policies resource)
   @capability_fields ~w(authority_required capability_id consequence_class receipt_required)
   @presentation_fields ~w(format group label order widget)
-  @schema_fields ~w(aria input output zod)
+  @schema_fields ~w(aggregates aria calculations capability_flags error facts filter get input load nil_reasons output page response_zod selection sort tenant validation_error zod)
   @semantic_fields ~w(capability_iri ontology predicates shape_id subject_iri)
 
   @section_keys ~w(ash capability presentation schema semantic)

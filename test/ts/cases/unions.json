@@ -1,0 +1,46 @@
+[
+ {
+  "label": "tag s",
+  "expect": true,
+  "payload": {
+   "type": "s",
+   "value": "a"
+  },
+  "target": "default"
+ },
+ {
+  "label": "tag i",
+  "expect": true,
+  "payload": {
+   "type": "i",
+   "value": 3
+  },
+  "target": "default"
+ },
+ {
+  "label": "value type mismatch",
+  "expect": false,
+  "payload": {
+   "type": "s",
+   "value": 1
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown tag",
+  "expect": false,
+  "payload": {
+   "type": "x",
+   "value": 1
+  },
+  "target": "default"
+ },
+ {
+  "label": "missing value",
+  "expect": false,
+  "payload": {
+   "type": "i"
+  },
+  "target": "default"
+ }
+]

@@ -1,21 +1,29 @@
-
-
 defmodule AshSurfaceIgniterIdempotenceCourtTest do
   use ExUnit.Case, async: false
   # Each test drives real `mix <pkg>.install` subprocesses (which compile the vendored
   # extension package); under a loaded machine one install can exceed ExUnit's 60s
   # default, so the whole court gets a wide budget.
-  @moduletag timeout: 300_000
+  # Per-test ExUnit budget is above the per-install deadline below so a slow-but-live
+  # install is bounded by run_bounded/3 (typed exit 124), not by an opaque ExUnit timeout.
+  @moduletag timeout: 720_000
+  @install_deadline_ms 600_000
 
   @package_name "ash_surface"
   @task_name "ash_surface.install"
   @extension_module "AshSurface.Resource"
-  
 
   @mutant_env "AEX_INSTALLER_MUTANT"
 
+  # Vendored files are DERIVED, never listed: the compile closure of the modules the
+  # installer needs, computed from the AST of lib/ash_surface (alias-expanded module
+  # references, transitive). Seeds: the extension module under test (@extension_module)
+  # plus every module the real install task references.
+  @install_task_rel "lib/mix/tasks/ash_surface.install.ex"
+
   @scratch_root System.tmp_dir!()
-                |> Path.join("spark-closure-consumer-court-scratch-#{System.unique_integer([:positive])}")
+                |> Path.join(
+                  "spark-closure-consumer-court-scratch-#{AshSurface.TestTmp.suffix()}"
+                )
 
   # The scratch app is a copy of the spark-closure-consumer fixture app. In a
   # standalone fixture run (mix test in packs/.../fixture) that app lives one level
@@ -26,6 +34,9 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
                   [
                     System.get_env("AEX_IGNITER_FIXTURE_ROOT"),
                     Path.join(File.cwd!(), "spark-closure-consumer"),
+                    # This checkout vendors the fixture app at fixture/spark-closure-consumer
+                    # (a tiny real Mix project: one Ash resource + domain, ets, no network).
+                    Path.join(File.cwd!(), "fixture/spark-closure-consumer"),
                     File.cwd!()
                   ]
                   |> Enum.reject(&is_nil/1),
@@ -39,12 +50,12 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
     :ok
   end
 
-  test "clean install: exit 0, extension, section block and formatter plugin land" do
+  test "clean install: exit 0, extension, section block and formatter import_deps land (no retired plugin)" do
     scratch = fresh_scratch()
     assert {_, 0} = run_install(scratch, ["--target", "SparkClosureConsumer.Example.Post"])
     assert extension_added?(scratch)
     assert section_block?(scratch)
-    assert formatter_plugin?(scratch)
+    assert formatter_wired?(scratch)
   end
 
   test "install twice: second run is byte or AST stable" do
@@ -60,6 +71,7 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
     scratch = fresh_scratch()
     post = Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"])
     source = File.read!(post)
+
     File.write!(
       post,
       String.replace(
@@ -68,6 +80,7 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
         "data_layer: Ash.DataLayer.Ets,\n    extensions: [Ash.Policy.Authorizer]"
       )
     )
+
     assert {_, 0} = run_install(scratch, ["--target", "SparkClosureConsumer.Example.Post"])
     source = File.read!(post)
     assert source =~ "Ash.Policy.Authorizer"
@@ -87,7 +100,7 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
   test "formatter/plugin insertion present after install" do
     scratch = fresh_scratch()
     assert {_, 0} = run_install(scratch, ["--target", "SparkClosureConsumer.Example.Post"])
-    assert formatter_plugin?(scratch)
+    assert formatter_wired?(scratch)
   end
 
   test "install -> regenerate -> install: stable between every consecutive pair" do
@@ -108,16 +121,36 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
   defp fresh_scratch do
     File.rm_rf!(@scratch_root)
     File.mkdir_p!(@scratch_root)
+
     for entry <- File.ls!(@fixture_root),
-        entry not in ["_build", "deps", ".fetch", "ggen.toml", "ontology.ttl", "templates", ".ggen", ".ggen-v2", "sync.json", "sync.log", ".rendered"],
-        not String.starts_with?(entry, "sync-") do
+        entry not in [
+          "_build",
+          "deps",
+          ".fetch",
+          "ggen.toml",
+          "ontology.ttl",
+          "templates",
+          ".ggen",
+          ".ggen-v2",
+          "sync.json",
+          "sync.log",
+          ".rendered"
+        ],
+        not String.starts_with?(entry, "sync-"),
+        # sibling lanes' _build-* roots are transient; never part of the fixture copy
+        not String.starts_with?(entry, "_build") do
       src = Path.join(@fixture_root, entry)
       dest = Path.join(@scratch_root, entry)
       if File.dir?(src), do: File.cp_r!(src, dest), else: File.cp!(src, dest)
     end
+
     case System.get_env(@mutant_env) do
-      nil -> :ok
-      "" -> :ok
+      nil ->
+        :ok
+
+      "" ->
+        :ok
+
       path ->
         real = Path.join([@scratch_root, "lib/mix/tasks/ash_surface.install.ex"])
         File.cp!(path, real)
@@ -139,7 +172,11 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
     # its own capsule instead). The scratch app has neither, so copy it in.
     case System.get_env("ASH_PACK_GENERATED") do
       nil ->
-        :ok
+        # In-repo run: the real installer task lives in this checkout's lib/mix/tasks.
+        task = Path.join(File.cwd!(), "lib/mix/tasks/ash_surface.install.ex")
+        dest = Path.join([@scratch_root, "lib/mix/tasks/"])
+        File.mkdir_p!(dest)
+        File.cp!(task, Path.join(dest, "ash_surface.install.ex"))
 
       gen ->
         task = Path.join([gen, "mix/tasks/ash_surface.install.ex"])
@@ -160,6 +197,142 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
   # real path dependency `:ash_surface`: the extension modules must exist for the
   # patched resource to compile, and `.formatter.exs`'s `import_deps: [:ash_surface]`
   # must resolve against a real dependency.
+  defp vendor_closure(src) do
+    files =
+      for path <- Path.wildcard(Path.join(src, "**/*.ex")), into: %{} do
+        {Path.relative_to(path, src), parse_module_refs(path)}
+      end
+
+    defined = for {rel, {defs, _, _}} <- files, m <- defs, into: %{}, do: {m, rel}
+
+    {_, task_refs, _} = parse_module_refs(Path.join(File.cwd!(), @install_task_rel))
+
+    seeds =
+      for m <- [Module.concat([@extension_module]) | task_refs],
+          f = Map.get(defined, m),
+          uniq: true,
+          do: f
+
+    reach = walk(seeds, MapSet.new(), files, defined)
+    reach |> prune(files, defined) |> MapSet.to_list() |> Enum.sort()
+  end
+
+  defp walk([], seen, _files, _defined), do: seen
+
+  defp walk([rel | rest], seen, files, defined) do
+    if MapSet.member?(seen, rel) do
+      walk(rest, seen, files, defined)
+    else
+      {_, refs, _} = Map.fetch!(files, rel)
+      deps = for m <- refs, f = Map.get(defined, m), do: f
+      # Elixir layout convention: foo.ex owns the foo/ namespace dir (reached by atom or
+      # DSL reference, not by a struct/alias edge).
+      ns = Path.rootname(rel) <> "/"
+      deps = deps ++ for f <- Map.keys(files), String.starts_with?(f, ns), do: f
+      walk(deps ++ rest, MapSet.put(seen, rel), files, defined)
+    end
+  end
+
+  defp prune(set, files, defined) do
+    bad =
+      Enum.filter(set, fn rel ->
+        {_, _, compile_refs} = Map.fetch!(files, rel)
+
+        Enum.any?(compile_refs, fn m ->
+          case Map.get(defined, m) do
+            nil -> not vendor_available?(m)
+            f -> not MapSet.member?(set, f)
+          end
+        end)
+      end)
+
+    if bad == [], do: set, else: prune(MapSet.difference(set, MapSet.new(bad)), files, defined)
+  end
+
+  # External module satisfiable with the vendor package's deps: the transitive
+  # application closure of spark + ash (which brings decimal, jason, ... and stdlib).
+  defp vendor_available?(m) do
+    Code.ensure_loaded?(m) and Application.get_application(m) in vendor_apps()
+  end
+
+  defp vendor_apps, do: app_closure([:spark, :ash], [])
+
+  defp app_closure([], seen), do: seen
+
+  defp app_closure([app | rest], seen) do
+    if app in seen do
+      app_closure(rest, seen)
+    else
+      _ = Application.load(app)
+      app_closure((Application.spec(app, :applications) || []) ++ rest, [app | seen])
+    end
+  end
+
+  # {defined modules, referenced modules (aliases expanded)} for one source file.
+  defp parse_module_refs(path) do
+    ast = path |> File.read!() |> Code.string_to_quoted!()
+
+    {_, acc} =
+      Macro.prewalk(ast, %{defs: [], aliases: %{}, refs: []}, fn
+        {:defmodule, _, [{:__aliases__, _, parts} | _]} = n, acc ->
+          {n, %{acc | defs: [Module.concat(parts) | acc.defs]}}
+
+        {:alias, _, [{{:., _, [{:__aliases__, _, base}, :{}]}, _, subs}]} = n, acc ->
+          al =
+            for {:__aliases__, _, sub} <- subs, into: acc.aliases do
+              {List.first(sub), base ++ sub}
+            end
+
+          {n, %{acc | aliases: al}}
+
+        {:alias, _, [{:__aliases__, _, parts}]} = n, acc ->
+          {n, %{acc | aliases: Map.put(acc.aliases, List.last(parts), parts)}}
+
+        {:alias, _, [{:__aliases__, _, parts}, [as: {:__aliases__, _, [as]}]]} = n, acc ->
+          {n, %{acc | aliases: Map.put(acc.aliases, as, parts)}}
+
+        n, acc ->
+          {n, acc}
+      end)
+
+    # Compile-time edges: struct expansion, use/import/require, @behaviour. A file whose
+    # compile-time edge cannot be satisfied inside the vendor package (ash_r2rml/a2a, or a
+    # lib module outside the closure) is pruned, so the closure compiles with only the
+    # vendor mix.exs deps (spark, ash).
+    expand = fn parts ->
+      [first | rest] = parts
+      Module.concat(Map.get(acc.aliases, first, [first]) ++ rest)
+    end
+
+    {_, all_refs} =
+      Macro.prewalk(ast, [], fn
+        {:__aliases__, _, [f | _] = parts} = n, refs when is_atom(f) ->
+          {n, [expand.(parts) | refs]}
+
+        n, refs ->
+          {n, refs}
+      end)
+
+    {_, refs} =
+      Macro.prewalk(ast, [], fn
+        {:%, _, [{:__aliases__, _, [f | _] = parts}, _]} = n, refs when is_atom(f) ->
+          {n, [expand.(parts) | refs]}
+
+        {d, _, [{:__aliases__, _, [f | _] = parts} | _]} = n, refs
+        when d in [:use, :import, :require] and is_atom(f) ->
+          {n, [expand.(parts) | refs]}
+
+        {:@, _, [{:behaviour, _, [{:__aliases__, _, [f | _] = parts}]}]} = n, refs
+        when is_atom(f) ->
+          {n, [expand.(parts) | refs]}
+
+        n, refs ->
+          {n, refs}
+      end)
+
+    {acc.defs, all_refs, refs}
+  end
+
   defp vendor_extension_package do
     # The extension lib to vendor: standalone fixture runs have lib/<pkg> under the
     # fixture dir; the live-fixture capsule exposes the generated projection at
@@ -179,25 +352,13 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
     if src do
       vendor = Path.join([@scratch_root, "vendor/ash_surface"])
       File.mkdir_p!(Path.join(vendor, "lib"))
-      File.cp_r!(src, Path.join(vendor, "lib/ash_surface"))
-      # The vendor package ships only the DSL surface the extension needs; the
-      # generated Reactor pipeline + steps are pack-level capabilities the minimal
-      # fixture dep set (ash/spark/igniter/sourceror) does not include.
-      File.rm_rf!(Path.join(vendor, "lib/ash_surface/reactor"))
-      File.rm_rf!(Path.join(vendor, "lib/ash_surface/reactor_pipeline.ex"))
-
-      # The pack registers aex:formatterModule into .formatter.exs but does not generate
-      # the module file itself (pack gap, reported); the vendor ships a minimal
-      # mix-format plugin stub so the plugin resolves.
-      File.write!(Path.join(vendor, "lib/ash_surface/formatter.ex"), """
-      defmodule AshSurface.Formatter do
-        @moduledoc \"\"\"
-        Mix-format plugin stub (court vendor; the pack does not generate this module).
-        \"\"\"
-
-        def features(_opts), do: [extendors: [], sigils: []]
+      # Vendor ONLY the derived compile closure of the installer (see vendor_closure/1).
+      for rel <- vendor_closure(src) do
+        from = Path.join(src, rel)
+        to = Path.join(vendor, Path.join("lib/ash_surface", rel))
+        File.mkdir_p!(Path.dirname(to))
+        File.cp!(from, to)
       end
-      """)
 
       File.write!(Path.join(vendor, "mix.exs"), """
       defmodule AshSurfacePkg.MixProject do
@@ -234,6 +395,27 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
     end
   end
 
+  # The scratch app vendors a SUBSET of this package under the same app name, so it must
+  # never compile into the parent's build root (it would clobber the parent's beams).
+  # Seed a sibling root from the parent's compiled deps (minus :ash_surface) once.
+  defp court_build_root do
+    parent = System.get_env("MIX_BUILD_ROOT") || Path.join(File.cwd!(), "_build")
+    root = parent <> "-igniter-court"
+    marker = Path.join(root, ".seeded")
+
+    unless File.exists?(marker) do
+      File.rm_rf!(root)
+      if File.dir?(parent), do: File.cp_r!(parent, root)
+
+      for lib <- Path.wildcard(Path.join(root, "*/lib/ash_surface")), do: File.rm_rf!(lib)
+
+      File.mkdir_p!(root)
+      File.write!(marker, "seeded\n")
+    end
+
+    root
+  end
+
   defp run_install(scratch, argv) do
     env = %{
       "MIX_ENV" => "test",
@@ -242,44 +424,83 @@ defmodule AshSurfaceIgniterIdempotenceCourtTest do
       # compile the vendored extension package, not ash/spark/igniter from scratch
       # (a per-scratch build root makes every install a multi-minute cold build and
       # times the court out). AEX_SCRATCH_BUILD_ROOT still overrides.
-      "MIX_BUILD_ROOT" =>
-        System.get_env("AEX_SCRATCH_BUILD_ROOT") || Path.join(File.cwd!(), "_build")
+      "MIX_BUILD_ROOT" => System.get_env("AEX_SCRATCH_BUILD_ROOT") || court_build_root()
     }
 
-    System.cmd("mix", [@task_name | argv], cd: scratch, stderr_to_stdout: true, env: env)
+    {out, code} = result = run_bounded([@task_name | argv], scratch, env)
+
+    # ExUnit truncates the {out, code} diff; keep the full output of a failed install.
+    if code != 0,
+      do:
+        File.write!(
+          Path.join(
+            System.tmp_dir!(),
+            "ash_surface_install_failure.txt"
+          ),
+          out
+        )
+
+    result
+  end
+
+  # Each install is a real `mix` subprocess that compiles the vendored extension package
+  # (measured 175-580s on a loaded machine, first call also seeds the court build root), so
+  # the court is legitimately slow, not hung. The deadline is an observable bound, never a
+  # sleep: Task.yield returns as soon as the subprocess finishes, and a subprocess that
+  # outlives @install_deadline_ms fails the test with a typed exit 124 instead of eating
+  # the whole ExUnit timeout.
+  defp run_bounded(argv, scratch, env) do
+    task =
+      Task.async(fn ->
+        System.cmd("mix", argv, cd: scratch, stderr_to_stdout: true, env: env)
+      end)
+
+    case Task.yield(task, @install_deadline_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      {:exit, reason} -> {"install subprocess exited: #{inspect(reason)}", 125}
+      nil -> {"install exceeded #{@install_deadline_ms}ms deadline", 124}
+    end
   end
 
   defp extension_added?(scratch) do
     source = File.read!(Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"]))
     source =~ @extension_module
   end
+
   defp section_block?(scratch) do
     source = File.read!(Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"]))
     source =~ "surface do"
   end
-  defp formatter_plugin?(scratch) do
+
+  defp formatter_wired?(scratch) do
     fm = Path.join(scratch, ".formatter.exs")
     assert File.exists?(fm)
     {map, _} = Code.eval_string(File.read!(fm))
     import_deps = Keyword.get(map, :import_deps, [])
     assert String.to_atom(@package_name) in import_deps
+    # AshSurface.Formatter is retired (formatter_registration_canary_test LAW 2):
+    # the installer must wire import_deps only, never a plugin.
     plugins = Keyword.get(map, :plugins, [])
-    assert [AshSurface.Formatter] = plugins
+    refute AshSurface.Formatter in plugins
+    true
   end
+
   defp occurrences(source, str), do: length(:binary.matches(source, str))
+
   defp snapshot(root) do
     root
     |> Path.join("**/*")
     |> Path.wildcard()
     |> Enum.filter(fn p ->
       File.regular?(p) and
-        not (p |> Path.relative_to(root) |> String.starts_with?("_build/") or
-             p |> Path.relative_to(root) |> String.starts_with?("deps/"))
+        not (p |> Path.relative_to(root) |> String.starts_with?("_build") or
+               p |> Path.relative_to(root) |> String.starts_with?("deps/"))
     end)
     |> Map.new(fn p ->
       {Path.relative_to(p, root), Base.encode16(:crypto.hash(:sha256, File.read!(p)))}
     end)
   end
+
   defp assert_stable(before, after_) do
     added = Map.keys(after_) -- Map.keys(before)
     removed = Map.keys(before) -- Map.keys(after_)

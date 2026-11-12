@@ -14,6 +14,7 @@
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -25,13 +26,22 @@ import {
   SurfaceRuntimeError,
 } from "../../priv/static/ash_surface_runtime.mjs";
 import {
+  admittedInverse,
   canonicalJson,
+  clientToInternalName,
+  emittedFieldName,
+  emittedKeyCollision,
   canonicalTermDigest,
   eventStateDigest,
   receiptBinding,
   receiptHash,
+  schemaProjection,
   sha256Hex,
 } from "./reference.mjs";
+import { createHttpTransport } from "../../priv/static/ash_surface_http_transport.mjs";
+import { createChannelTransport } from "../../priv/static/ash_surface_channel_transport.mjs";
+import { ERROR_TYPES, normalizeErrorType } from "./reference.mjs";
+import { compileZod, evaluate } from "./zod_eval.mjs";
 import { KNOWN_DIVERGENCES } from "./known_divergences.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -452,6 +462,201 @@ async function outcomeFallback(input, expected) {
 HANDLERS.transport_outcome = async (input, expected) => {
   if (input.cause === "adapter_unavailable") return outcomeFallback(input, expected);
   return outcome(input, expected);
+};
+
+// Lane L14: constraint -> zod projection. The JS twin in reference.mjs
+// re-derives the section's projection from the same discovery; error vectors
+// compare `kind` only (detail is diagnostic).
+HANDLERS.constraints = (input, expected) => {
+  const actual = schemaProjection(input.discovery ?? input);
+  if (expected.error) {
+    return { actual: { error: { kind: actual.error.kind } }, want: { error: { kind: expected.error.kind } } };
+  }
+  return { actual };
+};
+
+// ---- w3-04: schema-renderer kinds ------------------------------------------------------
+//
+// The Elixir side renders Zod text and mints probe verdicts by executing it under
+// real zod. JS has no renderer to re-derive from: the twin law here is EXECUTION
+// PARITY - the Elixir-rendered text must construct under the JS zod build and give
+// the same safeParse verdict for every probe. Typed renderer refusals (`error`
+// expectations) cannot be expressed in JS (no renderer to refuse) and are declared
+// NOT_APPLICABLE with that reason, never silently skipped.
+
+const ZOD_KINDS_REPLAYED = [
+  "filter_operators", "query_envelope", "selection_admission", "relationship_loads",
+  "calculation_envelope", "identity_get", "error_envelope", "union_schema",
+];
+
+function zodExecutionTwin(input, expected) {
+  if (expected.error) {
+    return na("typed renderer refusal: JavaScript consumes rendered Zod text and has no renderer that could refuse an input");
+  }
+  const rendered = expected.ok.zod;
+  const probes = input.probes ?? [];
+  const expressions = typeof rendered === "string" ? { "": rendered } : rendered;
+  for (const expression of Object.values(expressions)) {
+    if (typeof expression === "string") compileZod(expression);
+  }
+  const cases = probes.map((probe) => ({
+    zod: typeof rendered === "string" ? rendered : rendered[probe.target],
+    value: probe.value,
+  }));
+  return { actual: { zod: rendered, verdicts: evaluate(cases) }, want: expected.ok };
+}
+
+for (const kind of ZOD_KINDS_REPLAYED) HANDLERS[kind] = zodExecutionTwin;
+
+// error_envelope: the closed vocabulary is a law JS carries too (reference.mjs twin).
+const zodExecutionForErrors = HANDLERS.error_envelope;
+HANDLERS.error_envelope = (input, expected) => {
+  if (input.render === "types") {
+    return { actual: { ok: { catchAll: "unknown_error", types: [...ERROR_TYPES] } }, want: expected };
+  }
+  if (input.render === "normalize") {
+    return { actual: { ok: { normalized: normalizeErrorType(input.type) } }, want: expected };
+  }
+  return zodExecutionForErrors(input, expected);
+};
+
+// ---- w3-04: transport wire law ------------------------------------------------------------
+//
+// Real transports (priv/static/ash_surface_http_transport.mjs against a real node:http
+// server; ash_surface_channel_transport.mjs over a hand-written real Phoenix-channel-shaped
+// implementation), driven through the real client. Elixir minted the dispatch fence.
+
+class WireChannel {
+  constructor(reply) {
+    this.reply = reply;
+  }
+  push() {
+    if (this.reply === "throws") throw new Error("push failed");
+    const callbacks = {};
+    const push = { receive(kind, cb) { callbacks[kind] = cb; return push; } };
+    queueMicrotask(() => callbacks[this.reply]?.({ reason: "wire fault" }));
+    return push;
+  }
+}
+
+function listen(handler) {
+  return new Promise((resolve) => {
+    const server = http.createServer(handler);
+    server.listen(0, "127.0.0.1", () => {
+      const origin = `http://127.0.0.1:${server.address().port}`;
+      resolve({ server, origin, url: `${origin}/rpc` });
+    });
+  });
+}
+
+const closeServer = (server) => new Promise((resolve) => { server.closeAllConnections?.(); server.close(resolve); });
+
+const HTTP_FAULTS = {
+  http_non_2xx: (req, res) => { res.writeHead(500, { "content-type": "application/json" }); res.end("{}"); },
+  http_network_failure: (req) => req.socket.destroy(),
+  http_invalid_body: (req, res) => { res.writeHead(200, { "content-type": "text/plain" }); res.end("not json"); },
+};
+
+const CHANNEL_REPLIES = { channel_timeout: "timeout", channel_error_reply: "error", adapter_throws_after_dispatch: "throws" };
+
+async function wireFailure(input, expected) {
+  const { transport, fault } = input;
+  let alternateCalls = 0;
+  const alternate = { available: true, invoke: async () => { alternateCalls += 1; return { data: { id: "1" } }; } };
+  let served = null;
+  let primary;
+  if (transport === "http") {
+    if (fault === "adapter_throws_after_dispatch") {
+      primary = { available: true, invoke: async () => { throw new Error("socket closed after write"); } };
+    } else {
+      served = await listen(HTTP_FAULTS[fault]);
+      primary = createHttpTransport({ endpoint: served.url, allowedOrigins: [served.origin] });
+    }
+  } else {
+    primary = createChannelTransport({ channel: new WireChannel(CHANNEL_REPLIES[fault]), timeout: 20 });
+  }
+  const transports = transport === "http"
+    ? { http: primary, phoenix_channel: alternate }
+    : { phoenix_channel: primary, http: alternate };
+  try {
+    const client = createClient({ contract: contractWith([action({ transport: "auto" })]), transports, prefer: transport });
+    try {
+      await client.actions[ACTION_ID].invokeWithReceipt({}, {});
+      return { actual: { dispatchState: "dispatched", fallbackAllowed: false, failureOutcome: "NONE (call succeeded)" }, want: expected };
+    } catch (error) {
+      const err = errorOf(error);
+      const receipt = err.receipt;
+      return {
+        actual: {
+          dispatchState: receipt?.dispatchState === "unknown_after_dispatch" ? "dispatched" : "not_dispatched",
+          fallbackAllowed: alternateCalls > 0,
+          failureOutcome: err.code === "TRANSPORT_OUTCOME_UNKNOWN" ? receipt?.outcome : err.code,
+        },
+        want: expected,
+      };
+    }
+  } finally {
+    if (served) await closeServer(served.server);
+  }
+}
+
+const CSRF_CANDIDATES = ["csrf-token", "x-csrf-token", "x-xsrf-token"];
+
+async function csrfWire(expected) {
+  const TOKEN = "conformance-csrf-token";
+  const seen = [];
+  const { server, url, origin } = await listen((req, res) => {
+    seen.push(req.headers);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ data: { id: "1" } }));
+  });
+  try {
+    const context = { action: { id: ACTION_ID }, input: {}, commandId: "c1" };
+    await createHttpTransport({ endpoint: url, allowedOrigins: [origin], csrf: TOKEN }).invoke(context);
+    await createHttpTransport({ endpoint: url, allowedOrigins: [origin], csrf: false }).invoke(context);
+    const [withToken, without] = seen;
+    return {
+      actual: {
+        acceptedHeaders: CSRF_CANDIDATES.filter((h) => withToken[h] === TOKEN),
+        // Elixir: a request without the token is refused. JS: with csrf disabled the
+        // transport sends NO candidate header carrying any token, i.e. exactly the
+        // request Plug.CSRFProtection refuses.
+        missingRejected: CSRF_CANDIDATES.every((h) => without[h] === undefined),
+      },
+      want: expected,
+    };
+  } finally {
+    await closeServer(server);
+  }
+}
+
+HANDLERS.transport_wire = (input, expected) =>
+  input.fault === "csrf_header" ? csrfWire(expected) : wireFailure(input, expected);
+
+HANDLERS.field_name_emission = (input) => {
+  const f = input.formatter;
+  switch (input.op) {
+    case "emit":
+      return { actual: { key: emittedFieldName(input.name, f) } };
+    case "collision": {
+      const hit = emittedKeyCollision(input.names, f);
+      return { actual: hit ? { error: { kind: "emitted_key_collision", detail: hit } } : { ok: true } };
+    }
+    case "inverse": {
+      const hit = admittedInverse(input.client, f, input.admitted);
+      return { actual: hit === null ? { error: { kind: "error", detail: null } } : { ok: hit } };
+    }
+    case "format_checked": {
+      const key = emittedFieldName(input.name, f);
+      return {
+        actual: clientToInternalName(key, f) === input.name
+          ? { ok: key }
+          : { error: { kind: "not_invertible", detail: { key } } },
+      };
+    }
+    default:
+      return { na: `unknown field_name_emission op ${input.op}` };
+  }
 };
 
 // ---- engine ---------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-
 defmodule AshA2A.DslInfoParityCourt do
   use ExUnit.Case, async: false
 
@@ -173,6 +172,7 @@ defmodule AshA2A.DslInfoParityCourt do
       end
 
     assert results != []
+
     assert Enum.all?(results, &match?({:failed, _}, &1)),
            "the constant Info mutant PASSED the mutation leg -- the court is vacuous: #{inspect(results)}"
   end

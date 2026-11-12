@@ -60,7 +60,16 @@ defmodule AshSurface.NoLocalDoTest do
     :bulk_update,
     :bulk_destroy,
     :run_action,
-    :execute_action
+    :execute_action,
+    :create!,
+    :update!,
+    :destroy!,
+    :calculate!,
+    :bulk_create!,
+    :bulk_update!,
+    :bulk_destroy!,
+    :run_action!,
+    :execute_action!
   ]
 
   # v26.9.16 delegated facts: an absent key == "not delegated" == null. A
@@ -217,8 +226,10 @@ defmodule AshSurface.NoLocalDoTest do
 
   # Stdlib data-structure modules: `Keyword.update/3` mutates a keyword list,
   # never an Ash resource — an Ash Api/Domain cannot be aliased onto these.
+  # `Rewrite.Source.update/3` rewrites an in-memory file buffer (installer
+  # package.json/tsconfig patches), the same class: no resource is reachable.
   defp data_structure_module?(mod) when is_list(mod),
-    do: mod in [[:Keyword], [:Map], [:MapSet], [:Access]]
+    do: mod in [[:Keyword], [:Map], [:MapSet], [:Access], [:Rewrite, :Source]]
 
   defp data_structure_module?(_), do: false
 

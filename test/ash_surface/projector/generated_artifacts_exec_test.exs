@@ -28,7 +28,6 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
   alias AshSurface.Projectors.JS
 
   @prefix "zoela_surface"
-  @tmp_dir Path.expand("../../../_build/test/generated_artifacts_exec", __DIR__)
   @record_id "AshSurface.Fixtures.VolunteerMilestone#record"
   @read_id "AshSurface.Fixtures.VolunteerMilestone#read"
   @mx_descriptor_keys ~w(id semanticId resource action authorityBoundary doAuthority receiptRequired evidenceRequired possibleRefusals)
@@ -44,11 +43,20 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
   }
 
   setup do
-    File.rm_rf!(@tmp_dir)
-    File.mkdir_p!(@tmp_dir)
-    install_runtime_shim!(@tmp_dir)
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "generated_artifacts_exec_#{AshSurface.TestTmp.suffix()}_#{System.os_time(:nanosecond)}"
+      )
+
+    File.mkdir_p!(dir)
+    Process.put(:gae_tmp_dir, dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+    install_runtime_shim!(dir)
     :ok
   end
+
+  defp tmp_dir, do: Process.get(:gae_tmp_dir)
 
   describe "schemas.mjs executes" do
     test "the real fixture surface's Zod schemas accept valid input and reject invalid input" do
@@ -64,10 +72,10 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
             "valid" => [@valid_milestone],
             "invalid" => [
               %{},
-              %{@valid_milestone | "id" => "not-a-uuid"},
               %{@valid_milestone | "cost_physical" => 1.5},
               %{@valid_milestone | "member_id" => 7},
-              Map.delete(@valid_milestone, "status")
+              # `status` has a default (omittable, M9), so a required field is dropped instead
+              Map.delete(@valid_milestone, "member_id")
             ]
           }
         end
@@ -92,12 +100,13 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
         {"boolean", [true], ["true", 1, nil]},
         {"uuid", [@uuid], ["nope", 7, nil]},
         {"float", [1.5, 2], ["1.5", nil]},
-        {"decimal", [2, 0.25], ["2", nil]},
+        # Decimal rides the wire as a string (Ash JSON); ash_typescript also maps it to z.string().
+        {"decimal", ["2", "0.25"], [2, 0.25, nil]},
         {"utc_datetime", ["2026-09-17T06:30:00Z"], [5, nil]},
         {"datetime", ["2026-09-17T06:30:00Z"], [5, nil]},
         {"map", [%{"a" => 1}], [[1], "m", nil]},
         {"array", [[1, "a"]], [%{}, "a", nil]},
-        # exotic kinds degrade to z.unknown(): anything passes
+        # exotic kinds degrade to z.unknown(): any present value passes
         {"exotic_unmapped", [5, "x", nil, [1]], []}
       ]
 
@@ -128,7 +137,6 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
       actions = [
         %{"id" => "nullable", "resource" => "R1"},
         %{"id" => "untyped", "resource" => "R2"},
-        %{"id" => "unresolved", "resource" => "Missing"},
         %{"id" => "no_resource"},
         %{"id" => "bad_fields", "resource" => "R3"}
       ]
@@ -152,16 +160,37 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
         %{
           "id" => "untyped",
           "safeName" => "untyped",
-          "valid" => [%{}, %{"u" => 1}, %{"u" => "anything"}],
+          "valid" => [%{"u" => nil}, %{"u" => 1}, %{"u" => "anything"}],
+          "invalid" => []
+        },
+        # An unresolvable resource is now a typed error (M9; see ExpoWave3S1hCourtTest).
+        %{"id" => "no_resource"},
+        %{"id" => "bad_fields", "resource" => "R3"}
+      ]
+
+      resources = %{
+        "r1" => %{
+          "name" => "R1",
+          "fields" => %{"n" => %{"type" => %{"kind" => "integer"}, "allow_nil?" => true}}
+        },
+        "r2" => %{"name" => "R2", "fields" => %{"u" => %{}}},
+        "r3" => %{"name" => "R3", "fields" => []}
+      }
+
+      cases = [
+        %{
+          "id" => "nullable",
+          "safeName" => "nullable",
+          "valid" => [%{}, %{"n" => nil}, %{"n" => 4}],
+          "invalid" => [%{"n" => "x"}, %{"n" => 1.5}]
+        },
+        %{
+          "id" => "untyped",
+          "safeName" => "untyped",
+          "valid" => [%{"u" => nil}, %{"u" => 1}, %{"u" => "anything"}],
           "invalid" => []
         },
         # degenerate resolutions: an empty passthrough object accepts any object
-        %{
-          "id" => "unresolved",
-          "safeName" => "unresolved",
-          "valid" => [%{}, %{"k" => 1}],
-          "invalid" => []
-        },
         %{"id" => "no_resource", "safeName" => "no_resource", "valid" => [%{}], "invalid" => []},
         %{
           "id" => "bad_fields",
@@ -371,7 +400,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
                  "resource" => "AshSurface.Fixtures.VolunteerMilestone",
                  "action" => "record",
                  "validInput" => @valid_milestone,
-                 "invalidInput" => %{@valid_milestone | "id" => "not-a-uuid"}
+                 "invalidInput" => %{@valid_milestone | "cost_physical" => 1.5}
                })
     end
   end
@@ -379,7 +408,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
   describe "VoiceKiosk voice JSON executes" do
     test "the artifact parses under a strict Zod shape and its gating holds on the emitted data" do
       surface = voice_surface()
-      dir = Path.join(@tmp_dir, "voice")
+      dir = Path.join(tmp_dir(), "voice")
 
       assert {:ok, artifacts, %{intent_count: 3}} =
                AshSurface.project(surface, VoiceKiosk, prefix: "kiosk", target_dir: dir)
@@ -400,7 +429,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
 
   describe "Projectors.JS artifact executes" do
     test "namespaces, Zod schemas and the DO dispatch-intent law hold when imported" do
-      dir = Path.join(@tmp_dir, "js")
+      dir = Path.join(tmp_dir(), "js")
       install_runtime_shim!(dir)
       irs = js_irs()
       assert {:ok, %{"ash_surface_client.mjs" => _}, _meta} = JS.project_ir(irs, target_dir: dir)
@@ -423,11 +452,13 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
   end
 
   describe "mutation sanity: a broken artifact copy fails the same receipt" do
-    test "schemas: uuid weakened to string is caught" do
+    # Re-pinned (M9/S1-H): `id` is non-writable so it is no longer an input
+    # field; the fixture's writable integer field carries the discrimination.
+    test "schemas: integer weakened to any number is caught" do
       assert_mutation_caught!(
         "zoela_surface.schemas.mjs",
-        "z.string().uuid()",
-        "z.string()",
+        "z.number().int()",
+        "z.number()",
         fn dir -> run_schemas_real!(dir) end
       )
     end
@@ -473,13 +504,13 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
 
   defp assert_mutation_caught!(file, from, to, runner) do
     %{surface: _} = manufacture!(%{})
-    mutant = Path.join(@tmp_dir, "mutant")
+    mutant = Path.join(tmp_dir(), "mutant")
     File.rm_rf!(mutant)
     File.mkdir_p!(mutant)
     install_runtime_shim!(mutant)
 
-    for f <- File.ls!(@tmp_dir), String.starts_with?(f, "#{@prefix}.") do
-      File.cp!(Path.join(@tmp_dir, f), Path.join(mutant, f))
+    for f <- File.ls!(tmp_dir()), String.starts_with?(f, "#{@prefix}.") do
+      File.cp!(Path.join(tmp_dir(), f), Path.join(mutant, f))
     end
 
     # Control: the pristine copy passes the very same runner.
@@ -508,7 +539,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
           %{
             "id" => @record_id,
             "valid" => [@valid_milestone],
-            "invalid" => [%{@valid_milestone | "id" => "not-a-uuid"}]
+            "invalid" => [%{@valid_milestone | "cost_physical" => 1.5}]
           }
         ]
       })
@@ -588,7 +619,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
         "resource" => "AshSurface.Fixtures.VolunteerMilestone",
         "action" => "record",
         "validInput" => @valid_milestone,
-        "invalidInput" => %{@valid_milestone | "id" => "not-a-uuid"}
+        "invalidInput" => %{@valid_milestone | "cost_physical" => 1.5}
       })
     ])
   end
@@ -609,7 +640,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
     assert {:ok, surface} = fixture_surface(profile)
 
     assert {:ok, artifacts, _meta} =
-             AshSurface.project(surface, Expo, prefix: @prefix, target_dir: @tmp_dir)
+             AshSurface.project(surface, Expo, prefix: @prefix, target_dir: tmp_dir())
 
     %{surface: surface, artifacts: artifacts}
   end
@@ -624,7 +655,7 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
       })
 
     assert {:ok, _artifacts, _meta} =
-             AshSurface.project(surface, Expo, prefix: @prefix, target_dir: @tmp_dir)
+             AshSurface.project(surface, Expo, prefix: @prefix, target_dir: tmp_dir())
   end
 
   defp run_hand_built!(actions, resources, cases) do
@@ -639,14 +670,14 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
         action_ids: Enum.map(actions, & &1["id"])
       })
 
-    dir = Path.join(@tmp_dir, "hand_#{System.unique_integer([:positive])}")
+    dir = Path.join(tmp_dir(), "hand_#{AshSurface.TestTmp.suffix()}")
     install_runtime_shim!(dir)
 
     assert {:ok, _artifacts, _meta} =
              AshSurface.project(surface, Expo, prefix: @prefix, target_dir: dir)
 
     spec_path =
-      write_json!("hand_spec_#{System.unique_integer([:positive])}.json", %{
+      write_json!("hand_spec_#{AshSurface.TestTmp.suffix()}.json", %{
         "prefix" => @prefix,
         "expectedIds" => surface.action_ids,
         "cases" => cases,
@@ -658,17 +689,17 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
              run_node!(["test/js/generated_expo_schemas_runner.mjs", dir, spec_path])
   end
 
-  # A required kind rejects a missing field; z.unknown() (exotic) does not.
-  defp invalid_missing("exotic_unmapped"), do: []
+  # A required kind rejects a missing field. zod 4 treats z.unknown() as a required
+  # key too (verified under node), so the exotic kind rejects `{}` as well.
   defp invalid_missing(_kind), do: [%{}]
 
   defp run_receipt!(runner, spec) do
-    spec_path = write_json!("spec_#{System.unique_integer([:positive])}.json", spec)
-    run_node!(["test/js/#{runner}", @tmp_dir, spec_path])
+    spec_path = write_json!("spec_#{AshSurface.TestTmp.suffix()}.json", spec)
+    run_node!(["test/js/#{runner}", tmp_dir(), spec_path])
   end
 
   defp write_json!(name, term) do
-    path = Path.join(@tmp_dir, name)
+    path = Path.join(tmp_dir(), name)
     File.write!(path, Jason.encode!(term))
     path
   end
@@ -700,6 +731,13 @@ defmodule AshSurface.Projector.GeneratedArtifactsExecTest do
       Path.expand("priv/static/ash_surface_runtime.mjs"),
       Path.join(package_dir, "index.mjs")
     )
+
+    # The expo surface imports its runtime and transports by relative path
+    # ("./ash_surface_runtime.mjs", "./ash_surface_http_transport.mjs", ...).
+    for file <-
+          ~w(ash_surface_runtime.mjs ash_surface_http_transport.mjs ash_surface_channel_transport.mjs) do
+      File.cp!(Path.expand("priv/static/#{file}"), Path.join(dir, file))
+    end
 
     zod_source = Path.expand("node_modules/zod")
     assert File.dir?(zod_source), "npm install must provide node_modules/zod before mix test"

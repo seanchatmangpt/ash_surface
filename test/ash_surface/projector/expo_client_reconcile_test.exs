@@ -6,13 +6,16 @@ defmodule AshSurface.Projector.ExpoClientReconcileTest do
   generated client says; this suite runs it. The real projector manufactures
   `zoela_surface.mjs`, the real runtime is installed behind the `ash_surface`
   import, and Node drives `reconcile` (test/js/generated_client_reconcile_runner.mjs)
-  against stubbed `fetch` behaviours:
+  against a real `node:http` server. The emitted client imports
+  `./ash_surface_runtime.mjs` (copied beside it by the consumer; the codegen task owns that copy) and delegates
+  to the runtime's `client.reconcile`:
 
     * server-observed `COMPLETED | NOT_OBSERVED | STILL_UNKNOWN` pass through,
       over a plain GET bound to the commandId (no method, no body);
+    * `reconcile.result` is emitted and `onEvent` is forwarded;
     * a non-ok reply, an unknown status, a null or non-JSON body and a network
-      error all stay `STILL_UNKNOWN` - never invented, never upgraded;
-    * a hung endpoint is bounded by `reconcileTimeoutMs`, not a hang.
+      error THROW - never an invented or upgraded status;
+    * a hung endpoint is bounded by `reconcileTimeoutMs` and throws.
   """
 
   use ExUnit.Case, async: false
@@ -21,15 +24,22 @@ defmodule AshSurface.Projector.ExpoClientReconcileTest do
   alias AshSurface.Fixtures.VolunteerMilestone
   alias AshSurface.Projector.Expo
 
-  @tmp_dir Path.expand("../../../_build/test/projector_expo_client_reconcile", __DIR__)
-
   setup do
-    File.rm_rf!(@tmp_dir)
-    File.mkdir_p!(@tmp_dir)
-    :ok
+    tmp_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ash_surface_expo_reconcile_#{System.unique_integer([:positive])}_#{:os.getpid()}"
+      )
+
+    File.rm_rf!(tmp_dir)
+    File.mkdir_p!(tmp_dir)
+    on_exit(fn -> File.rm_rf!(tmp_dir) end)
+    {:ok, tmp_dir: tmp_dir}
   end
 
-  test "the manufactured client's reconcile executes under the admitted-status law" do
+  test "the manufactured client's reconcile executes under the admitted-status law", %{
+    tmp_dir: tmp_dir
+  } do
     assert {:ok, manifest} =
              Manifest.generate(
                otp_app: :ash_surface,
@@ -39,18 +49,19 @@ defmodule AshSurface.Projector.ExpoClientReconcileTest do
     assert {:ok, surface} = AshSurface.from_manifest(manifest, profile: %{})
 
     assert {:ok, artifacts, _meta} =
-             AshSurface.project(surface, Expo, prefix: "zoela_surface", target_dir: @tmp_dir)
+             AshSurface.project(surface, Expo, prefix: "zoela_surface", target_dir: tmp_dir)
 
     assert is_binary(artifacts["zoela_surface.mjs"])
 
-    install_runtime_shim!()
-    contract_path = Path.join(@tmp_dir, "contract.json")
+    copy_runtime!(tmp_dir)
+    link_zod!(tmp_dir)
+    contract_path = Path.join(tmp_dir, "contract.json")
     File.write!(contract_path, Jason.encode!(surface.contract))
 
     {output, exit_code} =
       System.cmd(
         "node",
-        ["test/js/generated_client_reconcile_runner.mjs", @tmp_dir, contract_path],
+        ["test/js/generated_client_reconcile_runner.mjs", tmp_dir, contract_path],
         stderr_to_stdout: true
       )
 
@@ -62,29 +73,25 @@ defmodule AshSurface.Projector.ExpoClientReconcileTest do
     assert receipt == %{
              "receipt" => "GENERATED_EXPO_RECONCILE_PASS",
              "passThrough" => true,
-             "unreadableIsUnknown" => true,
+             "runtimeReconcileDelegated" => true,
+             "unreadableThrows" => true,
              "hungEndpointBounded" => true
            }
   end
 
-  defp install_runtime_shim! do
-    package_dir = Path.join([@tmp_dir, "node_modules", "ash_surface"])
-    File.mkdir_p!(package_dir)
+  defp copy_runtime!(tmp_dir) do
+    for file <-
+          ~w(ash_surface_runtime.mjs ash_surface_http_transport.mjs ash_surface_channel_transport.mjs) do
+      File.cp!(Path.expand(Path.join("priv/static", file)), Path.join(tmp_dir, file))
+    end
+  end
 
-    File.write!(
-      Path.join(package_dir, "package.json"),
-      Jason.encode!(%{"name" => "ash_surface", "type" => "module", "exports" => "./index.mjs"})
-    )
-
-    File.cp!(
-      Path.expand("priv/static/ash_surface_runtime.mjs"),
-      Path.join(package_dir, "index.mjs")
-    )
-
+  defp link_zod!(tmp_dir) do
+    File.mkdir_p!(Path.join(tmp_dir, "node_modules"))
     zod_source = Path.expand("node_modules/zod")
     assert File.dir?(zod_source), "npm install must provide node_modules/zod before mix test"
 
-    case File.ln_s(zod_source, Path.join([@tmp_dir, "node_modules", "zod"])) do
+    case File.ln_s(zod_source, Path.join([tmp_dir, "node_modules", "zod"])) do
       :ok -> :ok
       {:error, :eexist} -> :ok
       {:error, reason} -> flunk("failed to link Zod runtime: #{inspect(reason)}")

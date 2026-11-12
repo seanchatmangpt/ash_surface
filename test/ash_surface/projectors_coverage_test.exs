@@ -178,7 +178,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
 
   describe "Expo" do
     test "project/1 uses the default prefix and matches project/2 with no opts" do
-      surface = expo_surface(%{})
+      surface = expo_surface(%{"Help.Ticket" => %{"name" => "Help.Ticket", "fields" => %{}}})
 
       assert {:ok, artifacts, meta} = AshSurface.project(surface, Expo)
       assert {:ok, ^artifacts, ^meta} = AshSurface.project(surface, Expo, [])
@@ -186,8 +186,16 @@ defmodule AshSurface.ProjectorsCoverageTest do
       assert Map.has_key?(artifacts, "zoela_surface.schemas.mjs")
     end
 
-    test "resources that are neither a map nor a list resolve no fields" do
-      assert {:ok, artifacts, _meta} = AshSurface.project(expo_surface("not resources"), Expo)
+    test "resources that are neither a map nor a list resolve nothing: typed unknown_resource" do
+      # wave3-s1h.md: an action naming a resource the manifest does not carry is a typed
+      # error, never an empty passthrough object that accepts anything.
+      assert {:error, {:unknown_resource, "Help.Ticket.read", "Help.Ticket"}} =
+               AshSurface.project(expo_surface("not resources"), Expo)
+    end
+
+    test "a resource with an empty fields list resolves to the empty passthrough input" do
+      surface = expo_surface(%{"Help.Ticket" => %{"name" => "Help.Ticket", "fields" => []}})
+      assert {:ok, artifacts, _meta} = AshSurface.project(surface, Expo)
 
       assert artifacts["zoela_surface.schemas.mjs"] =~
                "export const Help_Ticket_read_inputSchema = z.object({\n\n}).passthrough();"
@@ -217,7 +225,7 @@ defmodule AshSurface.ProjectorsCoverageTest do
           "_build",
           "test",
           "projectors_coverage",
-          "voice_#{System.unique_integer([:positive])}"
+          "voice_#{AshSurface.TestTmp.suffix()}"
         ])
 
       on_exit(fn -> File.rm_rf!(target_dir) end)

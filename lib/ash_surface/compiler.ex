@@ -59,6 +59,9 @@ defmodule AshSurface.Compiler do
   """
 
   alias Ash.Info.Manifest
+  alias AshSurface.Compiler.IR.Fragments
+  alias AshSurface.Compiler.ResourceFacts
+  alias AshSurface.Compiler.TypeFacts
   alias AshSurface.IR
 
   @ir_version "26.10.8"
@@ -93,6 +96,9 @@ defmodule AshSurface.Compiler do
 
   ## Options
 
+    * `:output_field_formatter` — output formatter for emitted keys during this compile
+      (process-scoped `AshSurface.FieldName.with_formatter/2`); default
+      `AshSurface.Config.output_field_formatter/0`.
     * `:sections` — keyword list binding section keys to modules
       implementing `AshSurface.Compiler.Section`. Replaces the defaults
       wholesale; the keyword order is the invocation order.
@@ -112,6 +118,16 @@ defmodule AshSurface.Compiler do
   """
   @spec compile(Manifest.t() | atom(), keyword()) :: {:ok, [IR.t()]} | {:error, term()}
   def compile(source, opts) do
+    case Keyword.fetch(opts, :output_field_formatter) do
+      {:ok, formatter} ->
+        AshSurface.FieldName.with_formatter(formatter, fn -> do_compile(source, opts) end)
+
+      :error ->
+        do_compile(source, opts)
+    end
+  end
+
+  defp do_compile(source, opts) do
     with {:ok, sections} <- sections(opts),
          {:ok, actions, receipt} <- discover_once(source) do
       assemble(actions, sections, receipt, source)
@@ -162,30 +178,71 @@ defmodule AshSurface.Compiler do
 
   ## Normalize
 
+  defp normalize_action(resource, action) do
+    normalized = normalize_base(resource, action)
+    facts = ResourceFacts.build(resource, action)
+    returns = returns_facts(action)
+
+    normalized
+    |> Map.put(:returns_facts, returns)
+    |> Map.put(
+      :embedded_resources,
+      (Enum.map(normalized.inputs, & &1.type_facts) ++ List.wrap(returns))
+      |> TypeFacts.embedded_resources()
+    )
+    |> Map.merge(Map.delete(facts, :get?))
+    |> Map.put(:get?, normalized.get? or facts.get?)
+  end
+
+  # A generic action's declared return type as the string-keyed definition
+  # (`%{"type" => ...}`) the schema renderers consume; nil for CRUD actions
+  # and for generic actions that declare no return.
+  defp returns_facts(%Manifest.Action{type: :action, returns: %Ash.Info.Manifest.Type{} = type}),
+    do: TypeFacts.analyze_type(type).definition
+
+  defp returns_facts(%{type: :action, returns: returns} = action) when not is_nil(returns),
+    do: returns |> TypeFacts.analyze(Map.get(action, :constraints)) |> Map.fetch!(:definition)
+
+  defp returns_facts(_action), do: nil
+
+  # One normalized input: every fact the schema/ash sections need, derived
+  # once by `TypeFacts` (the single definition builder). `type_facts` is the
+  # string-keyed definition ZodType/EmbeddedSchema/UnionSchema consume.
+  defp input_entry(input, analysis, has_default) do
+    %{
+      name: to_string(input.name),
+      type: if(analysis.kind == "unknown", do: nil, else: analysis.kind),
+      allow_nil: !!input.allow_nil?,
+      has_default: has_default,
+      required: Map.get(input, :required?),
+      constraints: analysis.declared_constraints,
+      subtype_of: analysis.subtype_of,
+      subtype_constraints: analysis.subtype_constraints,
+      type_facts: analysis.definition
+    }
+  end
+
   # Manifest actions carry the unified inputs (arguments plus accepted
   # attributes) with explicit `allow_nil?`/`has_default?` facts, the resolved
   # type kind, and the `custom.ash_surface` envelope. The kind is read from
   # the manifest's own resolved `Ash.Info.Manifest.Type` — delegated fact,
   # never re-derived. `custom` rides the normalized entry so the presentation
   # adapter reads the envelope without a second discovery pass.
-  defp normalize_action(resource, %Manifest.Action{} = action) do
+  defp normalize_base(resource, %Manifest.Action{} = action) do
     %{
       id: action_id(resource, action.name),
       resource: resource,
       resource_name: module_name(resource),
       action: action.name,
       action_type: action.type,
+      get?: Map.get(action, :get?) == true,
+      pagination: pagination_facts(Map.get(action, :pagination)),
       custom: Map.get(action, :custom) || %{},
       inputs:
         action.inputs
         |> Kernel.||([])
         |> Enum.map(
-          &%{
-            name: to_string(&1.name),
-            type: manifest_type_kind(Map.get(&1, :type)),
-            allow_nil: !!&1.allow_nil?,
-            has_default: !!&1.has_default?
-          }
+          &input_entry(&1, TypeFacts.analyze_type(Map.get(&1, :type)), !!&1.has_default?)
         )
         |> Enum.sort_by(& &1.name),
       outputs:
@@ -200,25 +257,26 @@ defmodule AshSurface.Compiler do
   # is derived from `allow_nil?` and the presence of a default. The type kind
   # is Ash's own short-name registry (the same inversion `AshTruth` uses);
   # types outside the registry carry nil — UNKNOWN, never a guessed kind.
-  defp normalize_action(resource, action) do
+  defp normalize_base(resource, action) do
     %{
       id: action_id(resource, action.name),
       resource: resource,
       resource_name: module_name(resource),
       action: action.name,
       action_type: action.type,
+      get?: Map.get(action, :get?) == true,
+      pagination: pagination_facts(Map.get(action, :pagination)),
       custom: Map.get(action, :custom) || %{},
       inputs:
         action.arguments
         |> Kernel.||([])
         |> Enum.filter(& &1.public?)
         |> Enum.map(
-          &%{
-            name: to_string(&1.name),
-            type: short_name_kind(Map.get(&1, :type)),
-            allow_nil: !!&1.allow_nil?,
-            has_default: !is_nil(&1.default)
-          }
+          &input_entry(
+            &1,
+            TypeFacts.analyze(Map.get(&1, :type), Map.get(&1, :constraints)),
+            !is_nil(&1.default)
+          )
         )
         |> Enum.sort_by(& &1.name),
       outputs:
@@ -229,16 +287,20 @@ defmodule AshSurface.Compiler do
     }
   end
 
-  defp manifest_type_kind(%Manifest.Type{kind: kind}) when is_atom(kind),
-    do: Atom.to_string(kind)
+  # Pagination facts, verbatim from the manifest/Ash action (nil when the
+  # action declares none). Manifest uses `countable?`, raw Ash `countable`.
+  defp pagination_facts(nil), do: nil
+  defp pagination_facts(false), do: nil
 
-  defp manifest_type_kind(_), do: nil
-
-  defp short_name_kind(type) do
-    case List.keyfind(Ash.Type.short_names(), type, 1) do
-      {name, ^type} -> Atom.to_string(name)
-      _ -> nil
-    end
+  defp pagination_facts(%{} = p) do
+    %{
+      offset?: Map.get(p, :offset?) == true,
+      keyset?: Map.get(p, :keyset?) == true,
+      required?: Map.get(p, :required?) == true,
+      countable?: (Map.get(p, :countable?) || Map.get(p, :countable)) in [true, :by_default],
+      default_limit: Map.get(p, :default_limit),
+      max_page_size: Map.get(p, :max_page_size)
+    }
   end
 
   defp action_id(resource, action_name) do
@@ -309,8 +371,10 @@ defmodule AshSurface.Compiler do
     |> Enum.reduce_while({:ok, []}, fn {id, action}, {:ok, irs} ->
       context = %{discovery: receipt, action_id: id, source: source}
 
-      case build_sections(action, context, sections) do
+      case with(:ok <- check_field_names(action), do: build_sections(action, context, sections)) do
         {:ok, built} ->
+          built = %{built | schema: Fragments.enrich(built.schema, action)}
+
           {:cont,
            {:ok,
             [
@@ -333,6 +397,16 @@ defmodule AshSurface.Compiler do
     |> case do
       {:ok, irs} -> {:ok, Enum.reverse(irs)}
       error -> error
+    end
+  end
+
+  # Two fields (or two inputs) of one action sharing a client spelling is a typed refusal.
+  defp check_field_names(action) do
+    names = Enum.map(Map.get(action, :inputs) || [], & &1.name)
+
+    case AshSurface.FieldName.action_inverse(action.resource, action.action, names) do
+      {:ok, _} -> AshSurface.Compiler.EmittedKeys.check_resource_graph(action.resource)
+      {:error, _} = error -> error
     end
   end
 

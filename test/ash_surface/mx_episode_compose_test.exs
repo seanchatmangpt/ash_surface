@@ -26,7 +26,7 @@ defmodule AshSurface.MXEpisodeComposeTest do
   @head "00f14b1b966900aa129f16a2e51727ef697823ec"
   @consequence_id "cns_mx_compose_0001"
   @episode_id "MXEpisode/2026-09-17/000001"
-  @tmp_dir Path.expand("../../_build/test/mx_episode_compose", __DIR__)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../_build/test/mx_episode_compose", __DIR__))
 
   setup do
     File.rm_rf!(@tmp_dir)

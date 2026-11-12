@@ -50,7 +50,7 @@ defmodule AshSurface.IrCodecGoldenTest do
   # Any drift in section shape, field serialization, canonicalization, or the
   # digest pipeline breaks these by design.
   @golden %{
-    full: "44d02330521d793ffd93eec4cbc73d37d1621760fd756d2b99d1455d3455a8a3",
+    full: "52edac145b90d9a15e8b7a75d39e325ee1f5b1bac7dd481c98a998e295bbf399",
     presentation_only: "eb83ace3025f20235104aecc8b13cb15058580ddcb2adc96115316666b742190"
   }
 
@@ -59,7 +59,7 @@ defmodule AshSurface.IrCodecGoldenTest do
   # JSON null, nil fields inside present sections as null.
   @golden_json %{
     full:
-      ~s'{"ash":{"action":"read","action_type":"read","inputs":[{"name":"id","required":true,"type":"uuid"}],"outputs":{"fields":["id","body"]},"policies":[{"name":"can_read","type":"allow"}],"resource":"AshSurface.GoldenPost"},"capability":{"authority_required":false,"capability_id":"cap:post:read","consequence_class":"OBSERVE","receipt_required":true},"presentation":{"format":"compact","group":"content","label":"Posts","order":1,"widget":"table"},"schema":{"aria":{"label":"Posts","role":"table"},"input":{"properties":{"id":{"type":"string"}},"type":"object"},"output":{"properties":{"body":{"type":"string"}},"type":"object"},"zod":"z.object({ id: z.string().uuid() })"},"semantic":{"capability_iri":"https://ash.surface/c/post#read","ontology":"dfcm","predicates":{"describes":"post","grants":"observe"},"shape_id":"shape:post:read:v1","subject_iri":"https://ash.surface/i/user"},"version":"26.10.8"}',
+      ~s'{"ash":{"action":"read","action_type":"read","inputs":[{"name":"id","required":true,"type":"uuid"}],"outputs":{"fields":["id","body"]},"policies":[{"name":"can_read","type":"allow"}],"resource":"AshSurface.GoldenPost"},"capability":{"authority_required":false,"capability_id":"cap:post:read","consequence_class":"OBSERVE","receipt_required":true},"presentation":{"format":"compact","group":"content","label":"Posts","order":1,"widget":"table"},"schema":{"aggregates":null,"aria":{"label":"Posts","role":"table"},"calculations":null,"capability_flags":null,"error":null,"facts":null,"filter":null,"get":null,"input":{"properties":{"id":{"type":"string"}},"type":"object"},"load":null,"nil_reasons":null,"output":{"properties":{"body":{"type":"string"}},"type":"object"},"page":null,"response_zod":null,"selection":null,"sort":null,"tenant":null,"validation_error":null,"zod":"z.object({ id: z.string().uuid() })"},"semantic":{"capability_iri":"https://ash.surface/c/post#read","ontology":"dfcm","predicates":{"describes":"post","grants":"observe"},"shape_id":"shape:post:read:v1","subject_iri":"https://ash.surface/i/user"},"version":"26.10.8"}',
     presentation_only:
       ~s'{"ash":null,"capability":null,"presentation":{"format":null,"group":null,"label":"Dumb screen","order":null,"widget":null},"schema":null,"semantic":null,"version":null}'
   }
@@ -171,7 +171,9 @@ defmodule AshSurface.IrCodecGoldenTest do
                ~w(authority_required capability_id consequence_class receipt_required)a
 
       assert fields.(IR.Presentation) == ~w(format group label order widget)a
-      assert fields.(IR.Schema) == ~w(aria input output zod)a
+
+      assert fields.(IR.Schema) ==
+               ~w(aggregates aria calculations capability_flags error facts filter get input load nil_reasons output page response_zod selection sort tenant validation_error zod)a
     end
 
     test "every section of the full fixture is populated; the minimal fixture is presentation-only" do

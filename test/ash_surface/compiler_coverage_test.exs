@@ -131,9 +131,42 @@ defmodule AshSurface.CompilerCoverageTest do
       record = Map.fetch!(entries, "AshSurface.CompilerCoverageTest.Ledger.record")
 
       assert record.inputs == [
-               %{name: "note_text", type: "string", allow_nil: false, has_default: false},
-               # {:array, :string} is outside Ash's short-name registry: UNKNOWN, not guessed.
-               %{name: "tags", type: nil, allow_nil: true, has_default: true}
+               %{
+                 name: "note_text",
+                 type: "string",
+                 required: nil,
+                 allow_nil: false,
+                 has_default: false,
+                 constraints: %{allow_empty?: false},
+                 subtype_of: nil,
+                 subtype_constraints: %{},
+                 type_facts: %{
+                   "constraints" => %{"allow_empty?" => false},
+                   "type" => %{"kind" => "string", "module" => "Ash.Type.String"}
+                 }
+               },
+               # {:array, :string}: the kind is "array" with recursive item facts
+               # (census D-03) — never nil/UNKNOWN.
+               %{
+                 name: "tags",
+                 type: "array",
+                 required: nil,
+                 allow_nil: true,
+                 has_default: true,
+                 constraints: %{items: %{allow_empty?: false}},
+                 subtype_of: nil,
+                 subtype_constraints: %{},
+                 type_facts: %{
+                   "constraints" => %{},
+                   "type" => %{
+                     "kind" => "array",
+                     "items" => %{
+                       "constraints" => %{"allow_empty?" => false},
+                       "type" => %{"kind" => "string", "module" => "Ash.Type.String"}
+                     }
+                   }
+                 }
+               }
              ]
 
       refute Enum.any?(record.inputs, &(&1.name == "internal_hint"))
@@ -149,7 +182,10 @@ defmodule AshSurface.CompilerCoverageTest do
     end
 
     test "the default pipeline mounts the normalized arguments into the schema boundary" do
-      assert {:ok, irs} = Compiler.compile(LedgerDomain)
+      assert {:ok, irs} =
+               Compiler.compile(LedgerDomain,
+                 output_field_formatter: {AshSurface.Ported.AshNames, :verbatim}
+               )
 
       record = Enum.find(irs, &(&1.ash.action == :record))
       assert record.schema.input |> Map.keys() |> Enum.sort() == ["note_text", "tags"]
@@ -158,7 +194,11 @@ defmodule AshSurface.CompilerCoverageTest do
 
   describe "compiled IR through the ARIA projector" do
     test "the schema section's list-form aria \"fields\" become the surface inputs (internal_hint stays private; tags allows nil)" do
-      assert {:ok, irs} = Compiler.compile(LedgerDomain)
+      assert {:ok, irs} =
+               Compiler.compile(LedgerDomain,
+                 output_field_formatter: {AshSurface.Ported.AshNames, :verbatim}
+               )
+
       assert {:ok, contract, _meta} = AshSurface.Projectors.ARIA.project_ir(irs)
 
       record =

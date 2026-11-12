@@ -7,6 +7,42 @@ from `git log` since the PR #7 merge (`7d5c354`, 2026-09-26) up to `2654cdc`.
 
 ## [Unreleased]
 
+### Zod 4 port (docs/zod-port/)
+- Zod 4 fragment table `AshSurface.Compiler.ZodType` (`z.uuid()`, `z.iso.*`, decimal as
+  string, sorted `z.enum`, nullable/optional split, escaped regex) shared by the schema,
+  union, embedded, filter, query, selection, relationship, calculation, error, route and
+  channel renderers; ZodGuard admits the new constructs and refuses arrow/identifier/
+  prototype escapes.
+- IR: `IR.Schema` gains `capability_flags, error, filter, page, response_zod, sort`;
+  digests and the golden/codec vectors were refrozen (`conformance/vectors/ir_codec.json`,
+  new `constraints.json`, 572 vectors in 12 files); the JS twin `zodFragment` in
+  `conformance/js/reference.mjs` mirrors the Zod 4 table.
+- Runtime: error formatter/handler, naming/field-name, config, `ash_surface.codegen`
+  artifacts, installer patching, inference block and a TS/Node test tree.
+- Changed (breaking for generated output): array arguments now project typed items
+  (`z.array(z.uuid())`) instead of the flat `z.array(z.unknown())`; `allow_nil?` renders
+  `.nullable()` (no implicit `.optional()`).
+
+### Added
+- v26.11.11 milestone: capability parity with ash-project/ash_typescript by
+  porting its compile-time selectivity patterns to Zod-executable runtime
+  admission (charter: `docs/jira/v26.11.11/`). Receipt-backed work:
+  - L06 ZodGuard constraint-chain renderer `lib/ash_surface/projectors/js/`
+    `zod_guard.ex` with court tests (receipt `ALIVE`).
+  - L10 query envelope Zod renderers
+    `lib/ash_surface/compiler/query_schema.ex` — pagination `.strict()`
+    object and sort schema (receipt `PASS`).
+  - L21 union type Zod renderers
+    `lib/ash_surface/compiler/union_schema.ex` (receipt `ALIVE`).
+- Milestone docs: `docs/jira/v26.11.11/OVERVIEW.md` (charter + port map) and
+  `docs/jira/v26.11.11/COMPARISON-ash-typescript.md` (session comparison,
+  per-dimension verdicts) — in-flight lanes marked per receipts on disk.
+
+### In flight
+- Zod-port waves 2 and 3: per-capability status, evidence and closing receipts are in
+  `docs/jira/v26.11.11/PARITY-REGISTER.md` (single source). IR wiring (`wave3-01`) and
+  conformance vectors/docs (`wave3-04`) had no receipt at register fill: UNVERIFIED.
+
 ## [26.10.7] - 2026-10-06
 
 ### Added

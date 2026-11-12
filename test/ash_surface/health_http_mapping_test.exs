@@ -47,10 +47,14 @@ defmodule AshSurface.HealthHttpMappingTest do
     get "/health" do
       case Health.check() do
         {:ok, report} ->
-          conn |> put_resp_content_type("application/json") |> send_resp(200, Jason.encode!(Health.to_map(report)))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(Health.to_map(report)))
 
         {:error, report} ->
-          conn |> put_resp_content_type("application/json") |> send_resp(503, Jason.encode!(Health.to_map(report)))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(503, Jason.encode!(Health.to_map(report)))
       end
     end
 
@@ -71,17 +75,23 @@ defmodule AshSurface.HealthHttpMappingTest do
     get "/surface-health/not-a-surface" do
       case Health.check_surface(:not_a_surface_struct) do
         {:error, refusal} ->
-          conn |> put_resp_content_type("application/json") |> send_resp(503, Jason.encode!(refusal))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(503, Jason.encode!(refusal))
       end
     end
 
     defp wrap(conn, surface, opts) do
       case Health.check_surface(surface, opts) do
         {:ok, report} ->
-          conn |> put_resp_content_type("application/json") |> send_resp(200, Jason.encode!(Health.to_map(report)))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Jason.encode!(Health.to_map(report)))
 
         {:error, report} ->
-          conn |> put_resp_content_type("application/json") |> send_resp(503, Jason.encode!(Health.to_map(report)))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(503, Jason.encode!(Health.to_map(report)))
       end
     end
 
@@ -173,7 +183,11 @@ defmodule AshSurface.HealthHttpMappingTest do
       assert conn.status == 503
       body = Jason.decode!(conn.resp_body)
       assert body["status"] == "missing_runtime"
-      assert Enum.any?(body["checks"], &(&1["name"] == "runtime_present" and &1["status"] == "error"))
+
+      assert Enum.any?(
+               body["checks"],
+               &(&1["name"] == "runtime_present" and &1["status"] == "error")
+             )
     end
 
     test "a non-surface subject is the typed REFUSED_INVALID_SUBJECT refusal, mapped to 503" do

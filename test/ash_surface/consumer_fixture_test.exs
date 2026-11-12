@@ -4,7 +4,7 @@ defmodule AshSurface.ConsumerFixtureTest do
   alias Ash.Info.Manifest
   alias AshSurface.Fixtures.{Server, VolunteerMilestone}
 
-  @tmp_dir Path.expand("../../_build/test/fixtures", __DIR__)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../_build/test/fixtures", __DIR__))
 
   setup do
     File.mkdir_p!(@tmp_dir)

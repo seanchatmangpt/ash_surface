@@ -1,0 +1,12 @@
+[
+  {"id":"Todo.create","label":"minimal valid","expect":"pass","payload":{"title":"write tests"}},
+  {"id":"Todo.create","label":"full valid","expect":"pass","payload":{"title":"t","notes":"n","points":50,"score":1.5,"done":true,"status":"open","priority":"high","slug":"my-slug","tags":["a","b"],"metadata":{"k":1},"address":{"street":"1 Main","zip":"12345"},"ref":{"text":"x"}}},
+  {"id":"Todo.create","label":"missing required title","expect":"fail","payload":{}},
+  {"id":"Todo.create","label":"empty title violates min_length","expect":"fail","payload":{"title":""}},
+  {"id":"Todo.create","label":"points above max","expect":"fail","payload":{"title":"t","points":101}},
+  {"id":"Todo.create","label":"atom one_of violated","expect":"fail","payload":{"title":"t","status":"bogus"}},
+  {"id":"Todo.create","label":"enum violated","expect":"fail","payload":{"title":"t","priority":"urgent"}},
+  {"id":"Todo.create","label":"slug match violated","expect":"fail","payload":{"title":"t","slug":"BAD SLUG!"}},
+  {"id":"Todo.create","label":"array element wrong type","expect":"fail","payload":{"title":"t","tags":[1]}},
+  {"id":"Todo.create","label":"embedded missing street","expect":"fail","payload":{"title":"t","address":{"zip":"12345"}}}
+]

@@ -58,7 +58,8 @@ defmodule TokyoDepegSurfaceTest do
     assert Enum.map(manifest.entrypoints, &AshSurface.action_id/1) |> Enum.sort() == ids
 
     for id <- ids do
-      assert id =~ ~r/^Tdb\.BurnIn\.Resources\.(BurnCycleStatus|StageVerdicts|RefusalLedger|AlignmentCosts)#read$/
+      assert id =~
+               ~r/^Tdb\.BurnIn\.Resources\.(BurnCycleStatus|StageVerdicts|RefusalLedger|AlignmentCosts)#read$/
     end
   end
 
@@ -112,7 +113,9 @@ defmodule TokyoDepegSurfaceTest do
              AshSurface.Compiler.compile(manifest, sections: [])
 
     assert {:error, {:missing_section_keys, missing}} =
-             AshSurface.Compiler.compile(manifest, sections: [ash: AshSurface.Compiler.Section.Ash])
+             AshSurface.Compiler.compile(manifest,
+               sections: [ash: AshSurface.Compiler.Section.Ash]
+             )
 
     assert [:semantic, :capability, :presentation, :schema] -- missing == []
   end

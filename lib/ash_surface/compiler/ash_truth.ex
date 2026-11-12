@@ -22,6 +22,7 @@ defmodule AshSurface.Compiler.AshTruth do
 
   @behaviour AshSurface.Section
 
+  alias AshSurface.Compiler.TypeFacts
   alias AshSurface.IR
 
   @section "ash"
@@ -35,7 +36,21 @@ defmodule AshSurface.Compiler.AshTruth do
     :resource,
     :section
   ]
-  @admitted_input_keys [:default, :name, :required, :type]
+  # Constraint intake law (L01): only these Ash constraint keys are admitted;
+  # anything else on the argument is dropped, never guessed.
+  @admitted_input_keys [
+    :constraints,
+    :default,
+    :name,
+    :required,
+    :subtype_constraints,
+    :subtype_of,
+    :type
+  ]
+
+  # The four pre-L01 keys are always present; the three L01 keys are admitted
+  # additions (subset law) so bare inputs from other constructors stay lawful.
+  @required_input_keys [:default, :name, :required, :type]
   @admitted_output_keys [:returns]
   @admitted_policy_keys [:bypass, :checks, :conditions]
 
@@ -101,26 +116,69 @@ defmodule AshSurface.Compiler.AshTruth do
           section: [atom()],
           input: [atom()],
           output: [atom()],
-          policy: [atom()]
+          policy: [atom()],
+          constraint: [atom()]
         }
   def admitted_keys do
     %{
       section: @admitted_section_keys,
       input: @admitted_input_keys,
       output: @admitted_output_keys,
-      policy: @admitted_policy_keys
+      policy: @admitted_policy_keys,
+      constraint: TypeFacts.admitted_constraint_keys()
     }
   end
 
   defp inputs(act) do
     Enum.map(act.arguments, fn argument ->
-      %IR.Input{
+      input = %IR.Input{
         name: argument.name,
         type: type_name(argument.type),
         required: not argument.allow_nil?,
         default: argument.default
       }
+
+      # The IR.Input struct extension (constraints/subtype_of/subtype_
+      # constraints fields) is owned by a concurrent lane; attach the facts
+      # directly once it lands, and until then only when there is real data,
+      # so unconstrained inputs stay byte-identical to the v29 emission.
+      constraints = admitted_constraints(argument.constraints)
+      {subtype_of, subtype_constraints} = subtype_facts(argument.type)
+
+      if Map.has_key?(input, :constraints) or constraints != %{} or subtype_of != nil or
+           subtype_constraints != %{} do
+        Map.merge(input, %{
+          constraints: constraints,
+          subtype_of: subtype_of,
+          subtype_constraints: subtype_constraints
+        })
+      else
+        input
+      end
     end)
+  end
+
+  # Fail closed: only admitted constraint keys survive (TypeFacts owns the
+  # shared vocabulary: regexes normalized to source + match_flags, nested
+  # `items` constraints recursed); nil normalizes to %{}.
+  defp admitted_constraints(constraints), do: TypeFacts.constraints(constraints)
+
+  # NewType unwrapping: a non-NewType argument carries no subtype facts. A
+  # NewType's own subtype constraints (declared on the type, not the argument)
+  # are read through the module introspection NewType compiles in.
+  defp subtype_facts(type) do
+    if Ash.Type.NewType.new_type?(type) do
+      base = Ash.Type.NewType.subtype_of(type)
+
+      own = admitted_constraints(type.constraints())
+      declared = admitted_constraints(type.subtype_constraints())
+
+      subtype_constraints = Map.merge(own, declared, fn _k, _own, decl -> decl end)
+
+      {type_name(base), subtype_constraints}
+    else
+      {nil, %{}}
+    end
   end
 
   defp outputs(act) do
@@ -157,15 +215,18 @@ defmodule AshSurface.Compiler.AshTruth do
 
   defp check_fact(check), do: %{check: inspect(check.check_module), kind: check.type}
 
-  defp type_name(type) do
-    case List.keyfind(Ash.Type.short_names(), type, 1) do
-      {name, ^type} -> Atom.to_string(name)
-      nil -> inspect(type)
-    end
-  end
+  defp type_name(type), do: TypeFacts.type_name(type)
 
   defp input_fact(%IR.Input{} = input) do
-    %{name: input.name, type: input.type, required: input.required, default: input.default}
+    %{
+      name: input.name,
+      type: input.type,
+      required: input.required,
+      default: input.default,
+      constraints: Map.get(input, :constraints) || %{},
+      subtype_of: Map.get(input, :subtype_of),
+      subtype_constraints: Map.get(input, :subtype_constraints) || %{}
+    }
   end
 
   defp output_fact(nil), do: nil
@@ -179,7 +240,7 @@ defmodule AshSurface.Compiler.AshTruth do
   defp verify_truth(section) do
     checks = [
       exact_keys(section, @admitted_section_keys, :section),
-      all_keys(section.inputs, @admitted_input_keys, :input),
+      input_keys(section.inputs),
       verify_output(section.outputs),
       all_keys(section.policies, @admitted_policy_keys, :policy),
       policy_children(section.policies)
@@ -189,6 +250,29 @@ defmodule AshSurface.Compiler.AshTruth do
       nil -> :ok
       error -> error
     end
+  end
+
+  # Input law (L01): the four v29 keys are required; the three constraint
+  # keys are admitted additions (older inputs and mid-migration constructors
+  # legitimately omit them); any other key is still a fabrication.
+  defp input_keys(inputs) do
+    Enum.find_value(inputs, :ok, fn input ->
+      actual = input |> Map.keys() |> MapSet.new()
+      admitted = MapSet.new(@admitted_input_keys)
+      missing = @required_input_keys |> MapSet.new() |> MapSet.difference(actual)
+      extra = MapSet.difference(actual, admitted)
+
+      cond do
+        MapSet.size(missing) > 0 ->
+          {:error, {:fabricated_fact, :input, Enum.sort(missing)}}
+
+        MapSet.size(extra) > 0 ->
+          {:error, {:fabricated_fact, :input, Enum.sort(extra)}}
+
+        true ->
+          nil
+      end
+    end)
   end
 
   defp verify_output(nil), do: :ok

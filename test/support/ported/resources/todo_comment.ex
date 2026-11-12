@@ -1,0 +1,139 @@
+# SPDX-FileCopyrightText: 2025 ash_typescript contributors <https://github.com/ash-project/ash_typescript/graphs/contributors>
+#
+# SPDX-License-Identifier: MIT
+
+defmodule AshSurface.Ported.TodoComment do
+  @moduledoc """
+  Test resource representing comments on todo items.
+  """
+  use Ash.Resource,
+    domain: AshSurface.Ported.Domain,
+    data_layer: Ash.DataLayer.Ets,
+    primary_read_warning?: false,
+    extensions: [AshSurface.Resource]
+
+  surface do
+    type_name("TodoComment")
+  end
+
+  ets do
+    private?(true)
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+
+    attribute :content, :string do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :author_name, :string do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :rating, :integer do
+      constraints(min: 1, max: 5)
+      public?(true)
+    end
+
+    attribute :is_helpful, :boolean do
+      default(false)
+      public?(true)
+    end
+
+    # Embedded resource attribute for testing first aggregates with embedded types
+    attribute :comment_metadata, AshSurface.Ported.TodoMetadata do
+      public?(true)
+    end
+
+    # Union attribute with both embedded resource and regular Ash resource members
+    # for testing first aggregates with union types
+    attribute :author_info, :union do
+      public?(true)
+
+      constraints(
+        types: [
+          # Embedded resource member
+          metadata: [
+            type: AshSurface.Ported.TodoMetadata,
+            tag: :info_type,
+            tag_value: "metadata"
+          ],
+          # Simple type member
+          anonymous: [
+            type: :string
+          ]
+        ]
+      )
+    end
+
+    create_timestamp(:created_at)
+    update_timestamp(:updated_at)
+  end
+
+  calculations do
+    # A weighted score calculation for testing sum aggregates over calculations
+    calculate :weighted_score, :integer, expr(rating * if(is_helpful, 2, 1)) do
+      public?(true)
+    end
+  end
+
+  relationships do
+    belongs_to :todo, AshSurface.Ported.Todo do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    belongs_to :user, AshSurface.Ported.User do
+      allow_nil?(false)
+      public?(true)
+    end
+  end
+
+  actions do
+    defaults([:destroy])
+
+    read :read do
+      primary?(true)
+      pagination(offset?: true, keyset?: true, countable: true, required?: false)
+    end
+
+    # Deliberately unpaginated — destination read action for
+    # Todo.unpaginated_comments, exercising the :none pagination decoration.
+    read(:read_unpaginated)
+
+    # Pure-variant pagination fixtures for Todo.offset_comments and
+    # Todo.keyset_comments, exercising the :offset / :keyset decorations.
+    read :read_offset_only do
+      pagination(offset?: true, countable: true, required?: false)
+    end
+
+    read :read_keyset_only do
+      pagination(keyset?: true, countable: true, required?: false)
+    end
+
+    create :create do
+      accept([:content, :author_name, :rating, :is_helpful, :comment_metadata, :author_info])
+
+      argument :user_id, :uuid do
+        allow_nil?(false)
+        public?(true)
+      end
+
+      argument :todo_id, :uuid do
+        allow_nil?(false)
+        public?(true)
+      end
+
+      change(manage_relationship(:user_id, :user, type: :append))
+      change(manage_relationship(:todo_id, :todo, type: :append))
+    end
+
+    update :update do
+      require_atomic?(false)
+      accept([:content, :author_name, :rating, :is_helpful, :comment_metadata, :author_info])
+    end
+  end
+end

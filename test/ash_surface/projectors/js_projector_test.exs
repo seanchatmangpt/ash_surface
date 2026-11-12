@@ -201,7 +201,7 @@ defmodule AshSurface.Projectors.JsProjectorTest do
               }
             }
             console.log("structured-refusals-ok");
-            """,
+            """
           ],
           cd: dir
         )

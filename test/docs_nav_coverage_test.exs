@@ -45,6 +45,7 @@ defmodule AshSurface.DocsNavCoverageTest do
 
     for file <- files do
       link = Path.relative_to(file, "docs/diataxis")
+
       assert link in readme_links(),
              "file #{file} is not indexed in #{@readme} (expected a (#{link}) link)"
     end

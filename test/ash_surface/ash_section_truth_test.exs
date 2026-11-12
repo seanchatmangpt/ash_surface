@@ -171,12 +171,60 @@ defmodule AshSurface.AshSectionTruthTest do
              action: :search,
              action_type: :read,
              inputs: [
-               %{name: :status, type: "atom", required: true, default: nil},
-               %{name: :term, type: "string", required: false, default: nil},
-               %{name: :limit, type: "integer", required: false, default: 25},
-               %{name: :verified, type: "boolean", required: false, default: nil},
-               %{name: :owner, type: "uuid", required: true, default: nil},
-               %{name: :filters, type: "map", required: false, default: %{}}
+               %{
+                 name: :status,
+                 type: "atom",
+                 required: true,
+                 default: nil,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :term,
+                 type: "string",
+                 required: false,
+                 default: nil,
+                 constraints: %{allow_empty?: false},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :limit,
+                 type: "integer",
+                 required: false,
+                 default: 25,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :verified,
+                 type: "boolean",
+                 required: false,
+                 default: nil,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :owner,
+                 type: "uuid",
+                 required: true,
+                 default: nil,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :filters,
+                 type: "map",
+                 required: false,
+                 default: %{},
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               }
              ],
              outputs: nil,
              policies: @policies
@@ -190,8 +238,24 @@ defmodule AshSurface.AshSectionTruthTest do
              action: :forge,
              action_type: :create,
              inputs: [
-               %{name: :name, type: "string", required: true, default: nil},
-               %{name: :rank, type: "integer", required: false, default: 0}
+               %{
+                 name: :name,
+                 type: "string",
+                 required: true,
+                 default: nil,
+                 constraints: %{allow_empty?: false},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :rank,
+                 type: "integer",
+                 required: false,
+                 default: 0,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               }
              ],
              outputs: nil,
              policies: @policies
@@ -205,8 +269,24 @@ defmodule AshSurface.AshSectionTruthTest do
              action: :annotate,
              action_type: :update,
              inputs: [
-               %{name: :note, type: "string", required: true, default: nil},
-               %{name: :bump, type: "integer", required: false, default: 1}
+               %{
+                 name: :note,
+                 type: "string",
+                 required: true,
+                 default: nil,
+                 constraints: %{allow_empty?: false},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               },
+               %{
+                 name: :bump,
+                 type: "integer",
+                 required: false,
+                 default: 1,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               }
              ],
              outputs: nil,
              policies: @policies
@@ -219,7 +299,17 @@ defmodule AshSurface.AshSectionTruthTest do
              resource: "AshSurface.AshSectionTruthTest.Gadget",
              action: :discard,
              action_type: :destroy,
-             inputs: [%{name: :reason, type: "string", required: false, default: nil}],
+             inputs: [
+               %{
+                 name: :reason,
+                 type: "string",
+                 required: false,
+                 default: nil,
+                 constraints: %{allow_empty?: false},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               }
+             ],
              outputs: nil,
              policies: @policies
            }
@@ -231,7 +321,17 @@ defmodule AshSurface.AshSectionTruthTest do
              resource: "AshSurface.AshSectionTruthTest.Gadget",
              action: :ping,
              action_type: :action,
-             inputs: [%{name: :loud, type: "boolean", required: true, default: nil}],
+             inputs: [
+               %{
+                 name: :loud,
+                 type: "boolean",
+                 required: true,
+                 default: nil,
+                 constraints: %{},
+                 subtype_of: nil,
+                 subtype_constraints: %{}
+               }
+             ],
              outputs: %{returns: "string"},
              policies: @policies
            }
@@ -274,7 +374,8 @@ defmodule AshSurface.AshSectionTruthTest do
         AshTruth.admitted_keys().section ++
           AshTruth.admitted_keys().input ++
           AshTruth.admitted_keys().output ++
-          AshTruth.admitted_keys().policy ++ [:check, :kind, :opts]
+          AshTruth.admitted_keys().policy ++
+          AshTruth.admitted_keys().constraint ++ [:check, :kind, :opts]
       )
 
     for action <- @public_actions do

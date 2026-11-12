@@ -213,10 +213,18 @@ test("unknown actions refuse dispatch intents", runtimeSkip, () => {
   assert.throws(() => dispatchIntent("Nope.missing", {}), /REFUSED_UNKNOWN_ACTION/);
 });
 
-test("invalid input surfaces ZodError at the dispatch-intent boundary", runtimeSkip, () => {
+test("invalid input surfaces a typed INPUT_VALIDATION_FAILED envelope at the dispatch-intent boundary", runtimeSkip, () => {
   const [doAction] = fixtureActions.filter((a) => a.descriptorKind === "DISPATCH_INTENT");
   assert.throws(
     () => dispatchIntent(doAction.id, doAction.invalidInput),
-    { name: "ZodError" }
+    (err) =>
+      err instanceof Error &&
+      err.name === "SurfaceRuntimeError" &&
+      err.code === "INPUT_VALIDATION_FAILED" &&
+      Array.isArray(err.issues) &&
+      err.issues.length > 0 &&
+      err.issues.every((i) => typeof i.path === "string" && typeof i.message === "string" && typeof i.code === "string") &&
+      err.detail.actionId === doAction.id &&
+      err.detail.issues === err.issues
   );
 });

@@ -1,0 +1,78 @@
+[
+ {
+  "label": "args + fields",
+  "expect": true,
+  "payload": {
+   "full": {
+    "args": {
+     "sep": "-"
+    },
+    "fields": [
+     "a"
+    ]
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "args only",
+  "expect": true,
+  "payload": {
+   "full": {
+    "args": {
+     "sep": "-"
+    }
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "missing args",
+  "expect": false,
+  "payload": {
+   "full": {
+    "fields": [
+     "a"
+    ]
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "arg wrong type",
+  "expect": false,
+  "payload": {
+   "full": {
+    "args": {
+     "sep": 1
+    }
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown field",
+  "expect": false,
+  "payload": {
+   "full": {
+    "args": {
+     "sep": "-"
+    },
+    "fields": [
+     "zz"
+    ]
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown calc (strict)",
+  "expect": false,
+  "payload": {
+   "other": {
+    "args": {}
+   }
+  },
+  "target": "default"
+ }
+]

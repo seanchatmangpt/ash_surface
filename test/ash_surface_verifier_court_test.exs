@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 defmodule AshSurface.Resource.Court.Sections do
   @moduledoc false
 
@@ -19,7 +8,8 @@ defmodule AshSurface.Resource.Court.Sections do
   def surface do
     %Spark.Dsl.Section{
       name: :surface,
-      describe: "Declares consumer projection intent for public Ash actions without duplicating Ash semantics.",
+      describe:
+        "Declares consumer projection intent for public Ash actions without duplicating Ash semantics.",
       entities: [
         %Spark.Dsl.Entity{
           name: :projection,
@@ -27,9 +17,147 @@ defmodule AshSurface.Resource.Court.Sections do
           args: [:action],
           identifier: :action,
           schema: [
-            action: [type: :atom, required: true, doc: "Public Ash action name this projection describes."],
-            consumer: [type: :atom, required: false, doc: "Optional consumer class such as web, mobile, or internal."],
-            transport: [type: {:one_of, [:auto, :http, :phoenix_channel]}, required: false, default: :auto, doc: "Pre-dispatch transport preference; auto preserves all admitted alternatives."],
+            action: [
+              type: :atom,
+              required: true,
+              doc: "Public Ash action name this projection describes."
+            ],
+            consumer: [
+              type: :atom,
+              required: false,
+              doc: "Optional consumer class such as web, mobile, or internal."
+            ],
+            transport: [
+              type: {:one_of, [:auto, :http, :phoenix_channel]},
+              required: false,
+              default: :auto,
+              doc: "Pre-dispatch transport preference; auto preserves all admitted alternatives."
+            ],
+            name: [
+              type: :atom,
+              required: false,
+              doc:
+                "Wire/export name override for this projection (presentation fact; not an IR truth-section fact)."
+            ],
+            namespace: [
+              type: :string,
+              required: false,
+              doc: "Optional export namespace grouping for the projection (presentation fact)."
+            ],
+            description: [
+              type: :string,
+              required: false,
+              doc: "Human description of the projection (presentation fact)."
+            ],
+            deprecated: [
+              type: :any,
+              required: false,
+              doc: "false, true, or a deprecation message string (presentation fact)."
+            ],
+            see: [
+              type: {:list, :atom},
+              required: false,
+              doc: "Related projection or action names (presentation fact)."
+            ],
+            read_action: [
+              type: :atom,
+              required: false,
+              doc:
+                "Public read action used to resolve the projected resource; must be a public read action."
+            ],
+            get?: [
+              type: :boolean,
+              required: false,
+              default: false,
+              doc: "Project a single-record get; conflicts with get_by."
+            ],
+            get_by: [
+              type: {:list, :atom},
+              required: false,
+              doc: "Attributes that identify a single record; each must be a public attribute."
+            ],
+            not_found_error?: [
+              type: :boolean,
+              required: false,
+              default: true,
+              doc: "Whether a missing record is an error rather than nil."
+            ],
+            identities: [
+              type: {:list, :atom},
+              required: false,
+              doc: "Ash identities usable to look up a record; each must exist on the resource."
+            ],
+            enable_filter?: [
+              type: :boolean,
+              required: false,
+              default: true,
+              doc: "Whether the projection exposes filtering."
+            ],
+            enable_sort?: [
+              type: :boolean,
+              required: false,
+              default: true,
+              doc: "Whether the projection exposes sorting."
+            ],
+            allowed_loads: [
+              type: :any,
+              required: false,
+              doc: "Allow-list of loadable fields; mutually exclusive with denied_loads."
+            ],
+            denied_loads: [
+              type: :any,
+              required: false,
+              doc: "Deny-list of loadable fields; mutually exclusive with allowed_loads."
+            ],
+            show_metadata: [
+              type: :any,
+              required: false,
+              doc: "Action metadata fields to expose: false or a list of atoms."
+            ],
+            metadata_field_names: [
+              type: :any,
+              required: false,
+              doc: "Keyword map of action metadata name to wire name."
+            ]
+          ]
+        },
+        %Spark.Dsl.Entity{
+          name: :typed_query,
+          target: AshSurface.Dsl.TypedQuery,
+          args: [:name, :action],
+          identifier: :name,
+          schema: [
+            name: [
+              type: :atom,
+              required: true,
+              doc: "Typed query name; unique within the resource and a valid identifier."
+            ],
+            action: [
+              type: :atom,
+              required: true,
+              doc: "Public read action this typed query selects fields from."
+            ],
+            description: [
+              type: :string,
+              required: false,
+              doc: "Human description of the typed query (presentation fact)."
+            ],
+            result_type_name: [
+              type: :string,
+              required: false,
+              doc: "Name of the result type for the typed query (presentation fact)."
+            ],
+            fields_const_name: [
+              type: :string,
+              required: false,
+              doc: "Name of the reusable fields constant (presentation fact)."
+            ],
+            fields: [
+              type: :any,
+              required: true,
+              doc:
+                "Field selection verified against the resource public attributes, calculations, aggregates and relationships."
+            ]
           ]
         }
       ]
@@ -78,11 +206,25 @@ defmodule AshSurface.ResourceVerifierCourtTest do
                   |> Enum.reject(&is_nil/1),
                   &File.dir?/1
                 ) || Path.join(File.cwd!(), "fixture/malformed_specimens")
-  @verifiers []
+  @verifiers [
+    "allowed_and_denied_loads_conflict",
+    "get_and_get_by_conflict",
+    "typed_query_duplicate_name",
+    "typed_query_invalid_fields",
+    "typed_query_invalid_name",
+    "typed_query_non_read_action",
+    "typed_query_unknown_action",
+    "unknown_action_projection"
+  ]
 
-  @specimens @specimen_dir
-             |> Path.join("*.ex")
-             |> Path.wildcard()
+  # Wave3-09 re-pin: the shared fixture dir carries other packages' specimens
+  # (audit_trail et al.); ash_surface's own specimens live in test/malformed_specimens
+  # and are the ones that witness this spec's declared verifiers.
+  @own_specimen_dir Path.join(File.cwd!(), "test/malformed_specimens")
+  @foreign_verifiers ["unique_event_name"]
+
+  @specimens [@specimen_dir, @own_specimen_dir]
+             |> Enum.flat_map(&Path.wildcard(Path.join(&1, "*.ex")))
              |> Enum.sort()
              |> Enum.map(fn path ->
                source = File.read!(path)
@@ -118,14 +260,23 @@ defmodule AshSurface.ResourceVerifierCourtTest do
   """
 
   test "court is non-vacuous: specimens exist and cover declared verifiers" do
-    refute @specimens == [], "no malformed specimens found in #{@specimen_dir} -- an empty court proves nothing"
-    refute @verifiers == [], "spec declares no aex:Verifier rows -- nothing for the court to close"
+    refute @specimens == [],
+           "no malformed specimens found in #{@specimen_dir} -- an empty court proves nothing"
+
+    refute @verifiers == [],
+           "spec declares no aex:Verifier rows -- nothing for the court to close"
 
     witnessed = Enum.map(@specimens, & &1.verifier)
 
     missing =
       Enum.reject(witnessed, fn v ->
-        v in @verifiers or v in ["persist_before_verify", "verify_section_singleton_entities", "section_surface", "entity_surface"]
+        v in @verifiers or v in @foreign_verifiers or
+          v in [
+            "persist_before_verify",
+            "verify_section_singleton_entities",
+            "section_surface",
+            "entity_surface"
+          ]
       end)
 
     assert missing == [],
@@ -165,64 +316,69 @@ defmodule AshSurface.ResourceVerifierCourtTest do
              "no malformed specimen witnesses any declared verifier #{inspect(@verifiers)} -- refusal leg unproven"
 
       Enum.each(applicable, fn specimen ->
-      source =
-        specimen.source
-        |> String.split("\n")
-        |> Enum.reject(&String.starts_with?(&1, "#"))
-        |> Enum.join("\n")
-        |> String.replace("Court.ScratchDsl", "AshSurface.Resource.Court.ScratchDsl")
-        |> String.replace("Court.Dsl", "AshSurface.Resource.Court.Dsl")
+        source =
+          specimen.source
+          |> String.split("\n")
+          |> Enum.reject(&String.starts_with?(&1, "#"))
+          |> Enum.join("\n")
+          |> String.replace("Court.ScratchDsl", "AshSurface.Resource.Court.ScratchDsl")
+          |> String.replace("Court.Dsl", "AshSurface.Resource.Court.Dsl")
 
-      # Elixir 1.19+ hazards: a Spark verifier raising inside the parallel checker
-      # can surface as a swallowed warning with a SUCCESSFUL compile. The court
-      # therefore treats a refusal as: a real raise OR a captured compiler
-      # diagnostic carrying the specimen's EXPECT-MESSAGE substring. A clean
-      # compile with no matching diagnostic = vacuous verifier.
-      {outcome, diagnostics} =
-        Code.with_diagnostics(fn ->
-          try do
-            Code.compile_string(source)
-            :compiled_clean
-          rescue
-            e -> {:raised, e.__struct__ |> Module.split() |> Enum.join("."), Exception.message(e)}
-          end
-        end)
+        # Elixir 1.19+ hazards: a Spark verifier raising inside the parallel checker
+        # can surface as a swallowed warning with a SUCCESSFUL compile. The court
+        # therefore treats a refusal as: a real raise OR a captured compiler
+        # diagnostic carrying the specimen's EXPECT-MESSAGE substring. A clean
+        # compile with no matching diagnostic = vacuous verifier.
+        {outcome, diagnostics} =
+          Code.with_diagnostics(fn ->
+            try do
+              Code.compile_string(source)
+              :compiled_clean
+            rescue
+              e ->
+                {:raised, e.__struct__ |> Module.split() |> Enum.join("."), Exception.message(e)}
+            end
+          end)
 
-      case outcome do
-        {:raised, kind, message} ->
-          matched? =
-            String.contains?(message, specimen.expect_message) or
-              Enum.any?(diagnostics, fn d ->
-                d.severity in [:error, :warning] and String.contains?(d.message, specimen.expect_message)
+        case outcome do
+          {:raised, kind, message} ->
+            matched? =
+              String.contains?(message, specimen.expect_message) or
+                Enum.any?(diagnostics, fn d ->
+                  d.severity in [:error, :warning] and
+                    String.contains?(d.message, specimen.expect_message)
+                end)
+
+            assert kind == specimen.expect_raise and matched?,
+                   "specimen #{specimen.name}: expected #{specimen.expect_raise} matching \"#{specimen.expect_message}\", " <>
+                     "got #{kind}: #{message}" <>
+                     if(diagnostics == [],
+                       do: "",
+                       else:
+                         "\n  captured diagnostics: " <>
+                           inspect(Enum.map(diagnostics, &{&1.severity, &1.message}),
+                             limit: :infinity
+                           )
+                     )
+
+          :compiled_clean ->
+            diagnostic =
+              Enum.find(diagnostics, fn d ->
+                d.severity in [:error, :warning] and
+                  String.contains?(d.message, specimen.expect_message)
               end)
 
-          assert kind == specimen.expect_raise and matched?,
-                 "specimen #{specimen.name}: expected #{specimen.expect_raise} matching \"#{specimen.expect_message}\", " <>
-                   "got #{kind}: #{message}" <>
-                   if(diagnostics == [],
-                     do: "",
-                     else:
-                       "\n  captured diagnostics: " <>
-                         inspect(Enum.map(diagnostics, &{&1.severity, &1.message}), limit: :infinity)
-                   )
-
-        :compiled_clean ->
-          diagnostic =
-            Enum.find(diagnostics, fn d ->
-              d.severity in [:error, :warning] and String.contains?(d.message, specimen.expect_message)
-            end)
-
-          unless diagnostic do
-            flunk(
-              "VACUOUS VERIFIER #{specimen.verifier || "?"}: specimen #{specimen.name} " <>
-                "(#{specimen.path}) compiled CLEANLY with no matching refusal diagnostic -- " <>
-                "refusal condition never fires, so the verifier carries no bits. " <>
-                "Expected raise #{specimen.expect_raise} matching \"#{specimen.expect_message}\". " <>
-                "Captured diagnostics: #{inspect(Enum.map(diagnostics, &{&1.severity, String.slice(&1.message, 0, 120)}))}"
-            )
-          end
-      end
-    end)
+            unless diagnostic do
+              flunk(
+                "VACUOUS VERIFIER #{specimen.verifier || "?"}: specimen #{specimen.name} " <>
+                  "(#{specimen.path}) compiled CLEANLY with no matching refusal diagnostic -- " <>
+                  "refusal condition never fires, so the verifier carries no bits. " <>
+                  "Expected raise #{specimen.expect_raise} matching \"#{specimen.expect_message}\". " <>
+                  "Captured diagnostics: #{inspect(Enum.map(diagnostics, &{&1.severity, String.slice(&1.message, 0, 120)}))}"
+              )
+            end
+        end
+      end)
     end
   end
 end

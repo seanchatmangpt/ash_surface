@@ -54,7 +54,14 @@ for (const t of truths) {
     const intent = dispatchIntent(t.id, t.validInput ?? {});
     assert.deepEqual(intent, { kind: "DISPATCH_INTENT", actionId: t.id, input: SCHEMAS[t.id].parse(t.validInput ?? {}) });
     assert.ok(Object.isFrozen(intent));
-    assert.throws(() => dispatchIntent(t.id, t.invalidInput), { name: "ZodError" });
+    assert.throws(() => dispatchIntent(t.id, t.invalidInput), (err) =>
+      err instanceof Error &&
+      err.name === "SurfaceRuntimeError" &&
+      err.code === "INPUT_VALIDATION_FAILED" &&
+      Array.isArray(err.issues) &&
+      err.issues.every((i) => typeof i.path === "string" && typeof i.message === "string" && typeof i.code === "string") &&
+      err.detail.actionId === t.id
+    );
   } else {
     assert.throws(() => dispatchIntent(t.id, t.validInput ?? {}), /REFUSED_NOT_DO_BOUNDARY/);
   }

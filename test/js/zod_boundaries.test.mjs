@@ -429,9 +429,15 @@ test("createClient surfaces contract Zod issues on SurfaceRuntimeError.issues in
       assert.ok(error instanceof SurfaceRuntimeError);
       assert.equal(error.code, "INVALID_SURFACE_CONTRACT");
       assert.ok(Array.isArray(error.issues) && error.issues.length > 0, "runtime must expose parsed.error.issues to the caller");
+      // L07 envelope law: runtime issues are normalized {path (dot-joined
+      // string), message, code}, never raw Zod issues with array paths.
       assert.ok(
-        error.issues.some((issue) => issue.path.join(".") === "surface.actions.0.authorityBoundary"),
-        `issues must name the offending action path; got ${JSON.stringify(error.issues.map((i) => i.path.join(".")))}`,
+        error.issues.every((issue) => typeof issue.path === "string" && typeof issue.message === "string" && typeof issue.code === "string"),
+        `runtime issues must use the normalized {path, message, code} shape; got ${JSON.stringify(error.issues)}`,
+      );
+      assert.ok(
+        error.issues.some((issue) => issue.path === "surface.actions.0.authorityBoundary"),
+        `issues must name the offending action path; got ${JSON.stringify(error.issues.map((i) => i.path))}`,
       );
       return true;
     },

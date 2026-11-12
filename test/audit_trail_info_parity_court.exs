@@ -1,4 +1,3 @@
-
 defmodule AuditTrail.ResourceInfoParityCourt do
   use ExUnit.Case, async: false
 
@@ -134,7 +133,9 @@ defmodule AuditTrail.ResourceInfoParityCourt do
     assert AuditTrail.Resource.InfoParity.Info.mode(resource) == :sync
 
     # Persisted-compiled-map getter parity (info.ex.tmpl compiled_result idiom).
-    assert {:ok, %{probe: [^entity]}} = AuditTrail.Resource.InfoParity.Info.compiled_result(resource)
+    assert {:ok, %{probe: [^entity]}} =
+             AuditTrail.Resource.InfoParity.Info.compiled_result(resource)
+
     assert AuditTrail.Resource.InfoParity.Info.declared_events(resource) == [:read, :update]
   end
 
@@ -149,7 +150,10 @@ defmodule AuditTrail.ResourceInfoParityCourt do
     assert AuditTrail.Resource.InfoParity.Info.declared_events(mutated_resource) ==
              [:read, :update, :destroy]
 
-    refute AuditTrail.Resource.InfoParity.Info.declared_events(mutated_resource) == [:read, :update]
+    refute AuditTrail.Resource.InfoParity.Info.declared_events(mutated_resource) == [
+             :read,
+             :update
+           ]
   end
 
   test "ANTI-VACUITY: the constant-Info mutant FAILS the mutation leg (captured)", ctx do
@@ -173,6 +177,7 @@ defmodule AuditTrail.ResourceInfoParityCourt do
       end
 
     assert results != []
+
     assert Enum.all?(results, &match?({:failed, _}, &1)),
            "the constant Info mutant PASSED the mutation leg -- the court is vacuous: #{inspect(results)}"
   end

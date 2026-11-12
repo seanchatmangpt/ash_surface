@@ -317,7 +317,7 @@ defmodule AshSurface.FuzzProjectorsTest do
     assert length(artifacts) >= 10, "generators admitted too few JS artifacts to be meaningful"
 
     for {code, index} <- Enum.with_index(artifacts) do
-      path = Path.join(@scratch, "#{System.unique_integer([:positive])}_#{index}.mjs")
+      path = Path.join(@scratch, "#{AshSurface.TestTmp.suffix()}_#{index}.mjs")
       File.write!(path, code)
       assert {_, 0} = System.cmd("node", ["--check", path], stderr_to_stdout: true), code
     end

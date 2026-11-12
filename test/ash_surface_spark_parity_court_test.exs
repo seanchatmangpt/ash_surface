@@ -1,8 +1,3 @@
-
-
-
-
-
 defmodule AshSurface.ResourceParityCourtTest do
   @moduledoc false
   use ExUnit.Case, async: true
@@ -10,19 +5,18 @@ defmodule AshSurface.ResourceParityCourtTest do
   # Fact rows baked in at generation time from the pack ontology
   # (aex:SemanticFact / aex:SurfaceFact). The compiled extension under test is the
   # one this same graph generated -- real collaborators, no doubles.
-  @orphan_check [
-  ]
+  @orphan_check []
 
   @declared [
-    {:"arg", "", "AshSurface.Dsl.Projection", "action"},
-    {:"entity", "surface", "AshSurface.Dsl.Projection", "projection"},
-    {:"field", "", "AshSurface.Dsl.Projection", "action"},
-    {:"field", "", "AshSurface.Dsl.Projection", "consumer"},
-    {:"field", "", "AshSurface.Dsl.Projection", "transport"},
-    {:"oneof", "", "AshSurface.Dsl.Projection", "auto"},
-    {:"oneof", "", "AshSurface.Dsl.Projection", "http"},
-    {:"oneof", "", "AshSurface.Dsl.Projection", "phoenix_channel"},
-    {:"section", "", "", "surface"},
+    {:arg, "", "AshSurface.Dsl.Projection", "action"},
+    {:entity, "surface", "AshSurface.Dsl.Projection", "projection"},
+    {:field, "", "AshSurface.Dsl.Projection", "action"},
+    {:field, "", "AshSurface.Dsl.Projection", "consumer"},
+    {:field, "", "AshSurface.Dsl.Projection", "transport"},
+    {:oneof, "", "AshSurface.Dsl.Projection", "auto"},
+    {:oneof, "", "AshSurface.Dsl.Projection", "http"},
+    {:oneof, "", "AshSurface.Dsl.Projection", "phoenix_channel"},
+    {:section, "", "", "surface"}
   ]
 
   test "every implemented fact has a sparkDeclared visibility (closure, ash_surface)" do
@@ -52,14 +46,23 @@ defmodule AshSurface.ResourceParityCourtTest do
         entity_rows =
           Enum.flat_map(section.entities || [], fn entity ->
             struct_name = if entity.target, do: inspect(entity.target), else: ""
-            field_rows = Enum.map(entity.schema || [], fn {f, _} -> {:field, "", struct_name, Atom.to_string(f)} end)
-            arg_rows = Enum.map(entity.args || [], fn a -> {:arg, "", struct_name, Atom.to_string(a)} end)
+
+            field_rows =
+              Enum.map(entity.schema || [], fn {f, _} ->
+                {:field, "", struct_name, Atom.to_string(f)}
+              end)
+
+            arg_rows =
+              Enum.map(entity.args || [], fn a -> {:arg, "", struct_name, Atom.to_string(a)} end)
 
             oneof_rows =
               Enum.flat_map(entity.schema || [], fn {f, opts} ->
                 case opts[:type] do
-                  {:one_of, values} -> Enum.map(values, fn v -> {:oneof, "", struct_name, Atom.to_string(v)} end)
-                  _ -> []
+                  {:one_of, values} ->
+                    Enum.map(values, fn v -> {:oneof, "", struct_name, Atom.to_string(v)} end)
+
+                  _ ->
+                    []
                 end
               end)
 
@@ -68,13 +71,16 @@ defmodule AshSurface.ResourceParityCourtTest do
           end)
 
         sectionfield_rows =
-          Enum.map(section.schema || [], fn {f, _} -> {:sectionfield, section_name, "", Atom.to_string(f)} end)
+          Enum.map(section.schema || [], fn {f, _} ->
+            {:sectionfield, section_name, "", Atom.to_string(f)}
+          end)
 
         rows ++ entity_rows ++ sectionfield_rows
       end)
       |> MapSet.new()
 
     missing = MapSet.difference(declared, compiled)
+
     assert MapSet.size(missing) == 0, """
     spark parity VIOLATION: declared facts absent from the COMPILED extension surface:
 

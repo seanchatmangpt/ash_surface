@@ -36,7 +36,28 @@ defmodule AshSurface.IRTest do
 
     assert field_names(%IR.Presentation{}) == [:format, :group, :label, :order, :widget]
 
-    assert field_names(%IR.Schema{}) == [:aria, :input, :output, :zod]
+    assert field_names(%IR.Schema{}) ==
+             [
+               :aggregates,
+               :aria,
+               :calculations,
+               :capability_flags,
+               :error,
+               :facts,
+               :filter,
+               :get,
+               :input,
+               :load,
+               :nil_reasons,
+               :output,
+               :page,
+               :response_zod,
+               :selection,
+               :sort,
+               :tenant,
+               :validation_error,
+               :zod
+             ]
   end
 
   defp field_names(struct) do

@@ -52,7 +52,7 @@ defmodule AshSurface.MXEpisodeComposeStateTest do
   @consequence_id "cns_mx_state_0001"
   @episode_id "MXEpisode/2026-09-17/000031"
   @uppercase_hex_digest String.upcase(String.duplicate("ab", 32))
-  @tmp_dir Path.expand("../../_build/test/mx_episode_compose_state", __DIR__)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../_build/test/mx_episode_compose_state", __DIR__))
 
   setup do
     File.rm_rf!(@tmp_dir)

@@ -24,6 +24,7 @@ defmodule AshSurface.Compiler.Section.Schema do
 
   alias AshSurface.Compiler.IR.Boundary
   alias AshSurface.Compiler.Schema
+  alias AshSurface.Compiler.TypeFacts
 
   @impl true
   @spec build(map(), map()) :: {:ok, AshSurface.IR.Schema.t()} | {:error, term()}
@@ -45,17 +46,18 @@ defmodule AshSurface.Compiler.Section.Schema do
   def build(action, _context), do: {:error, {:invalid_action_entry, action}}
 
   # The builder's discovery shape, re-stated from the normalized entry.
-  # `returns` is nil: the normalized map carries output metadata names, not
-  # a declared return type, so the boundary honestly carries no output
-  # schema instead of an invented one.
+  # `returns` is the generic action's declared return type facts (`:returns_facts`,
+  # built once by `TypeFacts`); nil for CRUD actions and generic actions that declare
+  # none, so the boundary never carries an invented output schema.
   defp discovery_entry(action) do
     inputs = Map.get(action, :inputs) || []
 
     if Enum.all?(inputs, &valid_input?/1) do
       %{
         "id" => Map.get(action, :id),
-        "arguments" => Enum.map(inputs, &argument_entry/1),
-        "returns" => nil
+        "arguments" => Enum.map(inputs, &argument_entry(&1, action)),
+        "embedded_resources" => Map.get(action, :embedded_resources) || %{},
+        "returns" => Map.get(action, :returns_facts)
       }
     else
       nil
@@ -65,13 +67,49 @@ defmodule AshSurface.Compiler.Section.Schema do
   defp valid_input?(input) when is_map(input), do: is_binary(Map.get(input, :name))
   defp valid_input?(_), do: false
 
-  defp argument_entry(input) do
-    entry = %{"name" => Map.fetch!(input, :name), "allow_nil?" => !!Map.get(input, :allow_nil)}
+  # The argument's whole declared type fact set: the compiler's single
+  # definition (`type_facts`, built by `TypeFacts`) carries kind, constraints,
+  # subtype facts, array items, enum values, union members, struct fields and
+  # instance_of. Hand-built entries without `type_facts` fall back to the bare
+  # kind plus whatever constraints they carry. A defaulted argument is
+  # omittable: `"optional" => true` (ZodType renders `.optional()`).
+  defp argument_entry(input, action) do
+    base =
+      case Map.get(input, :type_facts) do
+        %{} = facts -> facts
+        nil -> fallback_facts(input)
+      end
 
-    case Map.get(input, :type) do
-      nil -> entry
-      kind when is_binary(kind) -> Map.put(entry, "type", %{"kind" => kind})
-    end
+    base
+    |> Map.put("name", wire_input_name(action, Map.fetch!(input, :name)))
+    |> Map.put("allow_nil?", !!Map.get(input, :allow_nil))
+    |> then(&if(omittable?(input), do: Map.put(&1, "optional", true), else: &1))
+  end
+
+  # Client spelling of an input key (`argument_names`, `field_names`, else the output formatter).
+  defp wire_input_name(action, name) do
+    AshSurface.FieldName.wire_argument(Map.get(action, :resource), Map.get(action, :action), name)
+  end
+
+  # Ash accepts an omitted argument when it is defaulted or nil-able, so the
+  # input schema key is omittable in both cases (ZodType: `.optional()`).
+  defp omittable?(input),
+    do:
+      Map.get(input, :has_default) == true or Map.get(input, :allow_nil) == true or
+        Map.get(input, :required) == false
+
+  defp fallback_facts(input) do
+    constraints = input |> Map.get(:constraints) |> TypeFacts.constraints()
+
+    facts =
+      case Map.get(input, :type) do
+        kind when is_binary(kind) -> %{"type" => %{"kind" => kind}}
+        _ -> %{}
+      end
+
+    if constraints == %{},
+      do: facts,
+      else: Map.put(facts, "constraints", TypeFacts.stringify_constraints(constraints))
   end
 
   # Verbatim field carry: both structs declare the same four fields.

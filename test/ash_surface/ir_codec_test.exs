@@ -139,7 +139,15 @@ defmodule AshSurface.IrCodecTest do
       assert ash["resource"] == "AshSurface.Fixtures.VolunteerMilestone"
 
       assert ash["inputs"] == [
-               %{"name" => "member_id", "type" => "string", "required" => true, "default" => nil}
+               %{
+                 "name" => "member_id",
+                 "type" => "string",
+                 "required" => true,
+                 "default" => nil,
+                 "constraints" => %{},
+                 "subtype_of" => nil,
+                 "subtype_constraints" => %{}
+               }
              ]
 
       assert ash["outputs"] == [%{"returns" => "string"}]

@@ -1,21 +1,23 @@
-
-
 defmodule AshR2rmlIgniterIdempotenceCourtTest do
   use ExUnit.Case, async: false
   # Each test drives real `mix <pkg>.install` subprocesses (which compile the vendored
   # extension package); under a loaded machine one install can exceed ExUnit's 60s
   # default, so the whole court gets a wide budget.
-  @moduletag timeout: 300_000
+  # Per-test ExUnit budget is above the per-install deadline below so a slow-but-live
+  # install is bounded by run_bounded/3 (typed exit 124), not by an opaque ExUnit timeout.
+  @moduletag timeout: 720_000
+  @install_deadline_ms 600_000
 
   @package_name "ash_r2rml"
   @task_name "ash_r2rml.install"
   @extension_module "AshR2RML.Resource"
-  
 
   @mutant_env "AEX_INSTALLER_MUTANT"
 
   @scratch_root System.tmp_dir!()
-                |> Path.join("spark-closure-consumer-court-scratch-#{System.unique_integer([:positive])}")
+                |> Path.join(
+                  "spark-closure-consumer-court-scratch-#{AshSurface.TestTmp.suffix()}"
+                )
 
   # The scratch app is a copy of the spark-closure-consumer fixture app. In a
   # standalone fixture run (mix test in packs/.../fixture) that app lives one level
@@ -26,6 +28,7 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
                   [
                     System.get_env("AEX_IGNITER_FIXTURE_ROOT"),
                     Path.join(File.cwd!(), "spark-closure-consumer"),
+                    Path.join(File.cwd!(), "fixture/spark-closure-consumer"),
                     File.cwd!()
                   ]
                   |> Enum.reject(&is_nil/1),
@@ -60,6 +63,7 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
     scratch = fresh_scratch()
     post = Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"])
     source = File.read!(post)
+
     File.write!(
       post,
       String.replace(
@@ -68,6 +72,7 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
         "data_layer: Ash.DataLayer.Ets,\n    extensions: [Ash.Policy.Authorizer]"
       )
     )
+
     assert {_, 0} = run_install(scratch, ["--target", "SparkClosureConsumer.Example.Post"])
     source = File.read!(post)
     assert source =~ "Ash.Policy.Authorizer"
@@ -108,16 +113,36 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
   defp fresh_scratch do
     File.rm_rf!(@scratch_root)
     File.mkdir_p!(@scratch_root)
+
     for entry <- File.ls!(@fixture_root),
-        entry not in ["_build", "deps", ".fetch", "ggen.toml", "ontology.ttl", "templates", ".ggen", ".ggen-v2", "sync.json", "sync.log", ".rendered"],
-        not String.starts_with?(entry, "sync-") do
+        entry not in [
+          "_build",
+          "deps",
+          ".fetch",
+          "ggen.toml",
+          "ontology.ttl",
+          "templates",
+          ".ggen",
+          ".ggen-v2",
+          "sync.json",
+          "sync.log",
+          ".rendered"
+        ],
+        not String.starts_with?(entry, "sync-"),
+        # sibling lanes' _build-* roots are transient; never part of the fixture copy
+        not String.starts_with?(entry, "_build") do
       src = Path.join(@fixture_root, entry)
       dest = Path.join(@scratch_root, entry)
       if File.dir?(src), do: File.cp_r!(src, dest), else: File.cp!(src, dest)
     end
+
     case System.get_env(@mutant_env) do
-      nil -> :ok
-      "" -> :ok
+      nil ->
+        :ok
+
+      "" ->
+        :ok
+
       path ->
         real = Path.join([@scratch_root, "lib/mix/tasks/ash_r2rml.install.ex"])
         File.cp!(path, real)
@@ -246,17 +271,38 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
         System.get_env("AEX_SCRATCH_BUILD_ROOT") || Path.join(File.cwd!(), "_build")
     }
 
-    System.cmd("mix", [@task_name | argv], cd: scratch, stderr_to_stdout: true, env: env)
+    run_bounded([@task_name | argv], scratch, env)
+  end
+
+  # Each install is a real `mix` subprocess that compiles the vendored extension package
+  # (measured 175-580s on a loaded machine, first call also seeds the court build root), so
+  # the court is legitimately slow, not hung. The deadline is an observable bound, never a
+  # sleep: Task.yield returns as soon as the subprocess finishes, and a subprocess that
+  # outlives @install_deadline_ms fails the test with a typed exit 124 instead of eating
+  # the whole ExUnit timeout.
+  defp run_bounded(argv, scratch, env) do
+    task =
+      Task.async(fn ->
+        System.cmd("mix", argv, cd: scratch, stderr_to_stdout: true, env: env)
+      end)
+
+    case Task.yield(task, @install_deadline_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      {:exit, reason} -> {"install subprocess exited: #{inspect(reason)}", 125}
+      nil -> {"install exceeded #{@install_deadline_ms}ms deadline", 124}
+    end
   end
 
   defp extension_added?(scratch) do
     source = File.read!(Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"]))
     source =~ @extension_module
   end
+
   defp section_block?(scratch) do
     source = File.read!(Path.join([scratch, "lib/spark_closure_consumer/example/post.ex"]))
     source =~ "r2rml do"
   end
+
   defp formatter_plugin?(scratch) do
     fm = Path.join(scratch, ".formatter.exs")
     assert File.exists?(fm)
@@ -266,20 +312,23 @@ defmodule AshR2rmlIgniterIdempotenceCourtTest do
     plugins = Keyword.get(map, :plugins, [])
     assert [AshR2RML.Formatter] = plugins
   end
+
   defp occurrences(source, str), do: length(:binary.matches(source, str))
+
   defp snapshot(root) do
     root
     |> Path.join("**/*")
     |> Path.wildcard()
     |> Enum.filter(fn p ->
       File.regular?(p) and
-        not (p |> Path.relative_to(root) |> String.starts_with?("_build/") or
-             p |> Path.relative_to(root) |> String.starts_with?("deps/"))
+        not (p |> Path.relative_to(root) |> String.starts_with?("_build") or
+               p |> Path.relative_to(root) |> String.starts_with?("deps/"))
     end)
     |> Map.new(fn p ->
       {Path.relative_to(p, root), Base.encode16(:crypto.hash(:sha256, File.read!(p)))}
     end)
   end
+
   defp assert_stable(before, after_) do
     added = Map.keys(after_) -- Map.keys(before)
     removed = Map.keys(before) -- Map.keys(after_)

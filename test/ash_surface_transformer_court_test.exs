@@ -1,6 +1,3 @@
-
-
-
 defmodule AshSurface.ResourceTransformerClosureCourt do
   @moduledoc """
   Transformer closure court for `AshSurface.Resource.Persist` (pack `ash_surface`).
@@ -17,7 +14,9 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
 
   # Subject under court. Default: the generated transformer. The env overrides
   # swap in a mutant fixture for the anti-vacuity run only.
-  @transformer Module.concat([System.get_env("COURT_TRANSFORMER") || "AshSurface.Resource.Persist"])
+  @transformer Module.concat([
+                 System.get_env("COURT_TRANSFORMER") || "AshSurface.Resource.Persist"
+               ])
 
   # Pack's known source-path convention: persist.ex.tmpl renders to
   # lib/ash_surface/persist.ex, and fixture/mix.exs mounts generated code
@@ -29,7 +28,10 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
     # persist.ex is <capsule>/generated/ash_surface/persist.ex (no lib/ level).
     Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "ash_surface/persist.ex"),
     # fixture mount layout: elixirc_paths appends ASH_PACK_GENERATED under lib/.
-    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "lib/ash_surface/persist.ex"),
+    Path.join(
+      System.get_env("ASH_PACK_GENERATED", "lib/generated"),
+      "lib/ash_surface/persist.ex"
+    ),
     Path.expand("lib/ash_surface/persist.ex"),
     Path.expand("lib/ash_surface_generated/lib/ash_surface/persist.ex")
   ]
@@ -39,9 +41,23 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
   @permitted_application_reads []
 
   # Module attributes that never carry semantics (registry bookkeeping only).
-  @benign_attributes [:moduledoc, :doc, :impl, :behaviour, :derive, :type, :typep,
-                      :spec, :compile, :external_resource, :before_compile,
-                      :after_compile, :after_verify, :on_definition, :enforce_keys]
+  @benign_attributes [
+    :moduledoc,
+    :doc,
+    :impl,
+    :behaviour,
+    :derive,
+    :type,
+    :typep,
+    :spec,
+    :compile,
+    :external_resource,
+    :before_compile,
+    :after_compile,
+    :after_verify,
+    :on_definition,
+    :enforce_keys
+  ]
 
   # The specimen section: the spec's own first DSL section (ordered), so the
   # specimen declares entities under a section the generated Persist reads.
@@ -121,7 +137,10 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
 
     specimen_src =
       specimen_source(@transformer)
-      |> String.replace("AshSurface.Resource.Court.Specimen", "AshSurface.Resource.Court.Specimen#{tag}")
+      |> String.replace(
+        "AshSurface.Resource.Court.Specimen",
+        "AshSurface.Resource.Court.Specimen#{tag}"
+      )
       |> String.replace("AshSurface.Resource.Court.Step", "AshSurface.Resource.Court.Step#{tag}")
 
     specimen = Module.concat(["AshSurface.Resource.Court.Specimen#{tag}"])
@@ -145,7 +164,10 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
     draft_src =
       draft_source(specimen, @specimen_section, steps)
       |> String.replace("AshSurface.Resource.Court.Base", "AshSurface.Resource.Court.Base#{tag}")
-      |> String.replace("AshSurface.Resource.Court.Draft", "AshSurface.Resource.Court.Draft#{tag}")
+      |> String.replace(
+        "AshSurface.Resource.Court.Draft",
+        "AshSurface.Resource.Court.Draft#{tag}"
+      )
 
     # The ONLY nondeterminism channel the court deliberately opens: pre_setup/0
     # runs before compilation. An honest transformer must be blind to it.
@@ -162,7 +184,32 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
     end
   end
 
-  defp persisted_binary(draft), do: draft |> persisted() |> :erlang.term_to_binary()
+  # The persisted state legitimately carries the draft's own module name
+  # (`resource: <draft module>`), a pure function of DSL state. Two independent
+  # compilations necessarily have different module names, so the draft's own name
+  # is canonicalised before comparison; every other byte must match.
+  defp persisted_binary(draft) do
+    draft |> persisted() |> canonicalise(draft) |> :erlang.term_to_binary()
+  end
+
+  defp canonicalise(draft, draft), do: :court_draft_module
+
+  defp canonicalise(%_{} = struct, draft) do
+    struct
+    |> Map.from_struct()
+    |> canonicalise(draft)
+    |> then(&{:court_struct, struct.__struct__, &1})
+  end
+
+  defp canonicalise(%{} = map, draft),
+    do: Map.new(map, fn {k, v} -> {canonicalise(k, draft), canonicalise(v, draft)} end)
+
+  defp canonicalise(list, draft) when is_list(list), do: Enum.map(list, &canonicalise(&1, draft))
+
+  defp canonicalise(tuple, draft) when is_tuple(tuple),
+    do: tuple |> Tuple.to_list() |> canonicalise(draft) |> List.to_tuple()
+
+  defp canonicalise(other, _draft), do: other
 
   # ===========================================================================
   # (a) PARITY: persisted state equals the Spark-declared inputs.
@@ -269,8 +316,7 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
             end
 
           # :persistent_term via alias form (PersistentTerm.get)
-{{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node,
-          {defined, violations}
+          {{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node, {defined, violations}
           when mod in [:persistent_term, :PersistentTerm] ->
             {node,
              {defined,
@@ -280,7 +326,7 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # :persistent_term via erlang atom form (:persistent_term.get)
-{{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
+          {{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
             {node,
              {defined,
               [
@@ -289,7 +335,7 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Process dictionary
-{{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:put, :get, :delete, :get_and_update] ->
             {node,
@@ -300,7 +346,7 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Application env outside the contract-permitted list
-{{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:get_env, :fetch_env, :fetch_env!, :get_all_env] ->
             {node,
@@ -313,8 +359,8 @@ defmodule AshSurface.ResourceTransformerClosureCourt do
 
           node, acc ->
             {node, acc}
-      end
-    )
+        end
+      )
 
     Enum.reverse(violations)
   end

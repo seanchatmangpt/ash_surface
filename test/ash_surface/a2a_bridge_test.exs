@@ -27,10 +27,12 @@ defmodule AshSurface.A2ABridgeTest do
 
     actions do
       defaults([:read])
+
       create :record do
         accept([:member_id])
       end
     end
+
     # No `a2a` block: zero-configuration discovery — every public action
     # (read + record) is projected by the compiled capability index.
   end

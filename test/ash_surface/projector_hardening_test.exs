@@ -412,7 +412,8 @@ defmodule AshSurface.ProjectorHardeningTest do
       "z.string().uuid().optional().nullable()",
       "z.number().int().min(-1.5e3).max(10,)",
       "z.object({\"quoted key\": z.boolean(), n: z.literal(null)}).passthrough()",
-      "z.coerce.number()"
+      "z.coerce.number()",
+      "z.string().regex(/a/)"
     ]
 
     @refused [
@@ -425,7 +426,6 @@ defmodule AshSurface.ProjectorHardeningTest do
       "z.string()[\"constructor\"]",
       "z.string().refine(eval)",
       "z.string() // trailing comment",
-      "z.string().regex(/a/)",
       "z.string().default(`x`)",
       "z",
       "",
@@ -473,7 +473,8 @@ defmodule AshSurface.ProjectorHardeningTest do
         |> Enum.with_index()
         |> Enum.map(fn {zod, i} -> js_ir("Shop.Cart", "a#{i}", zod: zod) end)
 
-      assert {:ok, %{"ash_surface_client.mjs" => code}, %{action_count: 7}} = JS.project_ir(irs)
+      assert {:ok, %{"ash_surface_client.mjs" => code}, meta} = JS.project_ir(irs)
+      assert meta.action_count == length(@admitted)
       for zod <- @admitted, do: assert(code =~ zod)
       assert {_, 0} = code |> then(&write_artifact!("admitted_zod.mjs", &1)) |> node_check()
     end
@@ -495,7 +496,7 @@ defmodule AshSurface.ProjectorHardeningTest do
   end
 
   defp write_artifact!(name, code) do
-    dir = Path.join(@scratch, "#{System.unique_integer([:positive])}")
+    dir = Path.join(@scratch, "#{AshSurface.TestTmp.suffix()}")
     File.mkdir_p!(dir)
     path = Path.join(dir, name)
     File.write!(path, code)

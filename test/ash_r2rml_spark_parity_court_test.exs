@@ -1,8 +1,3 @@
-
-
-
-
-
 defmodule AshR2RML.ResourceParityCourtTest do
   @moduledoc false
   use ExUnit.Case, async: true
@@ -10,65 +5,64 @@ defmodule AshR2RML.ResourceParityCourtTest do
   # Fact rows baked in at generation time from the pack ontology
   # (aex:SemanticFact / aex:SurfaceFact). The compiled extension under test is the
   # one this same graph generated -- real collaborators, no doubles.
-  @orphan_check [
-  ]
+  @orphan_check []
 
   @declared [
-    {:"arg", "", "AshR2RML.Dsl.Class", "iri"},
-    {:"arg", "", "AshR2RML.Dsl.Graph", "iri"},
-    {:"arg", "", "AshR2RML.Dsl.Property", "attribute"},
-    {:"arg", "", "AshR2RML.Dsl.Property", "predicate_iri"},
-    {:"arg", "", "AshR2RML.Dsl.Reference", "predicate_iri"},
-    {:"arg", "", "AshR2RML.Dsl.Reference", "relationship"},
-    {:"arg", "", "AshR2RML.Dsl.SparqlQuery", "name"},
-    {:"entity", "r2rml", "AshR2RML.Dsl.Class", "class"},
-    {:"entity", "r2rml", "AshR2RML.Dsl.Graph", "graph"},
-    {:"entity", "r2rml", "AshR2RML.Dsl.Property", "property"},
-    {:"entity", "r2rml", "AshR2RML.Dsl.Reference", "reference"},
-    {:"entity", "sparql", "AshR2RML.Dsl.SparqlQuery", "query"},
-    {:"entity", "r2rml", "AshR2RML.Dsl.Subject", "subject"},
-    {:"field", "", "AshR2RML.Dsl.Class", "iri"},
-    {:"field", "", "AshR2RML.Dsl.Graph", "iri"},
-    {:"field", "", "AshR2RML.Dsl.Graph", "scope"},
-    {:"field", "", "AshR2RML.Dsl.Property", "attribute"},
-    {:"field", "", "AshR2RML.Dsl.Property", "constant"},
-    {:"field", "", "AshR2RML.Dsl.Property", "datatype"},
-    {:"field", "", "AshR2RML.Dsl.Property", "language"},
-    {:"field", "", "AshR2RML.Dsl.Property", "language_column"},
-    {:"field", "", "AshR2RML.Dsl.Property", "predicate_iri"},
-    {:"field", "", "AshR2RML.Dsl.Property", "template"},
-    {:"field", "", "AshR2RML.Dsl.Property", "term_type"},
-    {:"field", "", "AshR2RML.Dsl.Reference", "direction"},
-    {:"field", "", "AshR2RML.Dsl.Reference", "guard_class"},
-    {:"field", "", "AshR2RML.Dsl.Reference", "inverse_predicate"},
-    {:"field", "", "AshR2RML.Dsl.Reference", "predicate_iri"},
-    {:"field", "", "AshR2RML.Dsl.Reference", "relationship"},
-    {:"field", "", "AshR2RML.Dsl.SparqlQuery", "form"},
-    {:"field", "", "AshR2RML.Dsl.SparqlQuery", "name"},
-    {:"field", "", "AshR2RML.Dsl.SparqlQuery", "select"},
-    {:"field", "", "AshR2RML.Dsl.SparqlQuery", "where"},
-    {:"field", "", "AshR2RML.Dsl.Subject", "column"},
-    {:"field", "", "AshR2RML.Dsl.Subject", "constant"},
-    {:"field", "", "AshR2RML.Dsl.Subject", "template"},
-    {:"field", "", "AshR2RML.Dsl.Subject", "term_type"},
-    {:"oneof", "", "AshR2RML.Dsl.Graph", "resource"},
-    {:"oneof", "", "AshR2RML.Dsl.Graph", "subject"},
-    {:"oneof", "", "AshR2RML.Dsl.Property", "blank_node"},
-    {:"oneof", "", "AshR2RML.Dsl.Property", "iri"},
-    {:"oneof", "", "AshR2RML.Dsl.Property", "literal"},
-    {:"oneof", "", "AshR2RML.Dsl.Reference", "incoming"},
-    {:"oneof", "", "AshR2RML.Dsl.Reference", "outgoing"},
-    {:"oneof", "", "AshR2RML.Dsl.SparqlQuery", "ask"},
-    {:"oneof", "", "AshR2RML.Dsl.SparqlQuery", "construct"},
-    {:"oneof", "", "AshR2RML.Dsl.SparqlQuery", "describe"},
-    {:"oneof", "", "AshR2RML.Dsl.SparqlQuery", "select"},
-    {:"oneof", "", "AshR2RML.Dsl.Subject", "blank_node"},
-    {:"oneof", "", "AshR2RML.Dsl.Subject", "iri"},
-    {:"section", "", "", "r2rml"},
-    {:"section", "", "", "sparql"},
-    {:"sectionfield", "r2rml", "", "schema"},
-    {:"sectionfield", "r2rml", "", "sql_query"},
-    {:"sectionfield", "r2rml", "", "table_name"},
+    {:arg, "", "AshR2RML.Dsl.Class", "iri"},
+    {:arg, "", "AshR2RML.Dsl.Graph", "iri"},
+    {:arg, "", "AshR2RML.Dsl.Property", "attribute"},
+    {:arg, "", "AshR2RML.Dsl.Property", "predicate_iri"},
+    {:arg, "", "AshR2RML.Dsl.Reference", "predicate_iri"},
+    {:arg, "", "AshR2RML.Dsl.Reference", "relationship"},
+    {:arg, "", "AshR2RML.Dsl.SparqlQuery", "name"},
+    {:entity, "r2rml", "AshR2RML.Dsl.Class", "class"},
+    {:entity, "r2rml", "AshR2RML.Dsl.Graph", "graph"},
+    {:entity, "r2rml", "AshR2RML.Dsl.Property", "property"},
+    {:entity, "r2rml", "AshR2RML.Dsl.Reference", "reference"},
+    {:entity, "sparql", "AshR2RML.Dsl.SparqlQuery", "query"},
+    {:entity, "r2rml", "AshR2RML.Dsl.Subject", "subject"},
+    {:field, "", "AshR2RML.Dsl.Class", "iri"},
+    {:field, "", "AshR2RML.Dsl.Graph", "iri"},
+    {:field, "", "AshR2RML.Dsl.Graph", "scope"},
+    {:field, "", "AshR2RML.Dsl.Property", "attribute"},
+    {:field, "", "AshR2RML.Dsl.Property", "constant"},
+    {:field, "", "AshR2RML.Dsl.Property", "datatype"},
+    {:field, "", "AshR2RML.Dsl.Property", "language"},
+    {:field, "", "AshR2RML.Dsl.Property", "language_column"},
+    {:field, "", "AshR2RML.Dsl.Property", "predicate_iri"},
+    {:field, "", "AshR2RML.Dsl.Property", "template"},
+    {:field, "", "AshR2RML.Dsl.Property", "term_type"},
+    {:field, "", "AshR2RML.Dsl.Reference", "direction"},
+    {:field, "", "AshR2RML.Dsl.Reference", "guard_class"},
+    {:field, "", "AshR2RML.Dsl.Reference", "inverse_predicate"},
+    {:field, "", "AshR2RML.Dsl.Reference", "predicate_iri"},
+    {:field, "", "AshR2RML.Dsl.Reference", "relationship"},
+    {:field, "", "AshR2RML.Dsl.SparqlQuery", "form"},
+    {:field, "", "AshR2RML.Dsl.SparqlQuery", "name"},
+    {:field, "", "AshR2RML.Dsl.SparqlQuery", "select"},
+    {:field, "", "AshR2RML.Dsl.SparqlQuery", "where"},
+    {:field, "", "AshR2RML.Dsl.Subject", "column"},
+    {:field, "", "AshR2RML.Dsl.Subject", "constant"},
+    {:field, "", "AshR2RML.Dsl.Subject", "template"},
+    {:field, "", "AshR2RML.Dsl.Subject", "term_type"},
+    {:oneof, "", "AshR2RML.Dsl.Graph", "resource"},
+    {:oneof, "", "AshR2RML.Dsl.Graph", "subject"},
+    {:oneof, "", "AshR2RML.Dsl.Property", "blank_node"},
+    {:oneof, "", "AshR2RML.Dsl.Property", "iri"},
+    {:oneof, "", "AshR2RML.Dsl.Property", "literal"},
+    {:oneof, "", "AshR2RML.Dsl.Reference", "incoming"},
+    {:oneof, "", "AshR2RML.Dsl.Reference", "outgoing"},
+    {:oneof, "", "AshR2RML.Dsl.SparqlQuery", "ask"},
+    {:oneof, "", "AshR2RML.Dsl.SparqlQuery", "construct"},
+    {:oneof, "", "AshR2RML.Dsl.SparqlQuery", "describe"},
+    {:oneof, "", "AshR2RML.Dsl.SparqlQuery", "select"},
+    {:oneof, "", "AshR2RML.Dsl.Subject", "blank_node"},
+    {:oneof, "", "AshR2RML.Dsl.Subject", "iri"},
+    {:section, "", "", "r2rml"},
+    {:section, "", "", "sparql"},
+    {:sectionfield, "r2rml", "", "schema"},
+    {:sectionfield, "r2rml", "", "sql_query"},
+    {:sectionfield, "r2rml", "", "table_name"}
   ]
 
   test "every implemented fact has a sparkDeclared visibility (closure, ash_r2rml)" do
@@ -98,14 +92,23 @@ defmodule AshR2RML.ResourceParityCourtTest do
         entity_rows =
           Enum.flat_map(section.entities || [], fn entity ->
             struct_name = if entity.target, do: inspect(entity.target), else: ""
-            field_rows = Enum.map(entity.schema || [], fn {f, _} -> {:field, "", struct_name, Atom.to_string(f)} end)
-            arg_rows = Enum.map(entity.args || [], fn a -> {:arg, "", struct_name, Atom.to_string(a)} end)
+
+            field_rows =
+              Enum.map(entity.schema || [], fn {f, _} ->
+                {:field, "", struct_name, Atom.to_string(f)}
+              end)
+
+            arg_rows =
+              Enum.map(entity.args || [], fn a -> {:arg, "", struct_name, Atom.to_string(a)} end)
 
             oneof_rows =
               Enum.flat_map(entity.schema || [], fn {f, opts} ->
                 case opts[:type] do
-                  {:one_of, values} -> Enum.map(values, fn v -> {:oneof, "", struct_name, Atom.to_string(v)} end)
-                  _ -> []
+                  {:one_of, values} ->
+                    Enum.map(values, fn v -> {:oneof, "", struct_name, Atom.to_string(v)} end)
+
+                  _ ->
+                    []
                 end
               end)
 
@@ -114,13 +117,16 @@ defmodule AshR2RML.ResourceParityCourtTest do
           end)
 
         sectionfield_rows =
-          Enum.map(section.schema || [], fn {f, _} -> {:sectionfield, section_name, "", Atom.to_string(f)} end)
+          Enum.map(section.schema || [], fn {f, _} ->
+            {:sectionfield, section_name, "", Atom.to_string(f)}
+          end)
 
         rows ++ entity_rows ++ sectionfield_rows
       end)
       |> MapSet.new()
 
     missing = MapSet.difference(declared, compiled)
+
     assert MapSet.size(missing) == 0, """
     spark parity VIOLATION: declared facts absent from the COMPILED extension surface:
 

@@ -6,7 +6,8 @@ defmodule AshSurface.FormatterRegistrationCanaryTest do
   The witnessed defect (ticket chicago-formatter-retire-033): the retired
   `lib/ash_surface/formatter.ex` declared itself a "Spark.Formatter plugin for
   the ggen-manufactured AshSurface DSL" and registered `AshSurface.Resource` —
-  a module that has never existed. The repo's real surface is Ash resources
+  a module that did not exist then (the DSL extension has since landed, so the self-proofs
+  below use the never-defined sentinel `AshSurface.RetiredFormatterTarget`). The repo's real surface is Ash resources
   plus their manifests (`use Ash.Resource`; AGENTS.md canonical boundaries 1-3):
   `ash_surface` CONSUMES Ash semantics, it is not a Spark DSL, so there was
   nothing to wire the plugin to. The module was retired (not wired) and the
@@ -131,7 +132,7 @@ defmodule AshSurface.FormatterRegistrationCanaryTest do
   # -------------------------------------------------------------------------
 
   test "TRIPWIRE unwired-registration: every extensions/0 registration on the surface names a real module" do
-    # LAW: the retired formatter.ex registered AshSurface.Resource — a module
+    # LAW: the retired formatter.ex registered AshSurface.Resource (nonexistent then) — a module
     # that has never existed — making both the registration and the module
     # decorative. A registration that names nothing real is a lie to
     # Spark.Formatter; it must never reappear on the surface.
@@ -168,28 +169,28 @@ defmodule AshSurface.FormatterRegistrationCanaryTest do
 
   test "SELF-PROOF RED: the retired decorative subject's exact source trips the canary" do
     # The retired subject, verbatim (chicago-formatter-retire-033): a plugin
-    # shape registering AshSurface.Resource, which has never existed.
+    # shape registering AshSurface.RetiredFormatterTarget, which has never existed.
     retired_source = """
     defmodule AshSurface.Formatter do
       @moduledoc "Spark.Formatter plugin for the ggen-manufactured AshSurface DSL."
 
       @spec extensions() :: [module()]
-      def extensions, do: [AshSurface.Resource]
+      def extensions, do: [AshSurface.RetiredFormatterTarget]
     end
     """
 
     ast = Code.string_to_quoted!(retired_source)
 
-    assert [AshSurface.Resource] = registered_extension_modules(ast)
+    assert [AshSurface.RetiredFormatterTarget] = registered_extension_modules(ast)
 
     ctx = rel(Path.join(@repo_root, @retired_subject))
 
     assert [violation] = scan_ast(ast, ctx)
 
     assert String.starts_with?(violation, ctx <> ": ")
-    assert violation =~ "AshSurface.Resource"
+    assert violation =~ "AshSurface.RetiredFormatterTarget"
     assert violation =~ "nonexistent module"
-    assert unknown_module?(AshSurface.Resource)
+    assert unknown_module?(AshSurface.RetiredFormatterTarget)
   end
 
   test "SELF-PROOF GREEN: a wired registration on real modules scans clean" do
@@ -227,18 +228,18 @@ defmodule AshSurface.FormatterRegistrationCanaryTest do
     plugin_config = """
     [
       inputs: ["{mix,.formatter}.exs"],
-      plugins: [AshSurface.Resource, AshSurface.Event]
+      plugins: [AshSurface.RetiredFormatterTarget, AshSurface.Event]
     ]
     """
 
     ast = Code.string_to_quoted!(plugin_config)
 
-    assert [AshSurface.Resource, AshSurface.Event] = registered_plugins(ast)
-    assert unknown_module?(AshSurface.Resource)
+    assert [AshSurface.RetiredFormatterTarget, AshSurface.Event] = registered_plugins(ast)
+    assert unknown_module?(AshSurface.RetiredFormatterTarget)
     refute unknown_module?(AshSurface.Event)
 
     assert [violation] = scan_ast(ast, ".formatter.exs")
-    assert violation =~ "AshSurface.Resource"
+    assert violation =~ "AshSurface.RetiredFormatterTarget"
     refute violation =~ "AshSurface.Event"
   end
 end

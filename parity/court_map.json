@@ -1,0 +1,2565 @@
+{
+  "entries": {
+    "codegen.module.Codegen": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "reruns are byte-identical and unchanged files are not rewritten"
+        },
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "--check raises PendingCodegen with the diff on drift and writes nothing"
+        }
+      ]
+    },
+    "codegen.module.Codegen.FilterTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Codegen.Helpers": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/field_name_mapping_test.exs",
+          "test": "precedence: type names > field_names > formatter"
+        }
+      ]
+    },
+    "codegen.module.Codegen.ImportResolver": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_parity/codegen_modules_test.exs",
+          "test": "import resolution: artifact imports zod from the configured path exactly once"
+        }
+      ]
+    },
+    "codegen.module.Codegen.Orchestrator": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "reruns are byte-identical and unchanged files are not rewritten"
+        }
+      ]
+    },
+    "codegen.module.Codegen.ResourceSchemas": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/projectors/js_schema_wiring_test.exs",
+          "test": "node executes generated schemas under real zod"
+        }
+      ]
+    },
+    "codegen.module.Codegen.SchemaCore": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/zod_type_core_test.exs",
+          "test": "nullable and optional are split"
+        }
+      ]
+    },
+    "codegen.module.Codegen.SchemaFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/field_name_mapping_test.exs",
+          "test": "collision from formatter alone"
+        }
+      ]
+    },
+    "codegen.module.Codegen.SharedSchemaGenerator": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "an embedded resource referenced several times is emitted identically at every site"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "rendering is deterministic: the same references render byte-identically"
+        }
+      ]
+    },
+    "codegen.module.Codegen.SharedTypesGenerator": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Codegen.SortTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Codegen.TypeAliases": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Codegen.TypeDiscovery": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/projectors/js_declaration_order_test.exs",
+          "test": "array-wrapped dependency is expanded"
+        },
+        {
+          "file": "test/ash_surface/projectors/js_declaration_order_test.exs",
+          "test": "missing dependency does not break generation"
+        }
+      ]
+    },
+    "codegen.module.Codegen.TypeMapper": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "the table covers exactly the kinds ZodType knows"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "codegen.module.Codegen.TypeMapper (hand-written expected table)"
+        }
+      ]
+    },
+    "codegen.module.Codegen.UtilityTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Codegen.ValibotSchemaGenerator": {
+      "status": "non_goal",
+      "reason": "emits Valibot schemas; README names Zod as the sole executable boundary-schema library (valibot_* config keys are carried for parity, no Valibot emitter)",
+      "readme": "Zod supplies executable boundary schemas."
+    },
+    "codegen.module.Codegen.ZodSchemaGenerator": {
+      "status": "divergence",
+      "kd": "KD-02"
+    },
+    "codegen.module.Rpc.Codegen": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "write_artifacts writes the artifacts map and target_dir wraps it identically"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.ChannelRenderer": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "event, timeout, beforePush and afterResponse reach a Phoenix-shaped channel"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.FunctionCore": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/projectors/js_projector_test.exs",
+          "test": "the materialized bridge throws structured refusal errors at runtime"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.HttpRenderer": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "beforeRequest runs after headers are built and before fetch"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "createZoelaClient wires reconcileEndpoint/BaseUrl/AllowedOrigins/TimeoutMs"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.JsdocGenerator": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_parity/codegen_modules_test.exs",
+          "test": "jsdoc: emitted artifact documents the intent typedef and every namespace"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.TypeBuilders": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.FunctionGenerators.TypedQueries": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "the typed query is serialized into the manifest DSL as JSON data"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "the typed-query input envelope renders strict"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.FunctionNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_parity/codegen_modules_test.exs",
+          "test": "function naming: action ids map to sanitized JS bindings; unsafe bindings refused"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.Helpers.ActionIntrospection": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/compiler_discovery_test.exs",
+          "test": "DiscoverOnce 2: all sections of one action receive the identical action term"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.Helpers.ConfigBuilder": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "beforeRequest runs after headers are built and before fetch"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "a throwing beforeRequest never reaches fetch"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.Helpers.PayloadBuilder": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "filter/sort/page/response slots are emitted by name; absent slots are null"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.JsonManifestGenerator": {
+      "status": "divergence",
+      "kd": "KD-07"
+    },
+    "codegen.module.Rpc.Codegen.ManifestGenerator": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/manifest_serializer_test.exs",
+          "test": "identical manifest input always yields the byte-identical golden JSON string"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.RpcConfigCollector": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/compiler_discovery_test.exs",
+          "test": "default section bindings build the five-section IR through the real adapters"
+        }
+      ]
+    },
+    "codegen.module.Rpc.Codegen.TypeGenerators.InputTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.TypeGenerators.MetadataTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.TypeGenerators.PaginationTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.TypeGenerators.RestrictedSchema": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.TypeGenerators.ResultTypes": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.Rpc.Codegen.TypescriptStatic": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "codegen.module.TypedChannel.Codegen": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/section_channel_test.exs",
+          "test": "builds channels with admitted Zod payloads, deterministically"
+        }
+      ]
+    },
+    "codegen.module.TypedController.Codegen": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "params / query / body schemas accept valid and reject invalid payloads"
+        }
+      ]
+    },
+    "codegen.module.TypedController.Codegen.RouteConfigCollector": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "path params split out; GET args go to query"
+        }
+      ]
+    },
+    "codegen.module.TypedController.Codegen.RouteRenderer": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "POST args go to body"
+        }
+      ]
+    },
+    "codegen.module.TypedController.Codegen.RouterIntrospector": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_introspector_test.exs",
+          "test": "introspect_router/1 lists routes deterministically and RouteSchema delegates"
+        }
+      ]
+    },
+    "codegen.module.TypedController.Codegen.TypescriptStatic": {
+      "status": "non_goal",
+      "reason": "emits TypeScript type declarations; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "config.key.*": {
+      "status": "pass",
+      "any_of": [
+        {
+          "file": "test/ash_surface/config_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/config_deep_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/errors_config_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/config/parity_keys_test.exs",
+          "contains": "{leaf}"
+        }
+      ]
+    },
+    "config.key.add_ash_internals_to_jsdoc": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.add_ash_internals_to_jsdoc default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.add_ash_internals_to_manifest": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.add_ash_internals_to_manifest default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.controller_namespace_output_dir": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.controller_namespace_output_dir default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.enable_controller_namespace_files": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.enable_controller_namespace_files default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.enable_namespace_files": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.enable_namespace_files default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.generate_phx_channel_rpc_actions": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.generate_phx_channel_rpc_actions default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.generate_valibot_schemas": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.generate_valibot_schemas default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.generate_validation_functions": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.generate_validation_functions default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.generate_zod_schemas": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.generate_zod_schemas default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.import_into_generated": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.import_into_generated default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.input_field_formatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.input_field_formatter default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.json_manifest_file": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.json_manifest_file default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.json_manifest_filename_format": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.json_manifest_filename_format default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.manifest": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.manifest default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.manifest_file": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.manifest_file default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.namespace_output_dir": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.namespace_output_dir default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.not_found_error?": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/consumer_courts_test.exs",
+          "test": "config.key.not_found_error? decides the get fact when no projection declares it"
+        },
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.not_found_error? default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.phoenix_import_path": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.phoenix_import_path default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.policies": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.policies default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.require_tenant_parameters": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "config.key.require_tenant_parameters decides whether the tenant parameter is required"
+        }
+      ]
+    },
+    "config.key.router": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.router default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_after_channel_response_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_after_channel_response_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_after_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_after_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_before_channel_push_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_before_channel_push_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_before_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_before_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_channel_hook_context_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_channel_hook_context_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_action_hook_context_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_action_hook_context_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_after_channel_response_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_after_channel_response_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_after_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_after_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_before_channel_push_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_before_channel_push_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_before_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_before_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_channel_hook_context_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_channel_hook_context_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.rpc_validation_hook_context_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.rpc_validation_hook_context_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.run_endpoint": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.run_endpoint default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.source_path_prefix": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.source_path_prefix default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.type_mapping_overrides": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.type_mapping_overrides default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_channels": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_channels default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_channels_output_file": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_channels_output_file default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_after_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_after_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_base_path": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_base_path default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_before_request_hook": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_before_request_hook default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_error_handler": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_error_handler default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_hook_context_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_hook_context_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_import_into_generated": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_import_into_generated default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_mode": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_mode default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_path_params_style": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_path_params_style default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controller_show_raised_errors": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controller_show_raised_errors default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.typed_controllers": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.typed_controllers default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.untyped_map_type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.untyped_map_type default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.valibot_import_into_generated": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.valibot_import_into_generated default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.valibot_import_path": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.valibot_import_path default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.valibot_mapping_overrides": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.valibot_mapping_overrides default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.valibot_schema_suffix": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.valibot_schema_suffix default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.validate_endpoint": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.validate_endpoint default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.warn_on_missing_channel_returns": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.warn_on_missing_channel_returns default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.warn_on_missing_rpc_config": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "config.key.warn_on_missing_rpc_config gates the domain warning"
+        }
+      ]
+    },
+    "config.key.warn_on_non_public_publications": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.warn_on_non_public_publications default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.warn_on_non_rpc_references": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.warn_on_non_rpc_references default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.zod_import_path": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "config.key.zod_import_path is the single zod import in the emitted artifact"
+        }
+      ]
+    },
+    "config.key.zod_mapping_overrides": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config/parity_key_courts_test.exs",
+          "test": "config.key.zod_mapping_overrides default, override, Verifier validation"
+        }
+      ]
+    },
+    "config.key.zod_schema_suffix": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "default is ZodSchema and the verifier admits it"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "verifier refuses a non-string and a non-identifier suffix"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "consumer: inlined embedded references carry no suffix-named identifier"
+        }
+      ]
+    },
+    "dsl.manifest.opt_schema.option.domains": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "only the selected domains' public actions are admitted"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "an empty domain selection admits nothing"
+        }
+      ]
+    },
+    "dsl.resource.section.typescript": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "valid options are introspectable"
+        }
+      ]
+    },
+    "dsl.resource.section.typescript.option.argument_names": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "argument_names: unknown action, unknown argument"
+        }
+      ]
+    },
+    "dsl.resource.section.typescript.option.field_names": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "field_names: unknown field, needless mapping, bad identifier, collision"
+        }
+      ]
+    },
+    "dsl.resource.section.typescript.option.type_name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "type_name / namespace identifiers"
+        }
+      ]
+    },
+    "dsl.rpc.entity.resource": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "resource naming options through the real Spark verifier"
+        }
+      ]
+    },
+    "dsl.rpc.entity.resource.option.namespace": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "type_name / namespace identifiers"
+        }
+      ]
+    },
+    "dsl.rpc.entity.resource.option.resource": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc entity resource option resource: the surface section lives on the resource itself"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "options set in the DSL change the effective projection"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "two projections on one action are refused"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.*": {
+      "status": "pass",
+      "any_of": [
+        {
+          "file": "test/ash_surface/resource/dsl_options_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/metadata_projection_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/resource/validator_action_types_test.exs",
+          "contains": "{leaf}"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.action": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc_action option action: unknown action refused, public action admitted"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.deprecated": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "default is nil; true, false and a message round-trip as a presentation fact"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "deprecated changes nothing but its own presentation field"
+        },
+        {
+          "file": "test/ash_surface/rpc_action_deprecated_test.exs",
+          "test": "deprecated message carries the message into the JSDoc line"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.description": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc_action option description: presentation fact, string type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc_action option name: wire name is introspectable, duplicates refused, type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.namespace": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc_action option namespace: presentation fact, string type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.entity.rpc_action.option.see": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "rpc_action option see: list of related projection names, defaults to empty"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "typed_query is introspectable and projections exclude it"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.action": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "unknown action"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "non-read action"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.description": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "typed_query option description: introspectable string, type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.fields": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "valid selections are admitted"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "unknown field inside nested relationship selection"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "duplicate names"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "invalid names"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.ts_fields_const_name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "typed_query option ts_fields_const_name (fields_const_name): introspectable, type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.entity.typed_query.option.ts_result_type_name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "typed_query option ts_result_type_name (result_type_name): introspectable, type enforced"
+        }
+      ]
+    },
+    "dsl.rpc.section.typescript_rpc": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "section options reach the introspection API and the manifest DSL serialization"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "an undeclared section serializes to nothing"
+        }
+      ]
+    },
+    "dsl.rpc.section.typescript_rpc.option.error_handler": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/config_deep_test.exs",
+          "test": "error handler shapes: module and {m,f,a} pass, others fail"
+        },
+        {
+          "file": "test/ash_surface/errors_config_test.exs",
+          "test": "error_handler from Config runs after resource handler, module and mfa"
+        }
+      ]
+    },
+    "dsl.rpc.section.typescript_rpc.option.namespace": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "a resource namespace overrides the domain namespace"
+        }
+      ]
+    },
+    "dsl.rpc.section.typescript_rpc.option.show_raised_errors?": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/rpc_surface_parity_test.exs",
+          "test": "resource option overrides config and drives the projected error message"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.entity.publish": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/section_channel_test.exs",
+          "test": "builds channels with admitted Zod payloads, deterministically"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.entity.publish.option.event": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/section_channel_test.exs",
+          "test": "duplicate event inside one channel is refused"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.entity.resource": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_channel resource entity option module: bare module takes all publications, tuple selects events"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.entity.resource.option.module": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_channel resource entity option module: bare module takes all publications, tuple selects events"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.section.typed_channel": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_channel section: a discovery spec yields a named channel with a topic"
+        }
+      ]
+    },
+    "dsl.typed_channel.dsl.section.typed_channel.option.topic": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "topic is carried from the channel spec through discovery into the built channel"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/transport_codegen_courts_test.exs",
+          "test": "an absent topic stays nil end to end"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument entity option name: required, unique, strict object keys"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument.option.allow_nil?": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument option allow_nil?: nullable unless false; path param must be non-null"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument.option.constraints": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument option constraints: carried into the argument schema"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument.option.default": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument option default: a defaulted argument renders optional"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument.option.name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument entity option name: required, unique, strict object keys"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.argument.option.type": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller argument option type: kind selects the schema fragment"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller route entity: descriptors build deterministically sorted by path"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.constraints": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller route option returns and constraints shape the response schema"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.deprecated": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option deprecated: jsdoc carries @deprecated"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.description": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option description: applied as zod describe, executed"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.method": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller route option method: verb normalized and decides query vs body"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller route option name: carried, duplicate refused per scope prefix"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.namespace": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option namespace: carried as presentation grouping"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.returns": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller route option returns and constraints shape the response schema"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.run": {
+      "status": "non_goal",
+      "reason": "run is a server-side handler fn executed by a generated Phoenix controller; README law 1: AshSurface never actuates (descriptor-only route schemas)",
+      "readme": "it never actuates"
+    },
+    "dsl.typed_controller.dsl.entity.route.option.see": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option see: jsdoc carries @see"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.valibot_schema_name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option valibot_schema_name: carried, identifier-checked"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.entity.route.option.zod_schema_name": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller route option zod_schema_name: names the executed response const"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.section.typed_controller": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/typed_controller_channel_parity_test.exs",
+          "test": "typed_controller section: routes are introspected from the Phoenix router"
+        }
+      ]
+    },
+    "dsl.typed_controller.dsl.section.typed_controller.option.module_name": {
+      "status": "non_goal",
+      "reason": "module_name names the Phoenix controller module ash_typescript generates and mounts; README law 1: AshSurface never actuates (descriptor-only route schemas, no controller module generated)",
+      "readme": "it never actuates"
+    },
+    "dsl.typed_controller.dsl.section.typed_controller.option.namespace": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/dsl/route_presentation_parity_test.exs",
+          "test": "typed_controller section option namespace: default for routes, route namespace wins"
+        }
+      ]
+    },
+    "error.impl.*": {
+      "status": "pass",
+      "any_of": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/errors_s1b_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/errors_impl_leaf_test.exs",
+          "contains": "{leaf}"
+        }
+      ]
+    },
+    "error.impl.Ash.Error.Changes.Required": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "classify/1 is total over structs and non-structs"
+        }
+      ]
+    },
+    "error.impl.Ash.Error.Query.Required": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "Query.Required classifies as required with the field and argument type"
+        }
+      ]
+    },
+    "error.impl.AshAuthentication.Errors.AuthenticationFailed": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "authentication_failed reaches the wire with the right type"
+        }
+      ]
+    },
+    "error.impl.AshAuthentication.Errors.InvalidToken": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "invalid_token reaches the wire with the right type"
+        }
+      ]
+    },
+    "error.type.*": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_kinds/error_types_test.exs",
+          "test": "error.type.{leaf} wire output"
+        }
+      ]
+    },
+    "error.type.authentication_failed": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "authentication_failed reaches the wire with the right type"
+        }
+      ]
+    },
+    "error.type.invalid_token": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "invalid_token reaches the wire with the right type"
+        }
+      ]
+    },
+    "installer.module.Installer.Esbuild": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer_parity/framework_parity_test.exs",
+          "test": "Esbuild installer seeds output_file under assets/js and is idempotent"
+        }
+      ]
+    },
+    "installer.module.Installer.Framework": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer_parity/framework_parity_test.exs",
+          "test": "Framework detects esbuild from config, vite from config files, none otherwise"
+        }
+      ]
+    },
+    "installer.module.Installer.Inertia": {
+      "status": "non_goal",
+      "reason": "scaffolds TypeScript/TSX app sources (index.tsx, ssr.tsx, spa_root layout, TS landing page); README declares no TypeScript emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "installer.module.Installer.LandingPage": {
+      "status": "non_goal",
+      "reason": "scaffolds TypeScript/TSX app sources (index.tsx, ssr.tsx, spa_root layout, TS landing page); README declares no TypeScript emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "installer.module.Installer.Layout": {
+      "status": "non_goal",
+      "reason": "scaffolds TypeScript/TSX app sources (index.tsx, ssr.tsx, spa_root layout, TS landing page); README declares no TypeScript emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "installer.module.Installer.PackageJson": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer/installer_test.exs",
+          "test": "creates package.json with zod and tsconfig when assets/ present"
+        }
+      ]
+    },
+    "installer.module.Installer.Vite": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer_parity/framework_parity_test.exs",
+          "test": "Vite installer seeds output_file under src/ for a root vite project and is idempotent"
+        }
+      ]
+    },
+    "runtime.module.AshTypescript": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "from_manifest mints a verifiable digest; a forged digest is refused"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "digest is key-order and key-type independent"
+        }
+      ]
+    },
+    "runtime.module.ErrorFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_config_test.exs",
+          "test": "error_output_formatter module and mfa"
+        }
+      ]
+    },
+    "runtime.module.FieldFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/field_name_test.exs",
+          "test": "camel/pascal/snake incl. digits and question marks"
+        }
+      ]
+    },
+    "runtime.module.Helpers": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "format: each formatter, and an override wins verbatim"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "parse_input never mints atoms"
+        }
+      ]
+    },
+    "runtime.module.Manifest": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/from_manifest_test.exs",
+          "test": "action_ids are exactly the manifest's public entrypoints"
+        }
+      ]
+    },
+    "runtime.module.Manifest.Custom": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/manifest_serializer_test.exs",
+          "test": "contract round-trip preserves actions, transports, and metadata-under-custom"
+        },
+        {
+          "file": "test/ash_surface/from_manifest_test.exs",
+          "test": "decorates only custom.ash_surface and preserves foreign custom keys"
+        }
+      ]
+    },
+    "runtime.module.Manifest.Decorator": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/from_manifest_test.exs",
+          "test": "decorates only custom.ash_surface and preserves foreign custom keys"
+        }
+      ]
+    },
+    "runtime.module.Manifest.Dsl": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/manifest_dsl_test.exs",
+          "test": "DSL -> manifest -> JSON -> read-back is identical and digest-stable"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/manifest_dsl_test.exs",
+          "test": "dropping the declarations from the DSL view changes the contract digest"
+        }
+      ]
+    },
+    "runtime.module.NameValidation": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/naming_test.exs",
+          "test": "naming predicates"
+        }
+      ]
+    },
+    "runtime.module.Resource": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "compiled state of the real resource validates"
+        }
+      ]
+    },
+    "runtime.module.Resource.Info": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "field_names and argument_names read back as declared"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "an Ash resource without the extension is not compiled"
+        }
+      ]
+    },
+    "runtime.module.Rpc": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "the extension declares the surface section with projection and typed_query entities"
+        }
+      ]
+    },
+    "runtime.module.Rpc.DefaultErrorHandler": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "Policy is forbidden with redacted message; breakdown only when opted in"
+        }
+      ]
+    },
+    "runtime.module.Rpc.ErrorBuilder": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "UnknownError and non-Ash terms emit unknown_error with the id under details"
+        },
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "unhandled_error/1 logs under a UUID the client receives; term never leaks"
+        }
+      ]
+    },
+    "runtime.module.Rpc.ErrorHandler": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_config_test.exs",
+          "test": "error_handler from Config runs after resource handler, module and mfa"
+        }
+      ]
+    },
+    "runtime.module.Rpc.Errors": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/errors_test.exs",
+          "test": "classify/1 is total over structs and non-structs"
+        }
+      ]
+    },
+    "runtime.module.Rpc.FieldExtractor": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "maps, structs, keyword lists, atom and string keys; absent is :error"
+        }
+      ]
+    },
+    "runtime.module.Rpc.FieldProcessing.Atomizer": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "client names resolve against the admitted set, nested maps recurse, unknowns are preserved"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "atomizing never mints atoms"
+        }
+      ]
+    },
+    "runtime.module.Rpc.FieldProcessing.FieldSelector": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "admitted selection resolves; unknown, denied and duplicate selections are refused"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "unknown field inside nested relationship selection"
+        },
+        {
+          "file": "test/ash_surface/compiler/relationship_selection_schema_test.exs",
+          "test": "selection embeds relationship load; legacy 2-arity unchanged"
+        }
+      ]
+    },
+    "runtime.module.Rpc.FieldProcessing.FieldSelector.Validation": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "duplicates after formatter normalisation are refused with path"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "non-list and empty nested selections are typed refusals"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "duplicate field"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "relationship without nested fields"
+        }
+      ]
+    },
+    "runtime.module.Rpc.Info": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "lookup, split of projections vs typed queries, and absent names"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/dsl_runtime_courts_test.exs",
+          "test": "presentation facts carry exactly"
+        }
+      ]
+    },
+    "runtime.module.Rpc.InputFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/field_name_test.exs",
+          "test": "client_to_internal builds map and reports collisions"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "input resolves admitted names, preserves unknown keys, and round-trips"
+        }
+      ]
+    },
+    "runtime.module.Rpc.LoadRestrictions": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/resource/dsl_options_test.exs",
+          "test": "allowed_loads together with denied_loads is refused"
+        }
+      ]
+    },
+    "runtime.module.Rpc.OutputFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "output renames nested keys through lists, leaves structs and scalars alone"
+        },
+        {
+          "file": "test/ash_surface/field_name_test.exs",
+          "test": "round trip through parse_input"
+        }
+      ]
+    },
+    "runtime.module.Rpc.Pipeline": {
+      "status": "non_goal",
+      "reason": "server-side request execution path (parse, run Ash action, process result); ash_surface has none: README law 1 says AshSurface never actuates, DO is client dispatch admission + receipts in the JS runtime",
+      "readme": "it never actuates"
+    },
+    "runtime.module.Rpc.Request": {
+      "status": "non_goal",
+      "reason": "server-side request execution path (parse, run Ash action, process result); ash_surface has none: README law 1 says AshSurface never actuates, DO is client dispatch admission + receipts in the JS runtime",
+      "readme": "it never actuates"
+    },
+    "runtime.module.Rpc.RequestedFieldsProcessor": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/compiler/relationship_selection_schema_test.exs",
+          "test": "selection embeds relationship load; legacy 2-arity unchanged"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "admitted selection resolves; unknown, denied and duplicate selections are refused"
+        }
+      ]
+    },
+    "runtime.module.Rpc.ResultProcessor": {
+      "status": "non_goal",
+      "reason": "server-side request execution path (parse, run Ash action, process result); ash_surface has none: README law 1 says AshSurface never actuates, DO is client dispatch admission + receipts in the JS runtime",
+      "readme": "it never actuates"
+    },
+    "runtime.module.Rpc.ValidationErrorSchemas": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_schema_deep_test.exs",
+          "test": "scalar and nil definitions are message arrays"
+        },
+        {
+          "file": "test/ash_surface/error_schema_deep_test.exs",
+          "test": "embedded resource with fields, formatted names, optional keys"
+        },
+        {
+          "file": "test/ash_surface/error_schema_deep_test.exs",
+          "test": "union maps to object keyed by member, empty union -> record"
+        }
+      ]
+    },
+    "runtime.module.Rpc.ValueFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "output renames nested keys through lists, leaves structs and scalars alone"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/field_selection_test.exs",
+          "test": "input resolves admitted names, preserves unknown keys, and round-trips"
+        }
+      ]
+    },
+    "runtime.module.TypeSystem.Introspection": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/manifest_type_dispatch_test.exs",
+          "test": "raw Ash types"
+        },
+        {
+          "file": "test/ash_surface/manifest_type_dispatch_test.exs",
+          "test": "NewType keeps the base kind as subtype_of with merged constraints"
+        }
+      ]
+    },
+    "runtime.module.TypedChannel": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/section_channel_test.exs",
+          "test": "builds channels with admitted Zod payloads, deterministically"
+        }
+      ]
+    },
+    "runtime.module.TypedChannel.Dsl": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "discovers string-keyed map that Channel.build admits (ZodGuard on every string)"
+        }
+      ]
+    },
+    "runtime.module.TypedChannel.Info": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "event subset selection and event_not_found"
+        }
+      ]
+    },
+    "runtime.module.TypedChannel.Interception": {
+      "status": "non_goal",
+      "reason": "injects handle_out/3 intercepts into a Phoenix.Channel module to push payloads; README law 1: AshSurface never actuates (channel descriptors only, no channel module owned)",
+      "readme": "it never actuates"
+    },
+    "runtime.module.TypedChannel.PayloadFormatter": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "generated payload schema parses real payloads under node"
+        }
+      ]
+    },
+    "runtime.module.TypedController": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "path params split out; GET args go to query"
+        },
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "POST args go to body"
+        }
+      ]
+    },
+    "runtime.module.TypedController.Dsl": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "admission errors"
+        }
+      ]
+    },
+    "runtime.module.TypedController.Info": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_introspector_test.exs",
+          "test": "introspect_router/1 lists routes deterministically and RouteSchema delegates"
+        }
+      ]
+    },
+    "runtime.module.TypedController.RequestHandler": {
+      "status": "non_goal",
+      "reason": "server-side request execution path (parse, run Ash action, process result); ash_surface has none: README law 1 says AshSurface never actuates, DO is client dispatch admission + receipts in the JS runtime",
+      "readme": "it never actuates"
+    },
+    "runtime.module.TypedController.Route": {
+      "status": "non_goal",
+      "reason": "server-side request execution path (parse, run Ash action, process result); ash_surface has none: README law 1 says AshSurface never actuates, DO is client dispatch admission + receipts in the JS runtime",
+      "readme": "it never actuates"
+    },
+    "task.codegen": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "default target is read from Config.output_file"
+        }
+      ]
+    },
+    "task.codegen.flag.check": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "--check raises PendingCodegen with the diff on drift and writes nothing"
+        }
+      ]
+    },
+    "task.codegen.flag.dev": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "--dev --check with Config.always_regenerate bypasses --check and regenerates"
+        }
+      ]
+    },
+    "task.codegen.flag.dry_run": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "task is lenient about foreign flags and --dry-run writes nothing"
+        }
+      ]
+    },
+    "task.codegen.flag.output": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/codegen_task_test.exs",
+          "test": "--output DIR writes the artifact under the directory"
+        }
+      ]
+    },
+    "task.codegen.flag.run_endpoint": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/task_parity/endpoint_flags_test.exs",
+          "test": "task.codegen.flag.run_endpoint flag, alias and config reach the artifact"
+        }
+      ]
+    },
+    "task.codegen.flag.validate_endpoint": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/task_parity/endpoint_flags_test.exs",
+          "test": "task.codegen.flag.validate_endpoint flag, alias and config reach the artifact"
+        }
+      ]
+    },
+    "task.install": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer/installer_test.exs",
+          "test": "emits a next-steps notice naming codegen and the artifact path"
+        },
+        {
+          "file": "test/ash_surface/installer/installer_test.exs",
+          "test": "second run is a byte-identical no-op for every touched file"
+        }
+      ]
+    },
+    "task.npm_install": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/installer_parity/npm_install_task_test.exs",
+          "test": "npm_install task runs a real npm install inside assets/"
+        }
+      ]
+    },
+    "transformer.BuildManifest": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/transformers/manifest_transformers_test.exs",
+          "test": "decorated manifest equals the generated manifest plus only ash_surface custom data"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/manifest_dsl_test.exs",
+          "test": "DSL -> manifest -> JSON -> read-back is identical and digest-stable"
+        }
+      ]
+    },
+    "transformer.DecorateManifest": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/transformers/manifest_transformers_test.exs",
+          "test": "decorated content carries id, profile, metadata options, dsl and typed queries"
+        },
+        {
+          "file": "test/ash_surface/runtime_parity/manifest_dsl_test.exs",
+          "test": "digest covers the declarations and ignores stale custom data; undeclared resources add no dsl entry"
+        }
+      ]
+    },
+    "transformer.FoldArgumentConstraints": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "unknown argument kind is refused, never z.unknown()"
+        },
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "ill-typed or inapplicable constraints are refused with the offending key"
+        },
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "string default allow_empty?: false is folded explicitly; explicit true is kept"
+        },
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "route returns of resource / union kind are refused, plain data admitted"
+        },
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "folded default is enforced under zod (node-executed)"
+        }
+      ]
+    },
+    "transformer.GenerateController": {
+      "status": "non_goal",
+      "reason": "generates a Phoenix controller that executes route handlers (the route run option); ash_surface emits only descriptor route schemas and never actuates",
+      "readme": "it never actuates"
+    },
+    "transformer.PersistFormattedFields": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "persists resolved client names with field_names mapping and reverse index"
+        }
+      ]
+    },
+    "tstype.*": {
+      "status": "non_goal",
+      "reason": "exported TypeScript declaration; README declares no .ts/.d.ts emission",
+      "readme": "no generated `.ts`, no `.d.ts`, no `tsc` build step"
+    },
+    "tstype.buildCSRFHeaders": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/js/tstype_runtime_functions.test.mjs",
+          "contains": "buildCSRFHeaders(null)"
+        }
+      ]
+    },
+    "tstype.create": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/js/tstype_runtime_functions.test.mjs",
+          "contains": "tstype create:"
+        }
+      ]
+    },
+    "tstype.getPhoenixCSRFToken": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/js/tstype_runtime_functions.test.mjs",
+          "contains": "getPhoenixCSRFToken()"
+        }
+      ]
+    },
+    "tstype.on": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/js/tstype_runtime_functions.test.mjs",
+          "contains": "tstype on:"
+        }
+      ]
+    },
+    "tstype.unsubscribe": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/js/tstype_runtime_functions.test.mjs",
+          "contains": "tstype unsubscribe:"
+        }
+      ]
+    },
+    "type.aggregate.*": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "contains": ":{leaf}"
+        }
+      ]
+    },
+    "type.aggregate.integer": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "type.aggregate.integer: a sum over an :integer field renders a nullable number"
+        }
+      ]
+    },
+    "type.aggregate.list": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "type.aggregate :list over an integer field renders z.array"
+        }
+      ]
+    },
+    "type.constraint.*": {
+      "status": "pass",
+      "any_of": [
+        {
+          "file": "test/ash_surface/zod_type_wave2_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/compiler/schema_constraint_test.exs",
+          "contains": "{leaf}"
+        },
+        {
+          "file": "test/ash_surface/compiler/constraint_validator_test.exs",
+          "contains": "{leaf}"
+        }
+      ]
+    },
+    "type.constraint.escape?": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "constraint escape? selects the ltree array form"
+        }
+      ]
+    },
+    "type.constraint.fields": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/zod_type_wave2_test.exs",
+          "test": "unmappable_kinds walks items/fields/members"
+        }
+      ]
+    },
+    "type.constraint.greater_than": {
+      "status": "divergence",
+      "kd": "KD-04"
+    },
+    "type.constraint.instance_of": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "constraint instance_of leaves a struct record shape intact"
+        }
+      ]
+    },
+    "type.constraint.less_than": {
+      "status": "divergence",
+      "kd": "KD-04"
+    },
+    "type.constraint.match": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/zod_type_wave2_test.exs",
+          "test": "regex: PCRE-only omitted, flags emitted"
+        }
+      ]
+    },
+    "type.constraint.max": {
+      "status": "divergence",
+      "kd": "KD-04"
+    },
+    "type.constraint.min": {
+      "status": "divergence",
+      "kd": "KD-04"
+    },
+    "type.kind.*": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_kinds/type_kinds_test.exs",
+          "test": "type.kind.{leaf} renders"
+        }
+      ]
+    },
+    "type.kind.binary_id": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "binary_id and date_time kinds render through ZodType and admit in zod guard"
+        }
+      ]
+    },
+    "type.kind.count": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "type.kind.count: never null, always an integer"
+        }
+      ]
+    },
+    "type.kind.date_time": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/error_type_parity/error_type_parity_test.exs",
+          "test": "binary_id and date_time kinds render through ZodType and admit in zod guard"
+        }
+      ]
+    },
+    "type.kind.keyword": {
+      "status": "divergence",
+      "kd": "KD-05"
+    },
+    "type.kind.map": {
+      "status": "divergence",
+      "kd": "KD-05"
+    },
+    "type.kind.struct": {
+      "status": "divergence",
+      "kd": "KD-05"
+    },
+    "type.kind.sum": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/schema_courts_test.exs",
+          "test": "type.kind.sum: nullable over an empty relationship"
+        }
+      ]
+    },
+    "type.kind.time": {
+      "status": "divergence",
+      "kd": "KD-03"
+    },
+    "type.kind.time_usec": {
+      "status": "divergence",
+      "kd": "KD-03"
+    },
+    "type.kind.tuple": {
+      "status": "divergence",
+      "kd": "KD-05"
+    },
+    "verifier.VerifierChecker": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "ok for a valid resource, aggregated error for an invalid one"
+        }
+      ]
+    },
+    "verifier.VerifyActionTypes": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/ported/manifest/verify_action_types_return_type_field_names_surface_test.exs",
+          "test": "detects invalid field names in map return type"
+        },
+        {
+          "file": "test/ash_surface/ported/manifest/verify_action_types_argument_type_field_names_surface_test.exs",
+          "test": "detects invalid field names in map argument type"
+        },
+        {
+          "file": "test/ash_surface/ported/manifest/verify_action_types_valid_field_names_surface_test.exs",
+          "test": "passes for valid field names in return type"
+        },
+        {
+          "file": "test/ash_surface/ported/manifest/verify_action_types_resource_return_types_surface_test.exs",
+          "test": "detects invalid field names in regular Ash resource returned by generic action"
+        }
+      ]
+    },
+    "verifier.VerifyFieldNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "field_names: unknown field, needless mapping, bad identifier, collision"
+        }
+      ]
+    },
+    "verifier.VerifyIdentities": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/resource/validator_action_types_test.exs",
+          "test": "known identity admitted, unknown refused"
+        }
+      ]
+    },
+    "verifier.VerifyMapFieldNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "typed map fields that collide after formatting are refused"
+        }
+      ]
+    },
+    "verifier.VerifyMappableTypes": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "an attribute whose type has no Zod kind is refused"
+        }
+      ]
+    },
+    "verifier.VerifyMappedFieldNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/parity_deepen/mapped_names_courts_test.exs",
+          "test": "field_names refusals: unknown field, needless mapping, bad identifier, collision"
+        },
+        {
+          "file": "test/ash_surface/parity_deepen/mapped_names_courts_test.exs",
+          "test": "argument_names refusals"
+        }
+      ]
+    },
+    "verifier.VerifyMetadataFieldNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "unknown show_metadata and colliding metadata names are refused"
+        }
+      ]
+    },
+    "verifier.VerifyRpc": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface_verifier_court_test.exs",
+          "test": "every malformed specimen is refused by the real generated verifier"
+        }
+      ]
+    },
+    "verifier.VerifyRpcWarnings": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "warns on stderr by default, silent when toggled off, never an error"
+        }
+      ]
+    },
+    "verifier.VerifyTypedChannel": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "event subset selection and event_not_found"
+        },
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "duplicate event within one channel is refused; across channels is fine"
+        },
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "non-object payload refused by discovery and by Channel.build via returns_kind"
+        },
+        {
+          "file": "test/ash_surface/channel_discovery_test.exs",
+          "test": "verify/1 is pure and reports missing_returns warnings"
+        }
+      ]
+    },
+    "verifier.VerifyTypedController": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/route_schema_test.exs",
+          "test": "admission errors"
+        },
+        {
+          "file": "test/ash_surface/transformers/fold_argument_constraints_test.exs",
+          "test": "unknown argument kind is refused, never z.unknown()"
+        },
+        {
+          "file": "test/ash_surface/projector/expo_wave3_s1h_court_test.exs",
+          "test": "nil name and duplicate names are refused"
+        }
+      ]
+    },
+    "verifier.VerifyTypedQueryFields": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "unknown field"
+        },
+        {
+          "file": "test/ash_surface/typed_query_fields_test.exs",
+          "test": "duplicate field"
+        }
+      ]
+    },
+    "verifier.VerifyUniqueInputFieldNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "inputs colliding after formatting are refused; argument_names resolves it"
+        }
+      ]
+    },
+    "verifier.VerifyUniqueTypeNames": {
+      "status": "pass",
+      "tests": [
+        {
+          "file": "test/ash_surface/verifiers/g3_verifiers_test.exs",
+          "test": "two surface resources in one domain with the same type_name are refused"
+        }
+      ]
+    }
+  }
+}

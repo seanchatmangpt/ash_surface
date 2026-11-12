@@ -1,4 +1,3 @@
-
 defmodule NotificationExtension.ResourceInfoParityCourt do
   use ExUnit.Case, async: false
 
@@ -134,8 +133,13 @@ defmodule NotificationExtension.ResourceInfoParityCourt do
     assert NotificationExtension.Resource.InfoParity.Info.mode(resource) == :sync
 
     # Persisted-compiled-map getter parity (info.ex.tmpl compiled_result idiom).
-    assert {:ok, %{probe: [^entity]}} = NotificationExtension.Resource.InfoParity.Info.compiled_result(resource)
-    assert NotificationExtension.Resource.InfoParity.Info.declared_events(resource) == [:read, :update]
+    assert {:ok, %{probe: [^entity]}} =
+             NotificationExtension.Resource.InfoParity.Info.compiled_result(resource)
+
+    assert NotificationExtension.Resource.InfoParity.Info.declared_events(resource) == [
+             :read,
+             :update
+           ]
   end
 
   test "MUTATION: introspection tracks the Spark source -- no hardcoded copy", ctx do
@@ -149,7 +153,10 @@ defmodule NotificationExtension.ResourceInfoParityCourt do
     assert NotificationExtension.Resource.InfoParity.Info.declared_events(mutated_resource) ==
              [:read, :update, :destroy]
 
-    refute NotificationExtension.Resource.InfoParity.Info.declared_events(mutated_resource) == [:read, :update]
+    refute NotificationExtension.Resource.InfoParity.Info.declared_events(mutated_resource) == [
+             :read,
+             :update
+           ]
   end
 
   test "ANTI-VACUITY: the constant-Info mutant FAILS the mutation leg (captured)", ctx do
@@ -173,6 +180,7 @@ defmodule NotificationExtension.ResourceInfoParityCourt do
       end
 
     assert results != []
+
     assert Enum.all?(results, &match?({:failed, _}, &1)),
            "the constant Info mutant PASSED the mutation leg -- the court is vacuous: #{inspect(results)}"
   end

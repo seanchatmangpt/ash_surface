@@ -56,7 +56,7 @@ defmodule AshSurface.MockDisciplineTest do
   test "fleet mock-discipline gate: AST-clean tree, regex with teeth, prose hits allowlisted" do
     # 1. The regex has teeth -- real grep against a real violating file.
     tmp = System.tmp_dir!()
-    path = Path.join(tmp, "ash_surface-mock-teeth-#{System.unique_integer([:positive])}.exs")
+    path = Path.join(tmp, "ash_surface-mock-teeth-#{AshSurface.TestTmp.suffix()}.exs")
     File.write!(path, "defmodule T do\n  use Mox\nend\n")
 
     teeth = System.cmd("grep", ["-rnE", @regex, path], stderr_to_stdout: true)
@@ -66,7 +66,8 @@ defmodule AshSurface.MockDisciplineTest do
     assert exit_teeth == 0, "fleet regex failed to match a real `use Mox` (exit #{exit_teeth})"
 
     # 2. Code positions: the AST law over lib/ + test/.
-    scan = AshSurface.Chicago.Collaborators.MockScan.scan(root: File.cwd!(), dirs: ["lib", "test"])
+    scan =
+      AshSurface.Chicago.Collaborators.MockScan.scan(root: File.cwd!(), dirs: ["lib", "test"])
 
     assert scan.files > 0, "AST scan saw no files -- gate vacuous"
     assert scan.violations == [], inspect(scan.violations, pretty: true)
@@ -101,5 +102,29 @@ defmodule AshSurface.MockDisciplineTest do
     assert offending == [],
            "banned tokens outside the disclosure allowlist: #{inspect(offending)}" <>
              "\nraw hits:\n#{out}"
+  end
+
+  test "non-vacuity: real Mox/Mimic/:meck usage is detected, unparseable source fails loudly" do
+    alias AshSurface.Chicago.Collaborators.MockScan
+
+    banned = [
+      {"defmodule T do\n  use " <> "Mox\nend\n", "use Mox"},
+      {"defmodule T do\n  def a, do: " <> "Mimic.stub(A, :b, fn -> 1 end)\nend\n",
+       "Mimic.stub/3"},
+      {"defmodule T do\n  def a, do: :" <> "meck.new(A)\nend\n", ":meck.new/1"}
+    ]
+
+    for {src, call} <- banned do
+      assert {:ok, [%{call: ^call}]} = MockScan.scan_source(src, "tmp.exs")
+    end
+
+    assert {:error, %{file: "bad.exs", line: line}} =
+             MockScan.scan_source("defmodule T do\n  def a(\n", "bad.exs")
+
+    assert is_integer(line)
+
+    # Sigils/heredocs with banned-looking text are string content, not code.
+    ok = "defmodule T do\n  @x ~S[use " <> "Mox]\n  @y \"\"\"\n  Mimic.stub\n  \"\"\"\nend\n"
+    assert {:ok, []} = MockScan.scan_source(ok, "ok.exs")
   end
 end

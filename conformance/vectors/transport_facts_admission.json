@@ -1,4 +1,4 @@
-{"corpusVersion":"1.0.0","kind":"transport_facts_admission","vectors":[
+{"corpusVersion":"2.0.0","kind":"transport_facts_admission","vectors":[
   {"description":"absent transportFacts is not delegated (empty), never defaulted","expected":{"facts":{}},"id":"tf/absent","input":{"profile":{}},"level":"MUST","notes":""},
   {"description":"null transportFacts is not delegated","expected":{"facts":{}},"id":"tf/null","input":{"profile":{"transportFacts":null}},"level":"MUST","notes":""},
   {"description":"binary-key facts normalize","expected":{"facts":{"http":{"cost":"low","privacy":"high"}}},"id":"tf/http-cost-privacy","input":{"profile":{"transportFacts":{"http":{"cost":"low","privacy":"high"}}}},"level":"MUST","notes":""},

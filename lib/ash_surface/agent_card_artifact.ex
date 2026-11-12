@@ -52,8 +52,7 @@ defmodule AshSurface.AgentCardArtifact do
             "protocolVersion" => iface.protocol_version
           }
         end),
-      "securitySchemes" =>
-        Map.new(card.security_schemes, fn {k, v} -> {k, atom_key_map(v)} end)
+      "securitySchemes" => Map.new(card.security_schemes, fn {k, v} -> {k, atom_key_map(v)} end)
     }
 
     base

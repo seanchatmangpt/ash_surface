@@ -33,7 +33,7 @@ defmodule AshSurface.EventReplayStateTest do
   alias AshSurface.Fixtures.{Server, VolunteerMilestone}
 
   @repo_root Path.expand("../..", __DIR__)
-  @tmp_dir Path.join(@repo_root, "_build/test/event_replay_state")
+  @tmp_dir AshSurface.TestTmp.scoped(Path.join(@repo_root, "_build/test/event_replay_state"))
   @runtime_url "file://" <> Path.expand("../../priv/static/ash_surface_runtime.mjs", __DIR__)
   @action_id "AshSurface.Fixtures.VolunteerMilestone#record"
 

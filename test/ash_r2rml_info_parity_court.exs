@@ -1,4 +1,3 @@
-
 defmodule AshR2RML.ResourceInfoParityCourt do
   use ExUnit.Case, async: false
 
@@ -134,7 +133,9 @@ defmodule AshR2RML.ResourceInfoParityCourt do
     assert AshR2RML.Resource.InfoParity.Info.mode(resource) == :sync
 
     # Persisted-compiled-map getter parity (info.ex.tmpl compiled_result idiom).
-    assert {:ok, %{probe: [^entity]}} = AshR2RML.Resource.InfoParity.Info.compiled_result(resource)
+    assert {:ok, %{probe: [^entity]}} =
+             AshR2RML.Resource.InfoParity.Info.compiled_result(resource)
+
     assert AshR2RML.Resource.InfoParity.Info.declared_events(resource) == [:read, :update]
   end
 
@@ -173,6 +174,7 @@ defmodule AshR2RML.ResourceInfoParityCourt do
       end
 
     assert results != []
+
     assert Enum.all?(results, &match?({:failed, _}, &1)),
            "the constant Info mutant PASSED the mutation leg -- the court is vacuous: #{inspect(results)}"
   end

@@ -1,4 +1,3 @@
-
 defmodule AshR2RML.ResourceCompositionCourtTest do
   use ExUnit.Case, async: false
   # async: false is not a style choice: the Order ETS table is a VM-global REAL
@@ -51,7 +50,13 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
   test "compose-green: each extension's Info getters see ONLY its own facts (resource drafts)" do
     a_only = compile_resource("ResA", "CompositionSpecimens.Alpha", @alpha_dsl)
     b_only = compile_resource("ResB", "CompositionSpecimens.Beta", @beta_dsl)
-    a_and_b = compile_resource("ResAB", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+
+    a_and_b =
+      compile_resource(
+        "ResAB",
+        "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+        @alpha_dsl <> @beta_dsl
+      )
 
     # A's getters see only A's facts.
     assert [%{__struct__: Alpha.Entity, name: :thing_a, weight: 7}] = Alpha.Info.alpha(a_only)
@@ -71,21 +76,44 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
     # Strict no-cross-kind check without compile-time struct expansion (the court
     # module compiles before the specimens load; __struct__ is checked at runtime).
     assert Beta.Info.beta(a_and_b) |> Enum.all?(&match?(%{__struct__: Beta.Entity}, &1))
-    assert {:ok, %{alpha: [alpha_entity_ab], alpha_label: "label-a"}} = Alpha.Info.compiled(a_and_b)
+
+    assert {:ok, %{alpha: [alpha_entity_ab], alpha_label: "label-a"}} =
+             Alpha.Info.compiled(a_and_b)
+
     assert alpha_entity_ab.name == :thing_a
     assert {:ok, %{beta: [beta_entity_ab], beta_label: "label-b"}} = Beta.Info.compiled(a_and_b)
     assert beta_entity_ab.name == :thing_b
 
     # No leakage of persisted state either: A-only carries NO beta compiled state.
-    assert Spark.Dsl.Extension.get_persisted(a_only, :composition_specimens_beta_compiled, :ABSENT) == :ABSENT
-    assert Spark.Dsl.Extension.get_persisted(a_and_b, :composition_specimens_beta_compiled, :ABSENT) != :ABSENT
-    assert Spark.Dsl.Extension.get_persisted(a_and_b, :composition_specimens_alpha_compiled, :ABSENT) != :ABSENT
+    assert Spark.Dsl.Extension.get_persisted(
+             a_only,
+             :composition_specimens_beta_compiled,
+             :ABSENT
+           ) == :ABSENT
+
+    assert Spark.Dsl.Extension.get_persisted(
+             a_and_b,
+             :composition_specimens_beta_compiled,
+             :ABSENT
+           ) != :ABSENT
+
+    assert Spark.Dsl.Extension.get_persisted(
+             a_and_b,
+             :composition_specimens_alpha_compiled,
+             :ABSENT
+           ) != :ABSENT
   end
 
   test "compose-green: each extension's Info getters see ONLY its own facts (domain drafts)" do
     a_only = compile_domain("DomA", "CompositionSpecimens.Alpha", @alpha_dsl)
     b_only = compile_domain("DomB", "CompositionSpecimens.Beta", @beta_dsl)
-    a_and_b = compile_domain("DomAB", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+
+    a_and_b =
+      compile_domain(
+        "DomAB",
+        "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+        @alpha_dsl <> @beta_dsl
+      )
 
     assert [%{__struct__: Alpha.Entity, name: :thing_a, weight: 7}] = Alpha.Info.alpha(a_only)
     assert [] = Beta.Info.beta(a_only)
@@ -102,12 +130,23 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
   test "transformer execution order is deterministic and matches each extension's declared position" do
     Order.reset()
 
-    compile_resource("OrdAB", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+    compile_resource(
+      "OrdAB",
+      "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+      @alpha_dsl <> @beta_dsl
+    )
+
     assert Order.recorded() == [:alpha_persist, :beta_persist]
 
     # Deterministic: a fresh A+B draft produces the identical order.
     Order.reset()
-    compile_resource("OrdABAgain", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+
+    compile_resource(
+      "OrdABAgain",
+      "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+      @alpha_dsl <> @beta_dsl
+    )
+
     assert Order.recorded() == [:alpha_persist, :beta_persist]
 
     # Position-faithful: an A-only draft records ONLY A's transformer.
@@ -127,7 +166,12 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
     baseline_digest = alpha_digest(baseline)
     baseline_full = full_digest(baseline)
 
-    stacked = compile_resource("StackAB", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+    stacked =
+      compile_resource(
+        "StackAB",
+        "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+        @alpha_dsl <> @beta_dsl
+      )
 
     # Stacking B on top leaves A's semantic slice byte-identical.
     assert alpha_digest(stacked) == baseline_digest
@@ -197,7 +241,13 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
 
     # The clash is the duplicate-singleton defect itself, not an unrelated crash:
     # the same pair composed through distinct sections (A+B) compiles GREEN.
-    clean = compile_resource("ClashClean", "CompositionSpecimens.Alpha, CompositionSpecimens.Beta", @alpha_dsl <> @beta_dsl)
+    clean =
+      compile_resource(
+        "ClashClean",
+        "CompositionSpecimens.Alpha, CompositionSpecimens.Beta",
+        @alpha_dsl <> @beta_dsl
+      )
+
     assert Alpha.Info.compiled?(clean) and Beta.Info.compiled?(clean)
   end
 
@@ -305,6 +355,7 @@ defmodule AshR2RML.ResourceCompositionCourtTest do
   end
 
   defp bases_up(_base, 0), do: []
+
   defp bases_up(base, n) when n > 0 do
     parent = Path.dirname(base)
 

@@ -39,21 +39,7 @@ defmodule AshSurface.Compiler.Schema do
   section counts.
   """
 
-  # The established zod mapping table. This mirrors
-  # AshSurface.Projector.Expo.map_zod_type/1 exactly; drift between the two
-  # is a contract break, not a local choice.
-  @zod_kinds %{
-    "string" => "z.string()",
-    "integer" => "z.number().int()",
-    "boolean" => "z.boolean()",
-    "uuid" => "z.string().uuid()",
-    "float" => "z.number()",
-    "decimal" => "z.number()",
-    "utc_datetime" => "z.string()",
-    "datetime" => "z.string()",
-    "map" => "z.record(z.string(), z.unknown())",
-    "array" => "z.array(z.unknown())"
-  }
+  alias AshSurface.Compiler.{EmbeddedSchema, ZodType}
 
   @spec build(term(), term()) ::
           {:ok, %{optional(String.t()) => AshSurface.Compiler.IR.Boundary.t()},
@@ -116,9 +102,11 @@ defmodule AshSurface.Compiler.Schema do
     id = action["id"]
     args = Map.get(action, "arguments", [])
     returns = Map.get(action, "returns")
+    resources = Map.get(action, "embedded_resources") || %{}
 
     with :ok <- validate_arguments(id, args),
-         :ok <- validate_returns(id, returns) do
+         :ok <- validate_returns(id, returns),
+         {:ok, zod} <- render_zod(id, args, returns, resources) do
       input = Map.new(args, fn arg -> {arg["name"], Map.delete(arg, "name")} end)
 
       # Reader-pinned (retired dead-code ledger, gapfix-test-surface-015):
@@ -134,7 +122,7 @@ defmodule AshSurface.Compiler.Schema do
       slice = %AshSurface.Compiler.IR.Boundary{
         input: input,
         output: returns,
-        zod: render_zod(id, args, returns),
+        zod: zod,
         aria: render_aria(id, args)
       }
 
@@ -162,39 +150,76 @@ defmodule AshSurface.Compiler.Schema do
   # Mirrors AshSurface.Projector.Expo's emission: sanitized identifiers,
   # z.object({ ... }).passthrough() input blocks with two-space-indented
   # `name: fragment` lines, paired with an output schema binding.
-  defp render_zod(id, args, returns) do
+  defp render_zod(id, args, returns, resources) do
     safe_name = sanitize_identifier(id)
 
-    input_fields =
-      Enum.map_join(args, ",\n", fn arg ->
-        "  #{zod_key(arg["name"])}: #{zod_fragment(arg)}"
-      end)
+    with {:ok, lines, in_decls} <- input_lines(args, resources),
+         {:ok, output, out_decls} <- output_fragment(returns, resources),
+         {:ok, decls} <- merge_declarations(in_decls ++ out_decls) do
+      {:ok,
+       Enum.map_join(decls, "", fn {name, expr} -> "const #{name} = #{expr};\n" end) <>
+         """
+         export const #{safe_name}_inputSchema = z.object({
+         #{Enum.join(lines, ",\n")}
+         }).passthrough();
 
-    """
-    export const #{safe_name}_inputSchema = z.object({
-    #{input_fields}
-    }).passthrough();
-
-    export const #{safe_name}_outputSchema = #{output_fragment(returns)};
-    """
-  end
-
-  defp output_fragment(nil), do: "z.undefined()"
-
-  defp output_fragment(returns), do: zod_fragment(returns)
-
-  # Byte-mirror of AshSurface.Projector.Expo.map_zod_type/1.
-  defp zod_fragment(%{"type" => %{"kind" => kind}} = definition) do
-    base = Map.get(@zod_kinds, kind, "z.unknown()")
-
-    if definition["allow_nil?"] == true do
-      "#{base}.optional().nullable()"
-    else
-      base
+         export const #{safe_name}_outputSchema = #{output};
+         """}
     end
   end
 
-  defp zod_fragment(_), do: "z.unknown().optional()"
+  # One named declaration per identifier. The same identifier with a different body (a
+  # resource named in one argument's plan but shaped differently in another) is refused
+  # typed, never silently shadowed.
+  defp merge_declarations(decls) do
+    decls
+    |> Enum.reduce_while({:ok, %{}}, fn {name, expr}, {:ok, acc} ->
+      case Map.fetch(acc, name) do
+        {:ok, ^expr} -> {:cont, {:ok, acc}}
+        {:ok, _other} -> {:halt, {:error, {:declaration_conflict, name}}}
+        :error -> {:cont, {:ok, Map.put(acc, name, expr)}}
+      end
+    end)
+    |> case do
+      {:ok, map} -> {:ok, Enum.sort(map)}
+      error -> error
+    end
+  end
+
+  defp input_lines(args, resources) do
+    args
+    |> Enum.reduce_while({:ok, [], []}, fn arg, {:ok, acc, decls} ->
+      case zod_fragment(arg, resources) do
+        {:ok, fragment, d} ->
+          {:cont, {:ok, ["  #{zod_key(arg["name"])}: #{fragment}" | acc], decls ++ d}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:schema_build_failed, arg["name"], reason}}}
+      end
+    end)
+    |> case do
+      {:ok, lines, decls} -> {:ok, Enum.reverse(lines), decls}
+      error -> error
+    end
+  end
+
+  defp output_fragment(nil, _resources), do: {:ok, "z.undefined()", []}
+  defp output_fragment(returns, resources), do: zod_fragment(returns, resources)
+
+  # Structured containers (embedded resources, typed structs/maps, unions,
+  # arrays of containers) route to EmbeddedSchema.render_program (exact named
+  # recursion, F1-refs/KD-02); scalars use the shared ZodType table. A renderer
+  # refusal (cyclic_schema, union depth, invalid member) is returned typed -
+  # never a silent z.unknown.
+  defp zod_fragment(definition, resources) do
+    if EmbeddedSchema.container?(definition) do
+      with {:ok, %{declarations: decls, expression: expr}} <-
+             EmbeddedSchema.render_program(definition, resources: resources),
+           do: {:ok, expr, decls}
+    else
+      {:ok, ZodType.fragment(definition), []}
+    end
+  end
 
   defp render_aria(id, args) do
     %{

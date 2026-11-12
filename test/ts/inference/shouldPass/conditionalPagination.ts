@@ -1,0 +1,11 @@
+import type { InferResult, UnifiedFieldSelection, SortString, ConditionalPaginatedResult, ConditionalPaginatedResultMixed } from "../schemas";
+import type { TodoSchema, UserSchema, CommentSchema, TagSchema, AddressSchema, NoFieldsSchema } from "../schemas";
+type Eq<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+export const assertType = <_T extends true>() => {};
+type Rec = { id: string };
+type Off = { type: "offset" };
+type Key = { type: "keyset" };
+assertType<Eq<ConditionalPaginatedResult<undefined, Rec, Off>, Rec>>();
+assertType<Eq<ConditionalPaginatedResult<{ limit: 5 }, Rec, Off>, Off>>();
+assertType<Eq<ConditionalPaginatedResultMixed<{ limit: 5; offset: 0 }, Rec, Off, Key>, Off>>();
+assertType<Eq<ConditionalPaginatedResultMixed<{ limit: 5; after: "c" }, Rec, Off, Key>, Key>>();

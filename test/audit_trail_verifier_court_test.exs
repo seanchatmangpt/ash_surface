@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 defmodule AuditTrail.Resource.Court.Sections do
   @moduledoc false
 
@@ -25,14 +14,22 @@ defmodule AuditTrail.Resource.Court.Sections do
           target: AuditTrail.Dsl.Event,
           schema: [
             name: [type: :atom, required: true, doc: "The audited event's slug."],
-            description: [type: :string, required: false, doc: "Human-readable description of what triggers this event."],
+            description: [
+              type: :string,
+              required: false,
+              doc: "Human-readable description of what triggers this event."
+            ]
           ]
         },
         %Spark.Dsl.Entity{
           name: :projection,
           target: AuditTrail.Dsl.Projection,
           schema: [
-            attribute: [type: :atom, required: true, doc: "Resource attribute this projection reads."],
+            attribute: [
+              type: :atom,
+              required: true,
+              doc: "Resource attribute this projection reads."
+            ]
           ]
         }
       ]
@@ -121,14 +118,23 @@ defmodule AuditTrail.ResourceVerifierCourtTest do
   """
 
   test "court is non-vacuous: specimens exist and cover declared verifiers" do
-    refute @specimens == [], "no malformed specimens found in #{@specimen_dir} -- an empty court proves nothing"
-    refute @verifiers == [], "spec declares no aex:Verifier rows -- nothing for the court to close"
+    refute @specimens == [],
+           "no malformed specimens found in #{@specimen_dir} -- an empty court proves nothing"
+
+    refute @verifiers == [],
+           "spec declares no aex:Verifier rows -- nothing for the court to close"
 
     witnessed = Enum.map(@specimens, & &1.verifier)
 
     missing =
       Enum.reject(witnessed, fn v ->
-        v in @verifiers or v in ["persist_before_verify", "verify_section_singleton_entities", "section_surface", "entity_surface"]
+        v in @verifiers or
+          v in [
+            "persist_before_verify",
+            "verify_section_singleton_entities",
+            "section_surface",
+            "entity_surface"
+          ]
       end)
 
     assert missing == [],
@@ -168,64 +174,69 @@ defmodule AuditTrail.ResourceVerifierCourtTest do
              "no malformed specimen witnesses any declared verifier #{inspect(@verifiers)} -- refusal leg unproven"
 
       Enum.each(applicable, fn specimen ->
-      source =
-        specimen.source
-        |> String.split("\n")
-        |> Enum.reject(&String.starts_with?(&1, "#"))
-        |> Enum.join("\n")
-        |> String.replace("Court.ScratchDsl", "AuditTrail.Resource.Court.ScratchDsl")
-        |> String.replace("Court.Dsl", "AuditTrail.Resource.Court.Dsl")
+        source =
+          specimen.source
+          |> String.split("\n")
+          |> Enum.reject(&String.starts_with?(&1, "#"))
+          |> Enum.join("\n")
+          |> String.replace("Court.ScratchDsl", "AuditTrail.Resource.Court.ScratchDsl")
+          |> String.replace("Court.Dsl", "AuditTrail.Resource.Court.Dsl")
 
-      # Elixir 1.19+ hazards: a Spark verifier raising inside the parallel checker
-      # can surface as a swallowed warning with a SUCCESSFUL compile. The court
-      # therefore treats a refusal as: a real raise OR a captured compiler
-      # diagnostic carrying the specimen's EXPECT-MESSAGE substring. A clean
-      # compile with no matching diagnostic = vacuous verifier.
-      {outcome, diagnostics} =
-        Code.with_diagnostics(fn ->
-          try do
-            Code.compile_string(source)
-            :compiled_clean
-          rescue
-            e -> {:raised, e.__struct__ |> Module.split() |> Enum.join("."), Exception.message(e)}
-          end
-        end)
+        # Elixir 1.19+ hazards: a Spark verifier raising inside the parallel checker
+        # can surface as a swallowed warning with a SUCCESSFUL compile. The court
+        # therefore treats a refusal as: a real raise OR a captured compiler
+        # diagnostic carrying the specimen's EXPECT-MESSAGE substring. A clean
+        # compile with no matching diagnostic = vacuous verifier.
+        {outcome, diagnostics} =
+          Code.with_diagnostics(fn ->
+            try do
+              Code.compile_string(source)
+              :compiled_clean
+            rescue
+              e ->
+                {:raised, e.__struct__ |> Module.split() |> Enum.join("."), Exception.message(e)}
+            end
+          end)
 
-      case outcome do
-        {:raised, kind, message} ->
-          matched? =
-            String.contains?(message, specimen.expect_message) or
-              Enum.any?(diagnostics, fn d ->
-                d.severity in [:error, :warning] and String.contains?(d.message, specimen.expect_message)
+        case outcome do
+          {:raised, kind, message} ->
+            matched? =
+              String.contains?(message, specimen.expect_message) or
+                Enum.any?(diagnostics, fn d ->
+                  d.severity in [:error, :warning] and
+                    String.contains?(d.message, specimen.expect_message)
+                end)
+
+            assert kind == specimen.expect_raise and matched?,
+                   "specimen #{specimen.name}: expected #{specimen.expect_raise} matching \"#{specimen.expect_message}\", " <>
+                     "got #{kind}: #{message}" <>
+                     if(diagnostics == [],
+                       do: "",
+                       else:
+                         "\n  captured diagnostics: " <>
+                           inspect(Enum.map(diagnostics, &{&1.severity, &1.message}),
+                             limit: :infinity
+                           )
+                     )
+
+          :compiled_clean ->
+            diagnostic =
+              Enum.find(diagnostics, fn d ->
+                d.severity in [:error, :warning] and
+                  String.contains?(d.message, specimen.expect_message)
               end)
 
-          assert kind == specimen.expect_raise and matched?,
-                 "specimen #{specimen.name}: expected #{specimen.expect_raise} matching \"#{specimen.expect_message}\", " <>
-                   "got #{kind}: #{message}" <>
-                   if(diagnostics == [],
-                     do: "",
-                     else:
-                       "\n  captured diagnostics: " <>
-                         inspect(Enum.map(diagnostics, &{&1.severity, &1.message}), limit: :infinity)
-                   )
-
-        :compiled_clean ->
-          diagnostic =
-            Enum.find(diagnostics, fn d ->
-              d.severity in [:error, :warning] and String.contains?(d.message, specimen.expect_message)
-            end)
-
-          unless diagnostic do
-            flunk(
-              "VACUOUS VERIFIER #{specimen.verifier || "?"}: specimen #{specimen.name} " <>
-                "(#{specimen.path}) compiled CLEANLY with no matching refusal diagnostic -- " <>
-                "refusal condition never fires, so the verifier carries no bits. " <>
-                "Expected raise #{specimen.expect_raise} matching \"#{specimen.expect_message}\". " <>
-                "Captured diagnostics: #{inspect(Enum.map(diagnostics, &{&1.severity, String.slice(&1.message, 0, 120)}))}"
-            )
-          end
-      end
-    end)
+            unless diagnostic do
+              flunk(
+                "VACUOUS VERIFIER #{specimen.verifier || "?"}: specimen #{specimen.name} " <>
+                  "(#{specimen.path}) compiled CLEANLY with no matching refusal diagnostic -- " <>
+                  "refusal condition never fires, so the verifier carries no bits. " <>
+                  "Expected raise #{specimen.expect_raise} matching \"#{specimen.expect_message}\". " <>
+                  "Captured diagnostics: #{inspect(Enum.map(diagnostics, &{&1.severity, String.slice(&1.message, 0, 120)}))}"
+              )
+            end
+        end
+      end)
     end
   end
 end

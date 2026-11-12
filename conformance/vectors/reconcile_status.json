@@ -1,4 +1,4 @@
-{"corpusVersion":"1.0.0","kind":"reconcile_status","vectors":[
+{"corpusVersion":"2.0.0","kind":"reconcile_status","vectors":[
   {"description":"reconcile reply admission: completed","expected":{"admitted":true},"id":"rs/completed","input":{"verdict":{"status":"COMPLETED"}},"level":"MUST","notes":""},
   {"description":"reconcile reply admission: not-observed","expected":{"admitted":true},"id":"rs/not-observed","input":{"verdict":{"status":"NOT_OBSERVED"}},"level":"MUST","notes":""},
   {"description":"reconcile reply admission: still-unknown","expected":{"admitted":true},"id":"rs/still-unknown","input":{"verdict":{"status":"STILL_UNKNOWN"}},"level":"MUST","notes":""},

@@ -1,6 +1,3 @@
-
-
-
 defmodule AshR2RML.ResourceTransformerClosureCourt do
   @moduledoc """
   Transformer closure court for `AshR2RML.Resource.Persist` (pack `ash_r2rml`).
@@ -39,9 +36,23 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
   @permitted_application_reads []
 
   # Module attributes that never carry semantics (registry bookkeeping only).
-  @benign_attributes [:moduledoc, :doc, :impl, :behaviour, :derive, :type, :typep,
-                      :spec, :compile, :external_resource, :before_compile,
-                      :after_compile, :after_verify, :on_definition, :enforce_keys]
+  @benign_attributes [
+    :moduledoc,
+    :doc,
+    :impl,
+    :behaviour,
+    :derive,
+    :type,
+    :typep,
+    :spec,
+    :compile,
+    :external_resource,
+    :before_compile,
+    :after_compile,
+    :after_verify,
+    :on_definition,
+    :enforce_keys
+  ]
 
   # The specimen section: the spec's own first DSL section (ordered), so the
   # specimen declares entities under a section the generated Persist reads.
@@ -121,7 +132,10 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
 
     specimen_src =
       specimen_source(@transformer)
-      |> String.replace("AshR2RML.Resource.Court.Specimen", "AshR2RML.Resource.Court.Specimen#{tag}")
+      |> String.replace(
+        "AshR2RML.Resource.Court.Specimen",
+        "AshR2RML.Resource.Court.Specimen#{tag}"
+      )
       |> String.replace("AshR2RML.Resource.Court.Step", "AshR2RML.Resource.Court.Step#{tag}")
 
     specimen = Module.concat(["AshR2RML.Resource.Court.Specimen#{tag}"])
@@ -269,8 +283,7 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
             end
 
           # :persistent_term via alias form (PersistentTerm.get)
-{{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node,
-          {defined, violations}
+          {{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node, {defined, violations}
           when mod in [:persistent_term, :PersistentTerm] ->
             {node,
              {defined,
@@ -280,7 +293,7 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # :persistent_term via erlang atom form (:persistent_term.get)
-{{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
+          {{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
             {node,
              {defined,
               [
@@ -289,7 +302,7 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Process dictionary
-{{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:put, :get, :delete, :get_and_update] ->
             {node,
@@ -300,7 +313,7 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Application env outside the contract-permitted list
-{{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:get_env, :fetch_env, :fetch_env!, :get_all_env] ->
             {node,
@@ -313,8 +326,8 @@ defmodule AshR2RML.ResourceTransformerClosureCourt do
 
           node, acc ->
             {node, acc}
-      end
-    )
+        end
+      )
 
     Enum.reverse(violations)
   end

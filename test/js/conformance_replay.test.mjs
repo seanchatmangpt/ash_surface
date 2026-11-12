@@ -166,3 +166,57 @@ function mutateAt(root, leafPath) {
   parent[key] =
     typeof value === "boolean" ? !value : typeof value === "number" ? value + 1 : value === null ? "mutated" : `${value}-mutated`;
 }
+
+// ---- lane w3-04: schema-renderer kinds + transport wire law ----------------------------
+
+const W3_KINDS = [
+  "filter_operators", "query_envelope", "selection_admission", "relationship_loads",
+  "calculation_envelope", "identity_get", "error_envelope", "union_schema", "transport_wire",
+];
+
+test("w3-04 kinds are all present in the corpus and none FAILs", () => {
+  for (const kind of W3_KINDS) {
+    const rows = results.filter((r) => r.kind === kind);
+    assert.ok(rows.length > 0, `${kind}: no vectors`);
+    assert.deepEqual(rows.filter((r) => r.status === "FAIL"), [], kind);
+    assert.ok(rows.some((r) => r.status === "PASS"), `${kind}: nothing PASSes`);
+  }
+});
+
+test("w3-04 typed renderer refusals are NOT_APPLICABLE with a reason, never a silent pass", () => {
+  const refusals = files
+    .filter((f) => W3_KINDS.includes(f.kind) && f.kind !== "transport_wire")
+    .flatMap((f) => f.vectors.filter((v) => v.expected.error).map((v) => v.id));
+  assert.ok(refusals.length > 0);
+  for (const id of refusals) {
+    const row = results.find((r) => r.id === id);
+    assert.equal(row.status, "NOT_APPLICABLE", id);
+    assert.match(row.reason, /renderer/);
+  }
+});
+
+test("w3-04 transport wire vectors: every fault drives a real transport and PASSes (fallback closed, CSRF header)", () => {
+  const rows = results.filter((r) => r.kind === "transport_wire");
+  assert.equal(rows.length, 8);
+  for (const row of rows) assert.equal(row.status, "PASS", row.id);
+  const csrf = files.find((f) => f.kind === "transport_wire").vectors.find((v) => v.input.fault === "csrf_header");
+  assert.deepEqual(csrf.expected, { acceptedHeaders: ["x-csrf-token"], missingRejected: true });
+});
+
+test("w3-04 error vocabulary: all 20 types PASS and the JS twin equals the Elixir-minted list", () => {
+  const variants = results.filter((r) => r.id.startsWith("ee/variant/"));
+  assert.equal(variants.length, 20);
+  for (const row of variants) assert.equal(row.status, "PASS", row.id);
+  const types = files.find((f) => f.kind === "error_envelope").vectors.find((v) => v.id === "ee/types-closed-enum");
+  assert.equal(types.expected.ok.types.length, 20);
+});
+
+test("w3-04 replay is non-vacuous: a flipped probe verdict and a flipped fallback fact both FAIL", async () => {
+  const sort = files.find((f) => f.kind === "query_envelope").vectors.find((v) => v.id === "qe/sort-plus-minus");
+  const flipped = structuredClone(sort);
+  flipped.expected.ok.verdicts[0] = !flipped.expected.ok.verdicts[0];
+  assert.equal((await replayVector("query_envelope", flipped)).status, "FAIL");
+  const wire = structuredClone(files.find((f) => f.kind === "transport_wire").vectors[0]);
+  wire.expected.fallbackAllowed = !wire.expected.fallbackAllowed;
+  assert.equal((await replayVector("transport_wire", wire)).status, "FAIL");
+});

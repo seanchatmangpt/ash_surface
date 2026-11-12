@@ -23,7 +23,7 @@ defmodule AshSurface.CapacityGateTest do
   end
 
   defp temp_log(rows) do
-    dir = Path.join(System.tmp_dir!(), "capacity-gate-test-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "capacity-gate-test-#{AshSurface.TestTmp.suffix()}")
     File.mkdir_p!(dir)
     path = Path.join(dir, "log.ndjson")
 
@@ -58,7 +58,7 @@ defmodule AshSurface.CapacityGateTest do
     missing =
       Path.join(
         System.tmp_dir!(),
-        "capacity-gate-no-such-log-#{System.unique_integer([:positive])}"
+        "capacity-gate-no-such-log-#{AshSurface.TestTmp.suffix()}"
       )
 
     {output, status} = run_gate(missing)
@@ -120,7 +120,7 @@ defmodule AshSurface.CapacityGateTest do
   end
 
   defp malformed_log do
-    dir = Path.join(System.tmp_dir!(), "capacity-gate-test-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "capacity-gate-test-#{AshSurface.TestTmp.suffix()}")
     File.mkdir_p!(dir)
     path = Path.join(dir, "log.ndjson")
     File.write!(path, "{\"target_n\": 9, \"rider\": false\nnot json at all\n")

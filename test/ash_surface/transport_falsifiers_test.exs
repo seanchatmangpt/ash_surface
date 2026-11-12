@@ -361,10 +361,12 @@ defmodule AshSurface.TransportFalsifiersTest do
   test "the module exposes selection and marker functions only" do
     exports = Transport.__info__(:functions) |> Enum.sort()
 
+    # classify_failure/2 (pure phase classifier, takes no Decision) is admitted too.
     # finish-select-025 admits facts_from_profile/1: a pure delegated-fact
     # reader (profile map -> normalized facts for select/3's :facts opt).
     # It takes no Decision and dispatches nothing — the law above holds.
     assert exports == [
+             classify_failure: 2,
              facts_from_profile: 1,
              fallback_allowed?: 1,
              mark_dispatched: 1,

@@ -218,7 +218,7 @@ mix compile --warnings-as-errors
 mix test
 ```
 
-The JavaScript projection requires Zod at runtime and does not require TypeScript.
+The JavaScript projection requires Zod 4 (`zod@^4`) at runtime and does not require TypeScript.
 
 
 ## DfCM live command center projection

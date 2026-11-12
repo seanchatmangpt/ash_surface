@@ -106,8 +106,24 @@ defmodule AshSurface.Compiler.AshSectionTest do
     update: [],
     create: [],
     read: [],
-    by_title: [%IR.Input{name: :title, type: "string", required: true, default: nil}],
-    publish: [%IR.Input{name: :note, type: "string", required: false, default: nil}],
+    by_title: [
+      %IR.Input{
+        name: :title,
+        type: "string",
+        required: true,
+        default: nil,
+        constraints: %{allow_empty?: false}
+      }
+    ],
+    publish: [
+      %IR.Input{
+        name: :note,
+        type: "string",
+        required: false,
+        default: nil,
+        constraints: %{allow_empty?: false}
+      }
+    ],
     archive_summary: [%IR.Input{name: :since, type: "integer", required: true, default: nil}]
   }
 

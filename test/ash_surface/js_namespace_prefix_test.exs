@@ -138,7 +138,7 @@ defmodule AshSurface.JSNamespacePrefixTest do
   end
 
   defp write_artifact!(name, code) do
-    dir = Path.join(@scratch, "#{System.unique_integer([:positive])}")
+    dir = Path.join(@scratch, "#{AshSurface.TestTmp.suffix()}")
     File.mkdir_p!(dir)
     path = Path.join(dir, name)
     File.write!(path, code)

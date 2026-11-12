@@ -44,7 +44,22 @@ defmodule AshSurface.Projector.IREntry do
     :capability_iri,
     :label,
     :zod,
-    :full_resource
+    :full_resource,
+    :filter_zod,
+    :sort_zod,
+    :page_zod,
+    :response_zod,
+    :capability_flags,
+    :error,
+    :get,
+    :tenant,
+    :load_zod,
+    :selection_zod,
+    :calculations,
+    :aggregates,
+    :validation_error_zod,
+    :facts,
+    :nil_reasons
   ]
 
   @type t :: %__MODULE__{
@@ -56,7 +71,22 @@ defmodule AshSurface.Projector.IREntry do
           receipt_required: boolean(),
           capability_iri: String.t() | nil,
           label: String.t() | nil,
-          zod: String.t() | nil
+          zod: String.t() | nil,
+          filter_zod: String.t() | nil,
+          sort_zod: String.t() | nil,
+          page_zod: String.t() | nil,
+          response_zod: String.t() | nil,
+          capability_flags: map() | nil,
+          error: map() | nil,
+          get: map() | nil,
+          tenant: String.t() | nil,
+          load_zod: String.t() | nil,
+          selection_zod: String.t() | nil,
+          calculations: map() | nil,
+          aggregates: map() | nil,
+          validation_error_zod: String.t() | nil,
+          facts: map() | nil,
+          nil_reasons: map() | nil
         }
 
   @doc """
@@ -104,7 +134,22 @@ defmodule AshSurface.Projector.IREntry do
       receipt_required: capability.receipt_required == true,
       capability_iri: ir.semantic && ir.semantic.capability_iri,
       label: presentation.label,
-      zod: schema.zod
+      zod: schema.zod,
+      filter_zod: schema.filter,
+      sort_zod: schema.sort,
+      page_zod: schema.page,
+      response_zod: schema.response_zod,
+      capability_flags: schema.capability_flags,
+      error: schema.error,
+      get: schema.get,
+      tenant: schema.tenant,
+      load_zod: schema.load,
+      selection_zod: schema.selection,
+      calculations: schema.calculations,
+      aggregates: schema.aggregates,
+      validation_error_zod: schema.validation_error,
+      facts: schema.facts,
+      nil_reasons: schema.nil_reasons
     }
   end
 

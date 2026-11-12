@@ -34,6 +34,14 @@ defmodule AshSurface.Vocabulary do
   @base_standings [:ALIVE, :PARTIAL_ALIVE, :BLOCKED, :BUILD_BROKEN, :UNSUPPORTED]
   @reconcile_statuses ["COMPLETED", "NOT_OBSERVED", "STILL_UNKNOWN"]
   @known_transports [:http, :phoenix_channel]
+  @issue_shape_keys ["path", "message", "code"]
+  @issue_refusal_codes [
+    "INPUT_VALIDATION_FAILED",
+    "OUTPUT_VALIDATION_FAILED",
+    "INVALID_SURFACE_CONTRACT",
+    "INVALID_RECONCILE_RESULT",
+    "INVALID_IDEMPOTENCY_PROFILE"
+  ]
   @dimensions [:cost, :latency, :privacy]
   @dimension_classes [:low, :medium, :high]
   @dimension_priority [:cost, :latency, :privacy]
@@ -57,6 +65,14 @@ defmodule AshSurface.Vocabulary do
   @doc "Admitted transports, in canonical order."
   @spec known_transports() :: [atom(), ...]
   def known_transports, do: @known_transports
+
+  @doc "Keys of a normalized validation issue (path/message/code), in order."
+  @spec issue_shape_keys() :: [String.t(), ...]
+  def issue_shape_keys, do: @issue_shape_keys
+
+  @doc "Runtime error codes whose `issues` carry normalized validation issues."
+  @spec issue_refusal_codes() :: [String.t(), ...]
+  def issue_refusal_codes, do: @issue_refusal_codes
 
   @doc "Admitted transport dimensions."
   @spec dimensions() :: [atom(), ...]
@@ -174,7 +190,9 @@ defmodule AshSurface.Vocabulary do
       "digestHexLength" => @digest_hex_length,
       "dispatchStates" => @dispatch_states,
       "dispatchOutcomes" => @dispatch_outcomes,
-      "idempotencyProtocol" => @idempotency_protocol
+      "idempotencyProtocol" => @idempotency_protocol,
+      "issueShapeKeys" => @issue_shape_keys,
+      "issueRefusalCodes" => @issue_refusal_codes
     }
   end
 end

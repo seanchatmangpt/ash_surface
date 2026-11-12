@@ -1,0 +1,76 @@
+[
+ {
+  "label": "sort single",
+  "expect": true,
+  "payload": "a",
+  "target": "sort"
+ },
+ {
+  "label": "sort desc prefix",
+  "expect": true,
+  "payload": "-b",
+  "target": "sort"
+ },
+ {
+  "label": "sort multi",
+  "expect": true,
+  "payload": "a,++b",
+  "target": "sort"
+ },
+ {
+  "label": "sort unknown field",
+  "expect": false,
+  "payload": "zzz",
+  "target": "sort"
+ },
+ {
+  "label": "sort bad prefix",
+  "expect": false,
+  "payload": "*a",
+  "target": "sort"
+ },
+ {
+  "label": "page offset",
+  "expect": true,
+  "payload": {
+   "limit": 10,
+   "offset": 5,
+   "count": true
+  },
+  "target": "page"
+ },
+ {
+  "label": "page keyset",
+  "expect": true,
+  "payload": {
+   "limit": 10,
+   "after": "c"
+  },
+  "target": "page"
+ },
+ {
+  "label": "page limit too big",
+  "expect": false,
+  "payload": {
+   "limit": 501
+  },
+  "target": "page"
+ },
+ {
+  "label": "page offset+after mixed",
+  "expect": false,
+  "payload": {
+   "offset": 1,
+   "after": "x"
+  },
+  "target": "page"
+ },
+ {
+  "label": "page negative offset",
+  "expect": false,
+  "payload": {
+   "offset": -1
+  },
+  "target": "page"
+ }
+]

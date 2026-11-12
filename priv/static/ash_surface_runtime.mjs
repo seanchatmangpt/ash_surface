@@ -34,6 +34,15 @@ const REFUSAL_CODE_PATTERN = new RegExp(`^${REFUSAL_PREFIX}[A-Za-z0-9_]+$`);
  * languages can pin drift tests against the runtime's own single definitions
  * (each field is built from the constant the runtime actually uses).
  */
+const ISSUE_SHAPE_KEYS = Object.freeze(["path", "message", "code"]);
+const ISSUE_REFUSAL_CODES = Object.freeze([
+  "INPUT_VALIDATION_FAILED",
+  "OUTPUT_VALIDATION_FAILED",
+  "INVALID_SURFACE_CONTRACT",
+  "INVALID_RECONCILE_RESULT",
+  "INVALID_IDEMPOTENCY_PROFILE",
+]);
+
 export const VOCABULARY = Object.freeze({
   refusalPrefix: REFUSAL_PREFIX,
   reconcileStatuses: RECONCILE_STATUSES,
@@ -44,6 +53,8 @@ export const VOCABULARY = Object.freeze({
   dispatchStates: DISPATCH_STATES,
   dispatchOutcomes: DISPATCH_OUTCOMES,
   idempotencyProtocol: IDEMPOTENCY_PROTOCOL,
+  issueShapeKeys: ISSUE_SHAPE_KEYS,
+  issueRefusalCodes: ISSUE_REFUSAL_CODES,
 });
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
@@ -251,9 +262,21 @@ export const reconcileResultSchema = z
   .passthrough();
 
 /**
+ * Normalized validation issue carried by every Zod-validation refusal
+ * (INPUT_VALIDATION_FAILED, OUTPUT_VALIDATION_FAILED, INVALID_SURFACE_CONTRACT,
+ * INVALID_RECONCILE_RESULT, INVALID_IDEMPOTENCY_PROFILE): SurfaceRuntimeError.issues
+ * is always an array of this shape, never raw Zod issues.
+ *
+ * @typedef {Object} ValidationIssue
+ * @property {string} path Dot-joined location of the offending value ("" at root).
+ * @property {string} message Human-readable Zod issue message.
+ * @property {string} code Zod issue code (e.g. "invalid_type", "invalid_literal").
+ */
+
+/**
  * @typedef {Object} ActionSchemas
- * @property {{parse(value: unknown): unknown}} [input] Zod-compatible input schema.
- * @property {{parse(value: unknown): unknown}} [output] Zod-compatible output schema.
+ * @property {{safeParse(value: unknown): {success: boolean, data?: unknown, error?: {issues: Array<{path: PropertyKey[], message: string, code: string}>}}}} [input] Zod-compatible input schema; admitted via safeParse.
+ * @property {{safeParse(value: unknown): {success: boolean, data?: unknown, error?: {issues: Array<{path: PropertyKey[], message: string, code: string}>}}}} [output] Zod-compatible output schema; admitted via safeParse.
  */
 
 /**
@@ -278,6 +301,18 @@ export const reconcileResultSchema = z
  * @property {"undelegated"|"declared"} dimensions Typed presence of delegated dimension facts.
  * @property {Array<"http"|"phoenix_channel">} frontier Non-dominated available transports, declared order.
  */
+
+// Normalized issue shape for every Zod-validation refusal (the L07 envelope
+// law): detail.issues = [{path (dot-joined string), message, code}]. Raw Zod
+// issues carry path as an array; consumers get the stable dot-joined string so
+// the JS runtime mirrors the Elixir twin's issue vocabulary exactly.
+function toValidationIssues(zodIssues) {
+  return zodIssues.map((issue) => ({
+    path: issue.path.map(String).join("."),
+    message: issue.message,
+    code: issue.code,
+  }));
+}
 
 export class SurfaceRuntimeError extends Error {
   constructor(code, message, options = {}) {
@@ -451,7 +486,7 @@ async function reconcileCommand(env, commandId, transportName) {
     throw new SurfaceRuntimeError(
       "INVALID_RECONCILE_RESULT",
       `${transportName} reconcile reply for ${commandId} failed Zod validation`,
-      { issues: parsed.error.issues },
+      { issues: toValidationIssues(parsed.error.issues) },
     );
   }
   emit("reconcile.result", { commandId, transport: transportName, status: parsed.data.status });
@@ -525,7 +560,7 @@ function parseContract(contract) {
 
   if (!parsed.success) {
     throw new SurfaceRuntimeError("INVALID_SURFACE_CONTRACT", "AshSurface contract failed Zod validation", {
-      issues: parsed.error.issues,
+      issues: toValidationIssues(parsed.error.issues),
     });
   }
 
@@ -569,15 +604,15 @@ function prepareDispatch(env, action, input, options, actionSchemas, retry) {
     let admittedInput = input;
 
     if (actionSchemas?.input) {
-      try {
-        admittedInput = actionSchemas.input.parse(input);
-      } catch (cause) {
+      const parsed = actionSchemas.input.safeParse(input);
+      if (!parsed.success) {
         throw new SurfaceRuntimeError(
           "INPUT_VALIDATION_FAILED",
           `input failed Zod validation for ${action.id}`,
-          { cause },
+          { cause: parsed.error, issues: toValidationIssues(parsed.error.issues) },
         );
       }
+      admittedInput = parsed.data;
     }
 
     const { contract, transports, prefer } = env;
@@ -688,9 +723,8 @@ async function executeDispatch(env, plan) {
 
     let admittedOutput = response;
     if (actionSchemas?.output) {
-      try {
-        admittedOutput = actionSchemas.output.parse(response);
-      } catch (cause) {
+      const parsed = actionSchemas.output.safeParse(response);
+      if (!parsed.success) {
         emit("dispatch.completed", {
           actionId: action.id,
           commandId,
@@ -702,11 +736,13 @@ async function executeDispatch(env, plan) {
           "OUTPUT_VALIDATION_FAILED",
           `output failed Zod validation for ${action.id}`,
           {
-            cause,
+            cause: parsed.error,
+            issues: toValidationIssues(parsed.error.issues),
             receipt: buildMXReceipt(decision, action, commandId, "completed", response, idempotency),
           },
         );
       }
+      admittedOutput = parsed.data;
     }
 
     const receipt = buildMXReceipt(decision, action, commandId, "completed", admittedOutput, idempotency);
@@ -721,6 +757,34 @@ async function executeDispatch(env, plan) {
   } catch (cause) {
     if (cause instanceof SurfaceRuntimeError && cause.code === "OUTPUT_VALIDATION_FAILED") {
       throw cause;
+    }
+
+    // Transport law: after dispatch ANY failure is UNKNOWN_AFTER_DISPATCH; only
+    // an adapter-proven pre-dispatch failure (error tagged phase "pre-dispatch",
+    // raised before bytes left) is a typed not-dispatched refusal. Untagged,
+    // post-dispatch, timeout and abort failures never qualify.
+    if (isAdapterPreDispatch(cause)) {
+      emit("dispatch.refused_pre_dispatch", { actionId: action.id, code: errorCode(cause) });
+      throw new SurfaceRuntimeError(
+        "TRANSPORT_REFUSED_PRE_DISPATCH",
+        `${decision.selected} transport refused before dispatch for ${action.id}; nothing was dispatched (dispatchState not_dispatched)`,
+        {
+          cause,
+          receipt: Object.freeze({
+            actionId: action.id,
+            commandId,
+            declared: [...decision.declared],
+            available: [...decision.available],
+            preferred: decision.preferred,
+            selected: decision.selected,
+            reason: decision.reason,
+            fallback: "pre_dispatch_only",
+            dispatchState: "not_dispatched",
+            dimensions: decision.dimensions,
+            frontier: [...(decision.frontier || [])],
+          }),
+        },
+      );
     }
 
     emit("dispatch.unknown_after_dispatch", {
@@ -746,6 +810,11 @@ async function executeDispatch(env, plan) {
 function errorCode(error) {
   if (error instanceof SurfaceRuntimeError) return error.code;
   return "ADAPTER_ERROR";
+}
+
+function isAdapterPreDispatch(error) {
+  if (error instanceof SurfaceRuntimeError) return false;
+  return error !== null && typeof error === "object" && error.phase === "pre-dispatch";
 }
 
 function monotonicNow() {
@@ -970,7 +1039,7 @@ function admitIdempotencyProfile(action) {
     throw new SurfaceRuntimeError(
       "INVALID_IDEMPOTENCY_PROFILE",
       `profile.idempotency for ${action.id} does not admit ${IDEMPOTENCY_PROTOCOL}`,
-      { issues: parsed.error.issues },
+      { issues: toValidationIssues(parsed.error.issues) },
     );
   }
   return parsed.data;

@@ -45,3 +45,4 @@ test/notification_extension_composition_test.exs
 target/
 _build-lane*/
 target-lane*/
+_build-*/

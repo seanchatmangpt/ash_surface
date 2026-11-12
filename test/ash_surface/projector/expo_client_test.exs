@@ -24,7 +24,10 @@ defmodule AshSurface.Projector.ExpoClientTest do
   @prefix "zoela_surface"
   @client_file "#{@prefix}.mjs"
   @tanstack_file "#{@prefix}.tanstack.mjs"
-  @tmp_dir Path.expand("../../../_build/test/projector_expo_client", __DIR__)
+  # Shipped runtime modules the emitted client imports by relative path; they
+  # live in priv/static and are copied beside the artifacts by the consumer.
+  @runtime_modules ~w(ash_surface_runtime.mjs ash_surface_http_transport.mjs ash_surface_channel_transport.mjs)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../../_build/test/projector_expo_client", __DIR__))
 
   setup do
     File.rm_rf!(@tmp_dir)
@@ -77,10 +80,20 @@ defmodule AshSurface.Projector.ExpoClientTest do
         assert relative_specs != [], "expected #{file} to reference at least one sibling artifact"
 
         for spec <- relative_specs do
-          assert Map.has_key?(artifacts, Path.basename(spec)),
-                 "#{file} imports #{spec} which was not manufactured in this projection"
+          base = Path.basename(spec)
+
+          assert Map.has_key?(artifacts, base) or
+                   (base in @runtime_modules and File.regular?(Path.expand("priv/static/#{base}"))),
+                 "#{file} imports #{spec} which is neither manufactured in this projection nor a shipped runtime module"
         end
       end
+    end
+
+    test "the client no longer imports the unresolvable bare \"ash_surface\" specifier", %{
+      artifacts: artifacts
+    } do
+      refute artifacts[@client_file] =~ ~s(from "ash_surface")
+      assert artifacts[@client_file] =~ ~s(from "./ash_surface_runtime.mjs")
     end
 
     test "both artifacts carry the shipped runtime's version in their generated headers", %{

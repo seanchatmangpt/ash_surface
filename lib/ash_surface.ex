@@ -180,10 +180,17 @@ defmodule AshSurface do
       end)
       |> Enum.sort_by(& &1["id"])
 
-    %{
+    envelope = %{
       "profile" => Map.delete(profile, "actions"),
       "actions" => actions
     }
+
+    # The JSON serializer does not emit Manifest.custom, so DSL declarations also travel in
+    # the envelope (and therefore the contract digest); absent when nothing is declared.
+    case AshSurface.Manifest.Dsl.serialize_all(manifest.entrypoints) do
+      dsl when map_size(dsl) == 0 -> envelope
+      dsl -> Map.put(envelope, "dsl", dsl)
+    end
   end
 
   defp decorate_manifest(%Manifest{} = manifest, profile) do
@@ -195,10 +202,11 @@ defmodule AshSurface do
         action_profile = Map.get(actions_profile, id, %{})
         action = entrypoint.action
 
-        surface_custom = %{
-          "id" => id,
-          "profile" => action_profile
-        }
+        surface_custom =
+          Map.merge(dsl_metadata_options(entrypoint), %{
+            "id" => id,
+            "profile" => action_profile
+          })
 
         # Ash.Info.Manifest.Action.custom is contractually map() (struct
         # default %{}); no nil fallback exists or is needed (dialyzer
@@ -209,14 +217,75 @@ defmodule AshSurface do
 
     # Manifest.custom is contractually map() (struct default %{}); same
     # no-nil-fallback reasoning as the action custom above.
-    root_custom =
-      Map.put(manifest.custom, :ash_surface, %{
-        "schemaVersion" => @surface_schema_version,
-        "profile" => Map.delete(profile, "actions")
-      })
+    root_surface = %{
+      "schemaVersion" => @surface_schema_version,
+      "profile" => Map.delete(profile, "actions")
+    }
+
+    root_surface =
+      case AshSurface.Manifest.Dsl.serialize_all(manifest.entrypoints) do
+        dsl when map_size(dsl) == 0 -> root_surface
+        dsl -> Map.put(root_surface, "dsl", dsl)
+      end
+
+    root_custom = Map.put(manifest.custom, :ash_surface, root_surface)
 
     %{manifest | entrypoints: entrypoints, custom: root_custom}
   end
+
+  # DSL projection metadata options (show_metadata / metadata_field_names) for the exact
+  # entrypoint, JSON-shaped; absent (unset) options are not written.
+  defp dsl_metadata_options(%{resource: resource, action: action}) do
+    if Spark.Dsl.is?(resource, Ash.Resource) and
+         AshSurface.Resource in Spark.extensions(resource) do
+      case AshSurface.Resource.Projections.for_action(resource, action.name) do
+        nil ->
+          %{}
+
+        projection ->
+          %{}
+          |> put_show_metadata(Map.get(projection, :show_metadata))
+          |> put_metadata_names(Map.get(projection, :metadata_field_names))
+          |> put_deprecated(Map.get(projection, :deprecated))
+      end
+    else
+      %{}
+    end
+  end
+
+  # `deprecated` (rpc_action option) rides the action custom entry as the raw value plus the
+  # JSDoc line a projector renders (`@deprecated [message]`); unset/false adds no keys.
+  defp put_deprecated(acc, true),
+    do: acc |> Map.put("deprecated", true) |> Map.put("jsdoc", "@deprecated")
+
+  defp put_deprecated(acc, msg) when is_binary(msg) and msg != "",
+    do:
+      acc
+      |> Map.put("deprecated", msg)
+      |> Map.put("jsdoc", "@deprecated " <> String.replace(msg, "*/", "* /"))
+
+  defp put_deprecated(acc, _), do: acc
+
+  defp put_show_metadata(acc, nil), do: acc
+  defp put_show_metadata(acc, false), do: Map.put(acc, "show_metadata", false)
+
+  defp put_show_metadata(acc, list) when is_list(list),
+    do: Map.put(acc, "show_metadata", Enum.map(list, &to_string/1))
+
+  defp put_show_metadata(acc, _), do: acc
+
+  defp put_metadata_names(acc, names) when is_list(names) or is_map(names) do
+    if Enum.empty?(names),
+      do: acc,
+      else:
+        Map.put(
+          acc,
+          "metadata_field_names",
+          Map.new(names, fn {k, v} -> {to_string(k), v} end)
+        )
+  end
+
+  defp put_metadata_names(acc, _), do: acc
 
   defp validate_profile(profile) when is_map(profile), do: validate_json_data(profile)
   defp validate_profile(_), do: {:error, :profile_must_be_a_map}
@@ -383,7 +452,16 @@ defmodule AshSurface do
       else: {:error, {:surface_digest_mismatch, claimed, actual}}
   end
 
-  defp digest(contract), do: AshSurface.Digest.content_digest(contract)
+  @doc """
+  Public content address of an IR/contract value: delegates to
+  `AshSurface.Digest.content_digest/1` (the frozen canon: string-keyed,
+  key-sorted map terms, SHA-256 of `term_to_binary`, lowercase hex), the same
+  function behind `Surface.digest`, `AshSurface.IR.Codec.digest/1` and the
+  conformance `surface_contract_digest` vectors. Closes upstream gap D-17(1).
+  """
+  @spec digest(term()) :: String.t()
+  def digest(value), do: AshSurface.Digest.content_digest(value)
+
   defp normalize_data(value)
        when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
        do: value

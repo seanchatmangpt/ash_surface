@@ -1,0 +1,85 @@
+[
+ {
+  "label": "true shorthand",
+  "expect": true,
+  "payload": {
+   "comments": true
+  },
+  "target": "default"
+ },
+ {
+  "label": "fields selection",
+  "expect": true,
+  "payload": {
+   "comments": {
+    "fields": [
+     "id",
+     "body"
+    ]
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "with page offset",
+  "expect": true,
+  "payload": {
+   "comments": {
+    "fields": [
+     "id"
+    ],
+    "page": {
+     "limit": 5,
+     "offset": 0
+    }
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "limit and page exclusive",
+  "expect": false,
+  "payload": {
+   "comments": {
+    "fields": [
+     "id"
+    ],
+    "limit": 5,
+    "page": {
+     "limit": 1
+    }
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "empty fields",
+  "expect": false,
+  "payload": {
+   "comments": {
+    "fields": []
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown field",
+  "expect": false,
+  "payload": {
+   "comments": {
+    "fields": [
+     "nope"
+    ]
+   }
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown relationship (strict)",
+  "expect": false,
+  "payload": {
+   "ghost": true
+  },
+  "target": "default"
+ }
+]

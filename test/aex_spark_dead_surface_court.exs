@@ -1,4 +1,3 @@
-
 defmodule SparkDeadSurfaceCourt do
   @moduledoc false
 
@@ -18,10 +17,12 @@ defmodule SparkDeadSurfaceCourt do
 
   defp find_root!(dir) do
     candidate = Path.join([dir, "packs", "ash-extension-pack", "ontology.ttl"])
+
     if File.exists?(candidate) do
       Path.join([dir, "packs", "ash-extension-pack"])
     else
       parent = Path.dirname(dir)
+
       if parent == dir do
         raise "no packs/ash-extension-pack/ontology.ttl found above #{File.cwd!()} (set AEX_PACK_ROOT)"
       end
@@ -89,7 +90,7 @@ defmodule SparkDeadSurfaceCourtTest do
            DEAD SPARK SURFACE (#{length(dead)} of #{length(declared)} declared properties \
            have zero template/gate consumers in #{pack_root}):
 
-           #{Enum.map_join(dead, "\n", &"  - aex:" <> &1)}
+           #{Enum.map_join(dead, "\n", &("  - aex:" <> &1))}
            """
   end
 end

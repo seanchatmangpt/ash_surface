@@ -200,16 +200,34 @@ defmodule AshSurface.IR do
     inverted; module name for types outside it). `required` is the mechanical
     negation of the argument's `allow_nil?`. `default` is the declared default,
     surfaced verbatim (`nil` when none was declared).
+
+    `constraints` is the argument's declared type constraint set (keyword or
+    map in the source; carried as a map, `%{}` when none was declared).
+    `subtype_of` is the declared subtype parent type name (`nil` when the
+    argument declares none) and `subtype_constraints` its constraint set
+    (`%{}` when none). All three are passed through verbatim from the
+    discovery entry — never re-derived.
     """
 
     @enforce_keys [:name, :type, :required, :default]
-    defstruct [:name, :type, :required, :default]
+    defstruct [
+      :name,
+      :type,
+      :required,
+      :default,
+      :subtype_of,
+      constraints: %{},
+      subtype_constraints: %{}
+    ]
 
     @type t :: %__MODULE__{
             name: atom(),
             type: String.t(),
             required: boolean(),
-            default: term()
+            default: term(),
+            constraints: map(),
+            subtype_of: String.t() | nil,
+            subtype_constraints: map()
           }
   end
 
@@ -273,13 +291,69 @@ defmodule AshSurface.IR do
     projection of the boundary, and aria semantics.
     """
 
-    defstruct [:input, :output, :zod, :aria]
+    # Per-action Zod fragments (nil when the action does not admit them):
+    # filter (typed filter union), sort (sort-string envelope), page
+    # (pagination envelope), capability_flags (string-keyed booleans: get,
+    # offset, keyset, required, countable), response_zod (nil until a record
+    # schema is carried) and error
+    # (reference to the closed `AshSurface.IR.ErrorShape` vocabulary; carries
+    # the per-action `carry` / `field_errors` expressions).
+    #
+    # Wave 3 carry-through (all nil when the action does not admit them):
+    # get (`%{"input" => get_by zod, "identities" => %{name => zod}}`),
+    # tenant (tenant parameter zod), load (relationship load envelope),
+    # selection (field-selection admission), calculations
+    # (`%{"load" => zod, "results" => %{name => zod}}`), aggregates
+    # (`%{name => result zod}`), validation_error (per-input validation-error
+    # shape), facts (the non-zod facts those were rendered from: pagination
+    # incl. default_limit/max_page_size, get_by, not_found_error?,
+    # identities, multitenancy, loads, sortable_fields, relationships,
+    # calculations, aggregates) and nil_reasons (typed reason for every
+    # honest-nil fragment: field name -> reason string or
+    # `%{"reason" => tag, "detail" => text}`).
+
+    defstruct [
+      :input,
+      :output,
+      :zod,
+      :aria,
+      :filter,
+      :sort,
+      :page,
+      :capability_flags,
+      :response_zod,
+      :error,
+      :get,
+      :tenant,
+      :load,
+      :selection,
+      :calculations,
+      :aggregates,
+      :validation_error,
+      :facts,
+      :nil_reasons
+    ]
 
     @type t :: %__MODULE__{
             input: map() | nil,
             output: map() | nil,
             zod: String.t() | nil,
-            aria: map() | nil
+            aria: map() | nil,
+            filter: String.t() | nil,
+            sort: String.t() | nil,
+            page: String.t() | nil,
+            capability_flags: %{optional(String.t()) => boolean()} | nil,
+            response_zod: String.t() | nil,
+            error: map() | nil,
+            get: map() | nil,
+            tenant: String.t() | nil,
+            load: String.t() | nil,
+            selection: String.t() | nil,
+            calculations: map() | nil,
+            aggregates: map() | nil,
+            validation_error: String.t() | nil,
+            facts: map() | nil,
+            nil_reasons: %{optional(String.t()) => String.t() | map()} | nil
           }
   end
 end

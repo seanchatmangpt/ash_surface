@@ -1,4 +1,4 @@
-{"corpusVersion":"1.0.0","kind":"refusal_vocabulary","vectors":[
+{"corpusVersion":"2.0.0","kind":"refusal_vocabulary","vectors":[
   {"description":"canonical named refusal","expected":{"refusalCode":true,"standingRefused":true,"standingValid":true},"id":"rv/named","input":{"value":"REFUSED_NO_AUTHORITY"},"level":"MUST","notes":""},
   {"description":"reason case is free","expected":{"refusalCode":true,"standingRefused":true,"standingValid":true},"id":"rv/named-lower-reason","input":{"value":"REFUSED_x"},"level":"MUST","notes":""},
   {"description":"non-ASCII reason","expected":{"refusalCode":false,"standingRefused":false,"standingValid":false},"id":"rv/named-unicode-reason","input":{"value":"REFUSED_ÉTAT"},"level":"MUST","notes":""},

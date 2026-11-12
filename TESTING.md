@@ -1,7 +1,7 @@
 # TESTING
 
 How this repository is tested, grounded in the suites that actually run:
-`mix test` (1264 tests, pinned floor 1257, 123 `test/**/*_test.exs` files) and
+`mix test` (no summary line obtainable at 2026-11-11: run exits 1 mid-stream with 45 failures printed and no `N tests, M failures` line; pinned floor stays 1424, last measured value unchanged and re-measure UNVERIFIED; 153 git-tracked `test/**/*_test.exs` files, of which 21 are `*_court_test.exs`) and
 `npm test` (371 tests, 26 `test/js/*.test.mjs` files), chained
 by `mix test.all` and proven zero-config by `mix test.zero`,
 `scripts/zero_config_check.sh`, and `scripts/zero_config_v2.sh`.
@@ -84,7 +84,7 @@ not a setup problem.
 
 The battery pins the full chicago suite set: `scripts/chicago_census.txt`
 is the golden census — one `# floor: <N>` line plus one suite path per
-line (149 suites at this SHA: 123 mix + 26 npm), regenerated with
+line (206 suites at this SHA: 180 mix + 26 npm), regenerated with
 `git ls-files 'test/*_test.exs' 'test/js/*.test.mjs' | LC_ALL=C sort` and
 the floor re-measured from `mix test` whenever suites change. Two
 fail-closed battery steps consume it:
@@ -94,7 +94,7 @@ fail-closed battery steps consume it:
   a missing census, a missing/duplicated/malformed floor line, an empty
   list, or a path escaping the clone.
 - **mix test count floor** (after `mix test`) — the clone's `mix test`
-  count must be >= the pinned floor (1257 at this SHA; re-pinned 2026-09-28
+  count must be >= the pinned floor (1424 at this SHA, measured 2026-11-11 after the Zod 4 port; was 1257, re-pinned 2026-09-28
   from 1029 when the Chicago coverage wave added the `*_coverage_test.exs`,
   boundary/projector/MX-verify hardening and JS runtime-hardening suites;
   earlier re-pinned 2026-09-23 from 842 when the census grew the command_center, human_surface, zoe_demo,
@@ -151,10 +151,10 @@ recipe (`.github/workflows/ci.yml`): `npm install --no-save --package-lock=false
 playwright@1.63.0 && npx playwright install chromium` — admits the gate and the
 suite runs against real headless Chromium over data: URLs (loopback-only, no
 server boot). Witnessed at `main@d55c576d1`: 371/371 pass, 0 skipped (see
-`~/xaas/docs/sjira/v26.10.6/plans/w901-ash-surface-playwright.md`); re-witnessed
+`~/xaas/docs/sjira/v26.10.6/plans/w901-ash-surface-playwright.md` [INTEGRATION]); re-witnessed
 **ALIVE** at HEAD `154385c82` post-W984mf — 2/2 accessibility courts + boundary
 refusals against real Chromium, 0 skips
-(`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md`).
+(`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md` [INTEGRATION]).
 
 **Verified 2026-10-08** (lane W984ne, tree @ `154385c82`): the W984mf-era stale
 digest fixture (`test/js/fixtures/digest_cross_language_fixtures.json`, which
@@ -164,7 +164,7 @@ W984mf receipt) has been regenerated in this tree via
 `AshSurface.DigestParityFixtures.encode()`; `npm test` re-run on this tree:
 **371/371 pass, 0 fail, 0 skipped**, accessibility suite admitted against real
 headless Chromium. Receipt:
-`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md`. (The
+`~/xaas/docs/sjira/v26.10.7/plans/w984mf-ash-surface-playwright.md` [INTEGRATION]. (The
 W984mk fixture-regen receipt was not yet on disk at verification time; the
 regenerated fixture bytes were verified directly instead. The regenerated fixture landed in the conformance re-pin commit of
 this change.)
@@ -353,13 +353,13 @@ from this branch; the no-local-DO tripwire runs inside `mix test`).
 
 ## Withheld court battery (v26.10.8 campaign)
 
-19 untracked `test/*_court_test.exs` files are deliberately withheld from the
+[STALE as of 2026-11-11: 0 court files are untracked, 21 are git-tracked and run in `mix test`; the rest of this paragraph is historical.] 19 `test/*_court_test.exs` files were deliberately withheld from the
 tracked suite and from `mix test` runs. They are the fixture-backed
 composition/parity/transformer/verifier/igniter court battery generated during
 the v26.10.8 campaign (classification per commit `084011901`); only the 10
 now-green courts (49 tests) landed with `fixture/` in that commit. The
 remaining 19 stay in-tree untracked — the working tree is the durable copy;
-the `/tmp/ash_surface_court_quarantine/` backup is ephemeral.
+the /tmp quarantine backup was ephemeral and is gone.
 
 ### Why withheld
 
@@ -369,7 +369,7 @@ the `/tmp/ash_surface_court_quarantine/` backup is ephemeral.
   test compile. Blocked on a spark upstream fix.
 - **transformer-source-not-mounted (invalid setup_all)**:
   `ash_a2a/audit_trail/notification_extension transformer_court_test` — no
-  `lib/generated` sources mounted in the test env. The courts honor
+  generated transformer sources mounted in the test env. The courts honor
   `COURT_TRANSFORMER_SOURCE`/`COURT_TRANSFORMER` env overrides for
   anti-vacuity mutant runs; setting `COURT_TRANSFORMER_SOURCE` to a real
   generated source is one unblock path.
@@ -388,7 +388,7 @@ the `/tmp/ash_surface_court_quarantine/` backup is ephemeral.
 ### Quarantine protocol (used during the version bump)
 
 During the spark 2.7.3 bump the whole battery was moved to
-`/tmp/ash_surface_court_quarantine/test/` so `mix test` could run clean, then
+a /tmp scratch quarantine dir so `mix test` could run clean, then
 restored byte-identical into `test/`. Verify with `diff -r` before/after;
 never let the quarantine step mutate file content.
 

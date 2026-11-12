@@ -1,6 +1,3 @@
-
-
-
 defmodule NotificationExtension.ResourceTransformerClosureCourt do
   @moduledoc """
   Transformer closure court for `NotificationExtension.Resource.Persist` (pack `notification_extension`).
@@ -17,7 +14,9 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
 
   # Subject under court. Default: the generated transformer. The env overrides
   # swap in a mutant fixture for the anti-vacuity run only.
-  @transformer Module.concat([System.get_env("COURT_TRANSFORMER") || "NotificationExtension.Resource.Persist"])
+  @transformer Module.concat([
+                 System.get_env("COURT_TRANSFORMER") || "NotificationExtension.Resource.Persist"
+               ])
 
   # Pack's known source-path convention: persist.ex.tmpl renders to
   # lib/notification_extension/persist.ex, and fixture/mix.exs mounts generated code
@@ -27,9 +26,15 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
     System.get_env("COURT_TRANSFORMER_SOURCE"),
     # live-fixture capsule layout: consumer lib/** is copied flat, so the generated
     # persist.ex is <capsule>/generated/notification_extension/persist.ex (no lib/ level).
-    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "notification_extension/persist.ex"),
+    Path.join(
+      System.get_env("ASH_PACK_GENERATED", "lib/generated"),
+      "notification_extension/persist.ex"
+    ),
     # fixture mount layout: elixirc_paths appends ASH_PACK_GENERATED under lib/.
-    Path.join(System.get_env("ASH_PACK_GENERATED", "lib/generated"), "lib/notification_extension/persist.ex"),
+    Path.join(
+      System.get_env("ASH_PACK_GENERATED", "lib/generated"),
+      "lib/notification_extension/persist.ex"
+    ),
     Path.expand("lib/notification_extension/persist.ex"),
     Path.expand("lib/notification_extension_generated/lib/notification_extension/persist.ex")
   ]
@@ -39,9 +44,23 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
   @permitted_application_reads []
 
   # Module attributes that never carry semantics (registry bookkeeping only).
-  @benign_attributes [:moduledoc, :doc, :impl, :behaviour, :derive, :type, :typep,
-                      :spec, :compile, :external_resource, :before_compile,
-                      :after_compile, :after_verify, :on_definition, :enforce_keys]
+  @benign_attributes [
+    :moduledoc,
+    :doc,
+    :impl,
+    :behaviour,
+    :derive,
+    :type,
+    :typep,
+    :spec,
+    :compile,
+    :external_resource,
+    :before_compile,
+    :after_compile,
+    :after_verify,
+    :on_definition,
+    :enforce_keys
+  ]
 
   # The specimen section: the spec's own first DSL section (ordered), so the
   # specimen declares entities under a section the generated Persist reads.
@@ -121,8 +140,14 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
 
     specimen_src =
       specimen_source(@transformer)
-      |> String.replace("NotificationExtension.Resource.Court.Specimen", "NotificationExtension.Resource.Court.Specimen#{tag}")
-      |> String.replace("NotificationExtension.Resource.Court.Step", "NotificationExtension.Resource.Court.Step#{tag}")
+      |> String.replace(
+        "NotificationExtension.Resource.Court.Specimen",
+        "NotificationExtension.Resource.Court.Specimen#{tag}"
+      )
+      |> String.replace(
+        "NotificationExtension.Resource.Court.Step",
+        "NotificationExtension.Resource.Court.Step#{tag}"
+      )
 
     specimen = Module.concat(["NotificationExtension.Resource.Court.Specimen#{tag}"])
     step_struct = Module.concat(["NotificationExtension.Resource.Court.Step#{tag}"])
@@ -144,8 +169,14 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
 
     draft_src =
       draft_source(specimen, @specimen_section, steps)
-      |> String.replace("NotificationExtension.Resource.Court.Base", "NotificationExtension.Resource.Court.Base#{tag}")
-      |> String.replace("NotificationExtension.Resource.Court.Draft", "NotificationExtension.Resource.Court.Draft#{tag}")
+      |> String.replace(
+        "NotificationExtension.Resource.Court.Base",
+        "NotificationExtension.Resource.Court.Base#{tag}"
+      )
+      |> String.replace(
+        "NotificationExtension.Resource.Court.Draft",
+        "NotificationExtension.Resource.Court.Draft#{tag}"
+      )
 
     # The ONLY nondeterminism channel the court deliberately opens: pre_setup/0
     # runs before compilation. An honest transformer must be blind to it.
@@ -269,8 +300,7 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
             end
 
           # :persistent_term via alias form (PersistentTerm.get)
-{{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node,
-          {defined, violations}
+          {{:., m, [{:__aliases__, _, [mod]}, fun]}, _ca, _args} = node, {defined, violations}
           when mod in [:persistent_term, :PersistentTerm] ->
             {node,
              {defined,
@@ -280,7 +310,7 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # :persistent_term via erlang atom form (:persistent_term.get)
-{{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
+          {{:., m, [:persistent_term, fun]}, _ca, _args} = node, {defined, violations} ->
             {node,
              {defined,
               [
@@ -289,7 +319,7 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Process dictionary
-{{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Process]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:put, :get, :delete, :get_and_update] ->
             {node,
@@ -300,7 +330,7 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
               ] ++ violations}}
 
           # Application env outside the contract-permitted list
-{{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
+          {{:., m, [{:__aliases__, _, [:Application]}, fun]}, _ca, _args} = node,
           {defined, violations}
           when fun in [:get_env, :fetch_env, :fetch_env!, :get_all_env] ->
             {node,
@@ -313,8 +343,8 @@ defmodule NotificationExtension.ResourceTransformerClosureCourt do
 
           node, acc ->
             {node, acc}
-      end
-    )
+        end
+      )
 
     Enum.reverse(violations)
   end

@@ -82,7 +82,7 @@ defmodule AshSurface.LineageCourtTest do
     dir =
       Path.join(
         System.tmp_dir!(),
-        "ash_surface_lineage_#{ctx}_#{System.unique_integer([:positive])}"
+        "ash_surface_lineage_#{ctx}_#{AshSurface.TestTmp.suffix()}"
       )
 
     File.rm_rf!(dir)
@@ -392,7 +392,7 @@ defmodule AshSurface.LineageCourtTest do
     empty =
       Path.join(
         System.tmp_dir!(),
-        "ash_surface_lineage_nogit_#{System.unique_integer([:positive])}"
+        "ash_surface_lineage_nogit_#{AshSurface.TestTmp.suffix()}"
       )
 
     File.mkdir_p!(empty)

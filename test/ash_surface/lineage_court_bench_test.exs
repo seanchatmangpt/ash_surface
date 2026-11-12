@@ -61,7 +61,7 @@ defmodule AshSurface.LineageCourtBenchTest do
     dir =
       Path.join(
         System.tmp_dir!(),
-        "ash_surface_lineage_bench_#{System.unique_integer([:positive])}"
+        "ash_surface_lineage_bench_#{AshSurface.TestTmp.suffix()}"
       )
 
     File.rm_rf!(dir)

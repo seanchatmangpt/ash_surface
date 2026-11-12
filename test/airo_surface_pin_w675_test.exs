@@ -24,7 +24,8 @@ defmodule AshSurface.AiroSurfacePinW675Test do
     {:ok, ttl: File.read!(@ttl_path)}
   end
 
-  test "TTL StandingAdmission claim: standing.ex admits base standings and raises on non-members", %{ttl: ttl} do
+  test "TTL StandingAdmission claim: standing.ex admits base standings and raises on non-members",
+       %{ttl: ttl} do
     assert ttl =~ "lib/ash_surface/standing.ex"
 
     for s <- AshSurface.Standing.base_standings() do
@@ -46,7 +47,8 @@ defmodule AshSurface.AiroSurfacePinW675Test do
     end
   end
 
-  test "TTL StandingAdmission claim: vocabulary.ex REFUSED_* class matches the typed-refusal contract in the TTL prose", %{ttl: ttl} do
+  test "TTL StandingAdmission claim: vocabulary.ex REFUSED_* class matches the typed-refusal contract in the TTL prose",
+       %{ttl: ttl} do
     assert ttl =~ "lib/ash_surface/vocabulary.ex"
 
     # Bare :REFUSED is not a standing (TTL VocabularyViolation hazard description).

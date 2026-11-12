@@ -1,0 +1,14 @@
+{
+  "name": "ash-surface-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.mjs",
+    "test:zod": "bun test assets/test"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "4.6.5"
+  }
+}

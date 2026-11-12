@@ -81,7 +81,7 @@ defmodule AshSurface.Projectors.JS do
   )
 
   # Top-level bindings this artifact declares itself.
-  @artifact_bindings ~w(z ACTIONS SCHEMAS NAMESPACES getAction dispatchIntent)
+  @artifact_bindings ~w(z ACTIONS SCHEMAS QUERY_SCHEMAS NAMESPACES getAction dispatchIntent)
 
   @calver "26.10.8"
   @default_prefix "ash_surface_client"
@@ -106,6 +106,12 @@ defmodule AshSurface.Projectors.JS do
     `Event` resources). An override wins over `:namespace_prefix` for that
     resource; overridden names must be safe JS artifacts or the projection
     refuses. Default `%{}`: no overrides applied.
+  - `:embedded_filters` — list of embedded resource modules; each is exported as
+    `<Short>EmbeddedFilterSchema` (its typed filter, admitted by the guard), sorted by name.
+    Default `[]`: no embedded filter exports.
+  - `:run_endpoint` / `:validate_endpoint` — when set (absolute-path string, else
+    `{:invalid_endpoint, key, value}`), the artifact exports `AshSurfaceEndpoints`
+    (`{run, validate}`); unset emits nothing.
   - `:target_dir` — when set, the artifact is also written there.
 
   Returns `{:ok, artifacts, meta}` where `artifacts` has exactly one entry and
@@ -121,8 +127,16 @@ defmodule AshSurface.Projectors.JS do
          :ok <- check_namespace_prefix(ns_prefix),
          ns_names = Keyword.get(opts, :namespace_names, %{}),
          :ok <- check_namespace_names(ns_names),
-         {:ok, entries, zod_forms} <- admit(List.wrap(ir), ns_prefix, ns_names) do
-      emit(entries, zod_forms, opts)
+         {:ok, entries, zod_forms} <- admit(List.wrap(ir), ns_prefix, ns_names),
+         {:ok, embedded} <-
+           admit_embedded(
+             Keyword.get(opts, :embedded_filters, []),
+             entries,
+             ns_prefix,
+             ns_names,
+             zod_forms
+           ) do
+      emit(entries, zod_forms, embedded, opts)
     end
   end
 
@@ -148,23 +162,66 @@ defmodule AshSurface.Projectors.JS do
     end
   end
 
-  defp emit(entries, zod_forms, opts) do
+  @doc """
+  Writes an artifacts map (`filename => content`) under `dir`, returning the
+  written paths. Used by `:target_dir` and `mix ash_surface.codegen`.
+  """
+  @spec write_artifacts(%{optional(String.t()) => String.t()}, Path.t()) :: [Path.t()]
+  def write_artifacts(artifacts, dir) do
+    File.mkdir_p!(dir)
+
+    artifacts
+    |> Enum.sort()
+    |> Enum.map(fn {name, content} ->
+      path = Path.join(dir, name)
+      File.write!(path, content)
+      path
+    end)
+  end
+
+  defp emit(entries, zod_forms, embedded, opts) do
+    with {:ok, endpoints} <- check_endpoints(opts) do
+      do_emit(entries, zod_forms, embedded, opts, endpoints)
+    end
+  end
+
+  # `:run_endpoint` / `:validate_endpoint` (nil = not requested, nothing emitted so existing
+  # artifact bytes are unchanged). A requested endpoint must be an absolute-path string.
+  defp check_endpoints(opts) do
+    Enum.reduce_while([:run_endpoint, :validate_endpoint], {:ok, []}, fn key, {:ok, acc} ->
+      case Keyword.get(opts, key) do
+        nil ->
+          {:cont, {:ok, acc}}
+
+        "/" <> _ = value ->
+          {:cont, {:ok, [{key, value} | acc]}}
+
+        value ->
+          {:halt, {:error, {:invalid_endpoint, key, value}}}
+      end
+    end)
+    |> case do
+      {:ok, acc} -> {:ok, Enum.sort(acc)}
+      error -> error
+    end
+  end
+
+  defp do_emit(entries, zod_forms, embedded, opts, endpoints) do
     prefix = Keyword.get(opts, :prefix, @default_prefix)
     ns_prefix = Keyword.get(opts, :namespace_prefix)
     ns_names = Keyword.get(opts, :namespace_names, %{})
-    code = render(entries, zod_forms, prefix, ns_prefix, ns_names)
+    code = render(entries, zod_forms, embedded, prefix, ns_prefix, ns_names, endpoints)
     filename = prefix <> ".mjs"
 
-    case Keyword.get(opts, :target_dir) do
-      nil ->
-        :ok
+    artifacts = %{filename => code}
 
-      target_dir ->
-        File.mkdir_p!(target_dir)
-        File.write!(Path.join(target_dir, filename), code)
+    # Thin wrapper: the codegen task owns writing; `:target_dir` just delegates.
+    case Keyword.get(opts, :target_dir) do
+      nil -> :ok
+      target_dir -> write_artifacts(artifacts, target_dir)
     end
 
-    {:ok, %{filename => code},
+    {:ok, artifacts,
      %{
        prefix: prefix,
        action_count: length(entries),
@@ -185,7 +242,7 @@ defmodule AshSurface.Projectors.JS do
          entries = Enum.sort_by(entries, & &1.id),
          :ok <- check_duplicate_ids(entries),
          {:ok, entries, zod_forms} <- admit_zod(entries),
-         :ok <- check_bindings(entries, ns_prefix, ns_names) do
+         :ok <- check_bindings(entries, ns_prefix, ns_names, zod_forms) do
       {:ok, entries, zod_forms}
     end
   end
@@ -308,35 +365,110 @@ defmodule AshSurface.Projectors.JS do
   # returns the admitted form per id (`:expression` embeds byte-verbatim;
   # `:program` embeds the compiled program's input-schema expression).
   defp admit_zod(entries) do
-    Enum.reduce_while(entries, {:ok, []}, fn
-      %IREntry{zod: nil} = entry, {:ok, acc} ->
-        {:cont, {:ok, [{entry, nil} | acc]}}
-
-      %IREntry{zod: zod} = entry, {:ok, acc} ->
-        case ZodGuard.admit(zod) do
-          {:ok, form, expr} -> {:cont, {:ok, [{%{entry | zod: expr}, form} | acc]}}
-          {:error, reason} -> {:halt, {:error, {:unadmitted_zod, entry.id, reason}}}
-        end
+    Enum.reduce_while(entries, {:ok, []}, fn entry, {:ok, acc} ->
+      with {:ok, form, entry} <- admit_zod_field(entry),
+           {:ok, _, entry} <- admit_field(entry, :filter_zod),
+           {:ok, _, entry} <- admit_field(entry, :sort_zod),
+           {:ok, _, entry} <- admit_field(entry, :page_zod),
+           {:ok, _, entry} <- admit_field(entry, :response_zod),
+           :ok <- check_flags(entry) do
+        {:cont, {:ok, [{entry, form} | acc]}}
+      else
+        {:error, _} = error -> {:halt, error}
+      end
     end)
     |> case do
       {:ok, acc} ->
         forms = Map.new(acc, fn {entry, form} -> {entry.id, form} end)
-        {:ok, acc |> Enum.map(&elem(&1, 0)) |> Enum.reverse(), forms}
+
+        with :ok <- check_declarations(forms) do
+          {:ok, acc |> Enum.map(&elem(&1, 0)) |> Enum.reverse(), forms}
+        end
 
       error ->
         error
     end
   end
 
-  defp check_bindings(entries, ns_prefix, ns_names) do
-    schema_consts = entries |> Enum.filter(& &1.zod) |> Enum.map(&schema_const/1)
+  # The main `zod` slot may be a compiled program with named declarations (KD-02): the
+  # declarations are admitted by `ZodGuard.admit/2` (declared-identifier allowlist) and
+  # carried beside the form to be emitted once at artifact top level.
+  defp admit_zod_field(%IREntry{zod: zod} = entry) when is_binary(zod) do
+    decls =
+      zod
+      |> ZodGuard.declarations()
+      |> Enum.map(fn {name, expr} -> {name, embed_regex(expr)} end)
+
+    with {:ok, form, entry} <- admit_field(entry, :zod), do: {:ok, {form, decls}, entry}
+  end
+
+  defp admit_zod_field(entry) do
+    with {:ok, form, entry} <- admit_field(entry, :zod), do: {:ok, {form, []}, entry}
+  end
+
+  defp check_declarations(forms) do
+    forms
+    |> Map.values()
+    |> Enum.flat_map(fn {_form, decls} -> decls end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.sort()
+    |> Enum.find_value(:ok, fn {name, bodies} ->
+      if length(Enum.uniq(bodies)) > 1, do: {:error, {:declaration_conflict, name}}
+    end)
+  end
+
+  defp declared_names(zod_forms) do
+    zod_forms
+    |> Map.values()
+    |> Enum.flat_map(fn {_form, decls} -> Enum.map(decls, &elem(&1, 0)) end)
+    |> Enum.uniq()
+  end
+
+  defp declarations_block(zod_forms) do
+    zod_forms
+    |> Map.values()
+    |> Enum.flat_map(fn {_form, decls} -> decls end)
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map_join("\n\n", fn {name, expr} -> "const #{name} = #{expr};" end)
+  end
+
+  defp admit_field(entry, field) do
+    case Map.fetch!(entry, field) do
+      nil ->
+        {:ok, nil, entry}
+
+      zod ->
+        case ZodGuard.admit(zod) do
+          {:ok, form, expr} -> {:ok, form, Map.put(entry, field, embed_regex(expr))}
+          {:error, reason} -> {:error, {:unadmitted_zod, entry.id, reason}}
+        end
+    end
+  end
+
+  # zod 4 throws at parse on `.regex("string")` (it requires a RegExp). The
+  # guard admits only literal arguments, so the string-arg form is converted
+  # AFTER admission, at the embed site, to `.regex(new RegExp("..."))`.
+  defp embed_regex(expr),
+    do: Regex.replace(~r/\.regex\(("(?:[^"\\]|\\.)*")\)/, expr, ".regex(new RegExp(\\1))")
+
+  defp check_flags(%IREntry{capability_flags: nil}), do: :ok
+
+  defp check_flags(%IREntry{capability_flags: flags} = entry) do
+    if is_map(flags) and Enum.all?(flags, fn {k, v} -> is_binary(k) and is_boolean(v) end),
+      do: :ok,
+      else: {:error, {:unadmitted_field, entry.id, :capability_flags}}
+  end
+
+  defp check_bindings(entries, ns_prefix, ns_names, zod_forms) do
+    schema_consts = Enum.flat_map(entries, fn e -> Enum.map(schema_slots(e), &elem(&1, 1)) end)
 
     namespaces =
       entries
       |> Enum.map(&bound(&1, ns_prefix, ns_names))
       |> Enum.uniq()
 
-    (schema_consts ++ namespaces ++ @artifact_bindings)
+    (schema_consts ++ namespaces ++ @artifact_bindings ++ declared_names(zod_forms))
     |> Enum.frequencies()
     |> Enum.sort()
     |> Enum.find_value(:ok, fn
@@ -345,12 +477,96 @@ defmodule AshSurface.Projectors.JS do
     end)
   end
 
+  # Embedded-resource filter schemas (`:embedded_filters`, a list of embedded resource modules):
+  # each renders `FilterSchema.render_embedded/1` (wire names formatter/field_names-aware), is
+  # admitted through ZodGuard, and is exported as `<Short>EmbeddedFilterSchema`, sorted by name.
+  defp admit_embedded(mods, entries, ns_prefix, ns_names, zod_forms) when is_list(mods) do
+    mods = Enum.uniq(mods)
+    shorts = Enum.frequencies_by(mods, &embedded_short/1)
+
+    mods
+    |> Enum.reduce_while({:ok, []}, fn mod, {:ok, acc} ->
+      with true <- embedded_resource?(mod),
+           {:ok, zod} <- AshSurface.Compiler.FilterSchema.render_embedded(mod),
+           {:ok, _, expr} <- ZodGuard.admit(zod) do
+        short = embedded_stem(mod, ns_names, shorts)
+        {:cont, {:ok, [{short <> "EmbeddedFilterSchema", mod, embed_regex(expr)} | acc]}}
+      else
+        {:error, reason} -> {:halt, {:error, {:unadmitted_embedded_filter, mod, reason}}}
+        false -> {:halt, {:error, {:unadmitted_embedded_filter, mod, :not_an_embedded_resource}}}
+      end
+    end)
+    |> case do
+      {:ok, acc} ->
+        acc = Enum.sort_by(acc, &elem(&1, 0))
+
+        taken =
+          Enum.flat_map(entries, fn e -> Enum.map(schema_slots(e), &elem(&1, 1)) end) ++
+            Enum.map(entries, &bound(&1, ns_prefix, ns_names)) ++
+            @artifact_bindings ++ declared_names(zod_forms)
+
+        names = Enum.map(acc, &elem(&1, 0))
+
+        case Enum.find(names, &(&1 in taken or Enum.count(names, fn n -> n == &1 end) > 1)) do
+          nil -> {:ok, acc}
+          name -> {:error, {:js_binding_collision, name}}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp admit_embedded(other, _, _, _, _), do: {:error, {:invalid_embedded_filters, other}}
+
+  defp embedded_short(mod) when is_atom(mod) and not is_nil(mod) do
+    if String.starts_with?(Atom.to_string(mod), "Elixir."),
+      do: mod |> Module.split() |> List.last() |> sanitize()
+  end
+
+  defp embedded_short(_), do: nil
+
+  # Export stem: an explicit `:namespace_names` entry for the module wins; a short name shared by
+  # several embedded modules is qualified deterministically by the full module path.
+  defp embedded_stem(mod, ns_names, shorts) do
+    short = embedded_short(mod)
+
+    case Map.fetch(ns_names, inspect(mod)) do
+      {:ok, name} ->
+        name
+
+      :error ->
+        if Map.get(shorts, short, 0) > 1,
+          do: mod |> Module.split() |> Enum.join() |> sanitize(),
+          else: short
+    end
+  end
+
+  defp embedded_resource?(mod) when is_atom(mod) and not is_nil(mod) do
+    Code.ensure_loaded?(mod) and function_exported?(mod, :spark_is, 0) and
+      Ash.Resource.Info.embedded?(mod)
+  end
+
+  defp embedded_resource?(_), do: false
+
+  defp embedded_consts(embedded) do
+    Enum.map_join(embedded, "\n\n", fn {name, mod, expr} ->
+      """
+      /** Zod filter schema for embedded resource `#{comment(inspect(mod))}` (FilterSchema.render_embedded, admitted). */
+      export const #{name} = #{expr};\
+      """
+    end)
+  end
+
   ## Rendering
 
-  defp render(entries, zod_forms, prefix, ns_prefix, ns_names) do
+  defp render(entries, zod_forms, embedded, prefix, ns_prefix, ns_names, endpoints) do
     [
-      header(prefix),
+      header(prefix, AshSurface.Config.zod_import_path()),
+      declarations_block(zod_forms),
       schema_consts(entries, zod_forms),
+      embedded_consts(embedded),
+      endpoints_block(endpoints),
       namespaces(entries, ns_prefix, ns_names),
       registries(entries, ns_prefix, ns_names)
     ]
@@ -359,7 +575,24 @@ defmodule AshSurface.Projectors.JS do
     |> Kernel.<>("\n")
   end
 
-  defp header(prefix) do
+  defp endpoints_block([]), do: ""
+
+  defp endpoints_block(endpoints) do
+    members =
+      Enum.map_join(endpoints, ",\n", fn {key, value} ->
+        indent(2) <>
+          "#{key |> to_string() |> String.replace_suffix("_endpoint", "")}: #{js_string(value)}"
+      end)
+
+    """
+    /** Endpoints the artifact was generated for (`mix ash_surface.codegen --run-endpoint/--validate-endpoint`). */
+    export const AshSurfaceEndpoints = Object.freeze({
+    #{members}
+    });\
+    """
+  end
+
+  defp header(prefix, zod_path) do
     """
     // @generated by AshSurface.Projectors.JS (CalVer #{@calver}); prefix #{line_comment_string(prefix)}
     // Do not edit directly; change the admitted IR sources, then re-project.
@@ -368,7 +601,7 @@ defmodule AshSurface.Projectors.JS do
     // is data and carries no execution authority; this artifact contains no
     // invoke/dispatch execution path.
 
-    import { z } from "zod";
+    import { z } from #{js_string(zod_path)};
 
     /**
      * A dispatch intent for a DO-boundary action. DATA ONLY: minting an
@@ -384,12 +617,20 @@ defmodule AshSurface.Projectors.JS do
 
   defp schema_consts(entries, zod_forms) do
     entries
-    |> Enum.filter(& &1.zod)
-    |> Enum.map(fn entry ->
-      """
-      /** Zod boundary schema for `#{comment(entry.id)}` (#{zod_provenance(zod_forms[entry.id])}). */
-      export const #{schema_const(entry)} = #{entry.zod};\
-      """
+    |> Enum.flat_map(fn entry ->
+      Enum.map(schema_slots(entry), fn
+        {:zod, const, expr} ->
+          """
+          /** Zod boundary schema for `#{comment(entry.id)}` (#{zod_provenance(zod_forms[entry.id] |> elem(0))}). */
+          export const #{const} = #{expr};\
+          """
+
+        {kind, const, expr} ->
+          """
+          /** Zod #{kind} schema for `#{comment(entry.id)}` (IR.Schema.#{kind}, admitted). */
+          export const #{const} = #{expr};\
+          """
+      end)
     end)
     |> Enum.join("\n\n")
   end
@@ -404,6 +645,7 @@ defmodule AshSurface.Projectors.JS do
 
   defp namespace_block(binding, group) do
     resource = hd(group).resource
+
     member_docs =
       group
       |> Enum.map(fn entry ->
@@ -444,7 +686,12 @@ defmodule AshSurface.Projectors.JS do
       "descriptorKind: #{js_string(descriptor_kind(entry))}",
       "capabilityIri: #{js_string(entry.capability_iri)}",
       "label: #{js_string(entry.label)}",
-      "schema: #{schema_ref(entry)}"
+      "schema: #{schema_ref(entry)}",
+      "filterSchema: #{slot_ref(entry, :filter)}",
+      "sortSchema: #{slot_ref(entry, :sort)}",
+      "pageSchema: #{slot_ref(entry, :page)}",
+      "responseSchema: #{slot_ref(entry, :response)}",
+      "capabilityFlags: #{flags_literal(entry.capability_flags)}"
     ]
 
     fields_body = Enum.map_join(fields, ",\n", &(indent(4) <> &1))
@@ -467,6 +714,11 @@ defmodule AshSurface.Projectors.JS do
     /** Zod boundary schemas by action id, present only where the IR delegated one. */
     export const SCHEMAS = Object.freeze({
     #{schema_registry(entries)}
+    });
+
+    /** Query-envelope schemas (filter/sort/page/response) by action id; null where absent. */
+    export const QUERY_SCHEMAS = Object.freeze({
+    #{query_schema_registry(entries)}
     });
 
     /** Resource namespaces, sorted by resource name. */
@@ -504,8 +756,25 @@ defmodule AshSurface.Projectors.JS do
           detail: { actionId: id, descriptorKind: action.descriptorKind },
         });
       }
-      const parsed = action.schema ? action.schema.parse(input) : input;
-      return Object.freeze({ kind: "DISPATCH_INTENT", actionId: id, input: parsed });
+      if (action.schema) {
+        const result = action.schema.safeParse(input);
+        if (!result.success) {
+          const err = new Error("INPUT_VALIDATION_FAILED: " + id);
+          err.name = "SurfaceRuntimeError";
+          err.code = "INPUT_VALIDATION_FAILED";
+          err.refusal = null;
+          err.standing = "BLOCKED";
+          err.issues = result.error.issues.map((i) => ({
+            path: i.path.join("."),
+            message: i.message,
+            code: i.code,
+          }));
+          err.detail = { actionId: id, issues: err.issues };
+          throw err;
+        }
+        input = result.data;
+      }
+      return Object.freeze({ kind: "DISPATCH_INTENT", actionId: id, input: input });
     }\
     """
   end
@@ -528,7 +797,48 @@ defmodule AshSurface.Projectors.JS do
 
   defp member_ref(entry, ns_prefix, ns_names),
     do: "#{bound(entry, ns_prefix, ns_names)}.#{entry.action}"
+
   defp schema_const(entry), do: "#{sanitize(entry.id)}_schema"
+
+  # {kind, const_name, admitted_expr} for every schema the entry carries.
+  defp schema_slots(entry) do
+    [
+      {:zod, schema_const(entry), entry.zod},
+      {:filter, "#{sanitize(entry.id)}_filter_schema", entry.filter_zod},
+      {:sort, "#{sanitize(entry.id)}_sort_schema", entry.sort_zod},
+      {:page, "#{sanitize(entry.id)}_page_schema", entry.page_zod},
+      {:response, "#{sanitize(entry.id)}_response_schema", entry.response_zod}
+    ]
+    |> Enum.reject(fn {_, _, expr} -> is_nil(expr) end)
+  end
+
+  defp slot_ref(entry, kind) do
+    case Enum.find(schema_slots(entry), &(elem(&1, 0) == kind)) do
+      nil -> "null"
+      {_, const, _} -> const
+    end
+  end
+
+  defp flags_literal(nil), do: "null"
+
+  defp flags_literal(flags) do
+    body = flags |> Enum.sort() |> Enum.map_join(", ", fn {k, v} -> "#{js_string(k)}: #{v}" end)
+    "Object.freeze({#{body}})"
+  end
+
+  defp query_schema_registry(entries) do
+    entries
+    |> Enum.filter(&Enum.any?(schema_slots(&1), fn {k, _, _} -> k != :zod end))
+    |> Enum.map(fn e ->
+      members =
+        [:filter, :sort, :page, :response]
+        |> Enum.map_join(", ", fn k -> "#{k}: #{slot_ref(e, k)}" end)
+
+      indent(2) <> "#{js_string(e.id)}: Object.freeze({#{members}})"
+    end)
+    |> Enum.join(",\n")
+  end
+
   defp schema_ref(%{zod: nil}), do: "null"
   defp schema_ref(entry), do: schema_const(entry)
 

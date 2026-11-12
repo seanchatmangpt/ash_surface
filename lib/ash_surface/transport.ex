@@ -206,6 +206,35 @@ defmodule AshSurface.Transport do
   def fallback_allowed?(%Decision{dispatch_state: :not_dispatched}), do: true
   def fallback_allowed?(%Decision{}), do: false
 
+  @typedoc "Typed failure classification (twin of the JS runtime's dispatch states/outcomes)."
+  @type classification :: %{
+          dispatch_state: :not_dispatched | :dispatched,
+          failure_outcome: nil | :unknown_after_dispatch,
+          fallback_allowed: boolean()
+        }
+
+  @doc """
+  Classifies a transport failure by phase, per the runtime's law: a failure
+  before dispatch is `:not_dispatched` (nothing sent, fallback still open); any
+  failure after dispatch (adapter rejection, deadline, abort) is
+  `:unknown_after_dispatch` with no cross-transport retry. `cause` is carried
+  for call-site clarity and never changes the class. Unknown phases return
+  `{:error, :unknown_phase}`.
+  """
+  @spec classify_failure(:pre_dispatch | :post_dispatch, term()) ::
+          classification() | {:error, :unknown_phase}
+  def classify_failure(:pre_dispatch, _cause),
+    do: %{dispatch_state: :not_dispatched, failure_outcome: nil, fallback_allowed: true}
+
+  def classify_failure(:post_dispatch, _cause),
+    do: %{
+      dispatch_state: :dispatched,
+      failure_outcome: :unknown_after_dispatch,
+      fallback_allowed: false
+    }
+
+  def classify_failure(_phase, _cause), do: {:error, :unknown_phase}
+
   # -- selection calculus ----------------------------------------------------
 
   defp choose(_declared, [], preferred, _facts),

@@ -22,7 +22,7 @@ defmodule AshSurface.MXClosedLoopEpisodeTest do
   alias AshSurface.{MXEpisode, Observation, PlanningEpisode, Event}
   alias AshSurface.Fixtures.{Server, VolunteerMilestone}
 
-  @tmp_dir Path.expand("../../_build/test/mx_closed_loop", __DIR__)
+  @tmp_dir AshSurface.TestTmp.scoped(Path.expand("../../_build/test/mx_closed_loop", __DIR__))
 
   setup do
     File.rm_rf!(@tmp_dir)

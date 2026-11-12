@@ -21,9 +21,10 @@ implementation does today.
 | Path | What |
 |---|---|
 | `conformance/MANIFEST.json` | corpus version, law version, per-file sha256, vector counts, level counts. No clock, commit, or host data, so regeneration is byte-identical. |
-| `conformance/vectors/<kind>.json` | one file per vector family (11 files, 547 vectors at 1.0.0). |
+| `conformance/vectors/<kind>.json` | one file per vector family (21 files, 785 vectors at 2.0.0). |
 | `conformance/elixir/runner.exs` | the Elixir reference runner: one function per kind, driving the real implementation. |
-| `conformance/js/reference.mjs` | JavaScript twins of the digest laws (canonical JSON, ETF term digest, receipt binding). Use or port these. |
+| `conformance/js/reference.mjs` | JavaScript twins of the digest laws (canonical JSON, ETF term digest, receipt binding), of the `ZodType` fragment table (incl. the PCRE -> JS regex translation) and of the closed error vocabulary. Use or port these. |
+| `conformance/js/zod_eval.mjs` | the one real-zod executor: the Elixir runner shells out to it to MINT probe verdicts, the JS replay imports it to re-run the same text against the same probes. |
 | `conformance/js/replay.mjs` | the JavaScript replay engine (per-vector `PASS / FAIL / NOT_APPLICABLE / KNOWN_DIVERGENCE`). |
 | `conformance/js/known_divergences.mjs` | pinned, asserted JS/Elixir disagreements. |
 | `scripts/conformance_regen.exs` | regenerates the corpus. |
@@ -59,6 +60,27 @@ vector per line:
 | reconcile_status | `{verdict}` -> `{admitted}` (only COMPLETED, NOT_OBSERVED, STILL_UNKNOWN; other keys pass through). |
 | ir_codec | `{map}` -> `{ok: {canonicalMap, digest, roundTripsInput}}` or `{error}` (false leaves, nil honesty, forward tolerance, digest). |
 | transport_outcome | `{phase: pre_dispatch\|post_dispatch, cause, declared, available, preferred}` -> `{dispatchState, fallbackAllowed, failureOutcome}` (post-dispatch failure -> `dispatched`, fallback closed, `UNKNOWN_AFTER_DISPATCH`; pre-dispatch -> `not_dispatched`, fallback open, no outcome). |
+| constraints | schema-section discovery (`{actions: [{id, arguments, returns}]}`; constraints ride on the ARGUMENT, not inside `type`) -> `{zod: {actionId: projection}, actionCount, argumentCount}` or `{error}`. Covers one_of enum (non-empty/empty/mixed/numeric), min/max/gt/lt on numeric kinds only, string min_length/max_length (+ `allow_empty?: false` -> `.min(max(min_length, 1))`) and array cardinality, `match` + `match_flags` on string kinds only (PCRE -> JS translation: PCRE-only syntax, empty/unbalanced/nothing-to-repeat patterns and raw line terminators are DROPPED, trailing `$` becomes `(?=\n?$)` unless flag `m`, only an unescaped `/` is escaped and backslashes are preserved), frozen chain order, `allow_nil?` -> `.nullable()` then optional/`required?: false`/`has_default`/`default` -> `.optional()`, nested array items, enum `values`, the full kind table (`uuid`/`uuid_v7` -> `z.guid()`, `naive_datetime` -> `z.iso.datetime({local: true})`, unmapped -> `z.unknown()`), NewType subtype_constraints, quoted keys, malformed-discovery refusals. Fragment rendering: the JS twin (`zodFragment` in `reference.mjs`) re-derives it byte-for-byte; Erlang float spelling (`1.0`, `1.0e20`) is PENDING_DECISION (see known divergences). |
+| filter_operators | `{inputs, opts: {max_depth?, connectives?}, probes}` -> `{ok: {zod, verdicts}}` or `{error}` (`FilterSchema.render_filter_schema/2`: per-kind operator catalog, explicit operators, Ash operator names, `is_nil`, `filterable: false`, array `has`/`has_any`, relationship `related`, depth/connective limits). |
+| query_envelope | `{render: sort\|pagination\|query_params\|offset_result\|keyset_result\|page_result\|typed_input\|get_input\|get_result, args, probes}` -> `{ok: {zod, verdicts}}` or `{error}` (sort `+`/`-`/`++`/`--` prefixes and array form, page arms offset/keyset/mixed, page results, typed input, get input/result). |
+| selection_admission | `{admitted, denied, opts: {relationships?, allowed_loads?, denied_loads?, calculations?, aggregates?}, probes}` -> `{ok: {zod, verdicts}}` or `{error}`. |
+| relationship_loads | `{relationships, max_depth?, probes}` -> `{ok: {zod, verdicts}}` or `{error}` (cardinality envelopes, pagination fact, filterable/sortable/exposed, nesting depth). |
+| calculation_envelope | `{render: calculation\|aggregates\|results, facts, probes}` -> `{ok: {zod: string \| {name: string}, verdicts}}` or `{error}`. |
+| identity_get | `{render: get\|tenant, identities?, primary_key?, multitenancy?, probes}` -> `{ok: {zod: {identityName: string}, verdicts}}` or `{error}` (strict get-by objects, primary-key aliasing, scalar-only guard, tenant parameter law). |
+| error_envelope | `{render: types\|normalize\|union\|variant\|field_errors\|carry, formatter?, type?, fields?, probes}` -> `{ok: {zod, verdicts}}` or `{ok: {types, catchAll}}` / `{ok: {normalized}}` (the closed 20-type vocabulary, per-type variants, union over all 20, camel/snake/pascal key formatters). |
+| union_schema | `{render: members, members, opts: {storage?, discriminator?, max_depth?}, probes}` -> `{ok: {zod, verdicts}}` or `{error}` (member-keyed single-key strict objects, tag/tag_value, `type_and_value` storage, nesting depth). |
+| transport_wire | `{transport, fault}` -> `{dispatchState, fallbackAllowed, failureOutcome}` for post-dispatch faults (adapter throw, HTTP non-2xx/network failure/invalid body, channel timeout/error reply: always `dispatched`, fallback closed, `UNKNOWN_AFTER_DISPATCH`), or `{fault: csrf_header}` -> `{acceptedHeaders, missingRejected}` minted against the real `Plug.CSRFProtection`. The JS replay drives `priv/static/ash_surface_http_transport.mjs` against a real `node:http` server and `ash_surface_channel_transport.mjs` over a hand-written channel implementation, through the real client. |
+| field_name_emission | `{op: emit\|collision\|inverse\|format_checked, formatter, ...}` -> `{key}` / `{ok}` / `{error: {kind, detail}}` (`FieldName.compute/2` over 20 names x camel/snake/pascal, `EmittedKeys.check/2` -> `emitted_key_collision`, admitted-set `parse_input/3` inverse, `format_checked/2` -> `not_invertible`). JS re-derives from the reference rule (`macroCamelize` + lowercase-first + KD-13) in `reference.mjs`, never reading expectations. |
+
+#### Probe verdicts (the schema-renderer kinds)
+
+`probes` are authored values (`{"value": v}`, or `{"target": name, "value": v}` to pick one
+expression of a map-valued render). `verdicts` are zod `safeParse` booleans minted by
+EXECUTING the Elixir-rendered text under real zod (`zod_eval.mjs` via node) - never typed
+by hand. A JS projection has no renderer to re-derive from, so its twin law is execution
+parity: the text must construct under its zod build and give the same verdict for every
+probe. Typed renderer refusals (`{error}`) cannot be expressed by a consumer that has no
+renderer and are `NOT_APPLICABLE` with that reason.
 
 ## How a new projection certifies
 
@@ -84,15 +106,22 @@ vector per line:
 5. Never report a projection ALIVE from this corpus alone: generated or rendered code
    needs an exact consumer execution receipt (AGENTS.md).
 
-`NOT_APPLICABLE` is honest, not a pass: the JS replay currently declares 178 vectors NOT_APPLICABLE (162
-transport-selection rows, 156 of them MAY, plus 16 others), each with a reason
-(fixed declared order, no back-projection, no manifest minting, ...).
+`NOT_APPLICABLE` is honest, not a pass: the JS replay currently declares 200 vectors NOT_APPLICABLE (162
+transport-selection rows, 156 of them MAY, plus 38 others: typed renderer refusals of the
+schema-renderer kinds, fixed declared order, no back-projection, no manifest minting, ...),
+each with a reason. Re-derive with `node -e` over `replayCorpus()` after any regeneration;
+the manifest, not this paragraph, is authoritative.
 
 ## Versioning
 
 * `corpusVersion` (semver, `AshSurface.Conformance.Runner.corpus_version/0`):
   patch = new vectors/notes only; minor = new kind or new vectors that tighten a law;
   major = a changed `expected` for an existing vector id (a behavior change).
+  History: 1.0.0 (12 kinds incl. `constraints` fragments) -> **2.0.0** (lane w3-04): changed
+  `expected` for existing ids (`ir_codec` digests, constraint regex rendering: backslashes
+  preserved, `/` escaped, PCRE translation, `.guid()` kind table) = MAJOR, plus nine new kinds
+  (filter_operators, query_envelope, selection_admission, relationship_loads,
+  calculation_envelope, identity_get, error_envelope, union_schema, transport_wire).
 * `lawVersion` records `AshSurface.schema_version/0` at generation time.
 * Vector ids are stable; never reuse an id for different input.
 * Changing Elixir behavior means regenerating; the diff of `expected` is the
@@ -103,29 +132,32 @@ transport-selection rows, 156 of them MAY, plus 16 others), each with a reason
 ```sh
 source /etc/profile.d/beam.sh
 MIX_ENV=test mix run scripts/conformance_regen.exs   # MIX_ENV=test: fixtures use the test-support resource
-mix test test/conformance                            # Elixir replay
+mix test test/conformance                            # Elixir replay (needs `node` + node_modules/zod)
 node --test test/js/conformance_replay.test.mjs      # JS replay (also part of `npm test`)
 ```
+
+`CONFORMANCE_OUT=<dir>` redirects a trial regeneration (vectors + MANIFEST) to a scratch
+directory; `replayCorpus({dir})` replays it.
 
 Inputs are authored in the script; `expected` comes from the real implementation via the
 runner. Output is deterministic (sorted-key canonical JSON, one vector per line, no
 clocks): two runs are byte-identical. After a regeneration that changes JS behavior, run
 the JS replay and update `known_divergences.mjs` only with a documented reason.
 
-## Known divergences (1.0.0) - real cross-language findings
+## Known divergences (2.0.0) - real cross-language findings
 
 Pinned in `conformance/js/known_divergences.mjs` (each is asserted to still diverge):
 
-1. **Refusal pattern and line terminators (MUST, 4 vectors `rv/multiline/*`).** JS
-   `refusalCodeSchema` is `/^REFUSED_.+/` without the dotall flag, so a reason that
-   *begins* with `\n`, `\r`, U+2028 or U+2029 is refused; Elixir
-   (`Vocabulary.refusal_code?/1`: prefix + any non-empty rest) admits it. Fix either
-   side: JS `/^REFUSED_[\s\S]+/`, or tighten Elixir to a token charset.
-2. **Numeric lexical form (PENDING_DECISION, 10 vectors).** Elixir keeps the int/float
+1. **Refusal pattern and line terminators: CLOSED** (no pinned entry; `rv/multiline/*` all PASS).
+   The JS runtime and `Vocabulary.refusal_code?/1` agree (lane w3-17 receipt: aligned
+   before that lane; the twin ExUnit test pins the multiline vectors on the Elixir side).
+2. **Numeric lexical form (PENDING_DECISION, 12 vectors).** Elixir keeps the int/float
    distinction and Erlang float spelling (`1.0`, `1.0e5`, `-0.0`, exact bigints); JS
    `JSON.parse`/`JSON.stringify` cannot. Canonical JSON, contract digests (`2.0` vs `2`),
    receipt hashes and receipt binding all inherit it: a receipt whose value is `2.0` on the
    wire and was minted by JS over `2` is REFUSED_RECEIPT_DIGEST_MISMATCH in Elixir.
+   The two `constraints` vectors with Erlang float bounds (`c/float-integral-min`,
+   `c/float-exponent-max`) inherit it: the bound is rendered INTO the zod text.
    `Idempotency.request_digest/2` already refuses floats for this reason; the same
    restriction (or a lexical canonical number rule) is needed for receipts and contracts.
 3. **Shipped minting law is not corpus-conformant.** `canonicalStringify` in

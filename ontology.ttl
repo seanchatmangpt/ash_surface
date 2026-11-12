@@ -24,6 +24,33 @@ surf:SurfaceSection a aex:DslSection ;
     aex:sectionOrder 1 ;
     aex:sectionDescribe "Declares consumer projection intent for public Ash actions without duplicating Ash semantics." .
 
+## Resource-level naming options (zod port wave3 F1; ref ash_typescript typescript section).
+
+surf:SectionTypeNameField a aex:SectionSchemaField ;
+    aex:sectionFieldOf surf:SurfaceSection ;
+    aex:sectionFieldOrder 1 ; aex:sectionFieldName "type_name" ; aex:sectionFieldType "string" ;
+    aex:sectionFieldDoc "Name of the generated type for this resource (ash_typescript resource typescript type_name)." .
+
+surf:SectionNamespaceField a aex:SectionSchemaField ;
+    aex:sectionFieldOf surf:SurfaceSection ;
+    aex:sectionFieldOrder 2 ; aex:sectionFieldName "namespace" ; aex:sectionFieldType "string" ;
+    aex:sectionFieldDoc "Default namespace (filename) for all projections of this resource; overrides domain namespace." .
+
+surf:SectionFieldNamesField a aex:SectionSchemaField ;
+    aex:sectionFieldOf surf:SurfaceSection ;
+    aex:sectionFieldOrder 3 ; aex:sectionFieldName "field_names" ; aex:sectionFieldType "any" ;
+    aex:sectionFieldDoc "Keyword map of invalid-named field to wire name; validated and collision-checked by AshSurface.FieldName.Mapping." .
+
+surf:SectionArgumentNamesField a aex:SectionSchemaField ;
+    aex:sectionFieldOf surf:SurfaceSection ;
+    aex:sectionFieldOrder 4 ; aex:sectionFieldName "argument_names" ; aex:sectionFieldType "any" ;
+    aex:sectionFieldDoc "Keyword map of action to keyword map of invalid-named argument to wire name; validated by AshSurface.FieldName.Mapping." .
+
+surf:SectionShowRaisedErrorsField a aex:SectionSchemaField ;
+    aex:sectionFieldOf surf:SurfaceSection ;
+    aex:sectionFieldOrder 5 ; aex:sectionFieldName "show_raised_errors?" ; aex:sectionFieldType "boolean" ;
+    aex:sectionFieldDoc "Whether non-Ash raised exceptions expose their message in projected errors for this resource (ash_typescript typescript_rpc show_raised_errors?); falls back to the application config." .
+
 surf:ProjectionEntity a aex:DslEntity ;
     aex:entityOf surf:SurfaceSection ;
     aex:entityOrder 1 ;
@@ -75,6 +102,261 @@ surf:TransportChannel a aex:FieldOneOfValue ;
     aex:oneOfValueOf surf:ProjectionTransportField ;
     aex:oneOfValueOrder 3 ;
     aex:oneOfValueName "phoenix_channel" .
+
+## Lane 12 (zod port): projection options. Presentation facts (name, namespace,
+## description, deprecated, see) stay out of IR truth sections.
+
+surf:ProjectionNameField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 4 ;
+    aex:fieldName "name" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Wire/export name override for this projection (presentation fact; not an IR truth-section fact)." .
+
+surf:ProjectionNamespaceField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 5 ;
+    aex:fieldName "namespace" ;
+    aex:fieldType "string" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Optional export namespace grouping for the projection (presentation fact)." .
+
+surf:ProjectionDescriptionField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 6 ;
+    aex:fieldName "description" ;
+    aex:fieldType "string" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Human description of the projection (presentation fact)." .
+
+surf:ProjectionDeprecatedField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 7 ;
+    aex:fieldName "deprecated" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "false, true, or a deprecation message string (presentation fact)." .
+
+surf:ProjectionSeeField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 8 ;
+    aex:fieldName "see" ;
+    aex:fieldType "list_atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Related projection or action names (presentation fact)." .
+
+surf:ProjectionReadActionField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 9 ;
+    aex:fieldName "read_action" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Public read action used to resolve the projected resource; must be a public read action." .
+
+surf:ProjectionGetField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 10 ;
+    aex:fieldName "get?" ;
+    aex:fieldType "boolean" ;
+    aex:fieldRequired false ;
+    aex:fieldDefault "false" ;
+    aex:fieldDoc "Project a single-record get; conflicts with get_by." .
+
+surf:ProjectionGetByField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 11 ;
+    aex:fieldName "get_by" ;
+    aex:fieldType "list_atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Attributes that identify a single record; each must be a public attribute." .
+
+surf:ProjectionNotFoundErrorField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 12 ;
+    aex:fieldName "not_found_error?" ;
+    aex:fieldType "boolean" ;
+    aex:fieldRequired false ;
+    aex:fieldDefault "true" ;
+    aex:fieldDoc "Whether a missing record is an error rather than nil." .
+
+surf:ProjectionIdentitiesField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 13 ;
+    aex:fieldName "identities" ;
+    aex:fieldType "list_atom" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Ash identities usable to look up a record; each must exist on the resource." .
+
+surf:ProjectionEnableFilterField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 14 ;
+    aex:fieldName "enable_filter?" ;
+    aex:fieldType "boolean" ;
+    aex:fieldRequired false ;
+    aex:fieldDefault "true" ;
+    aex:fieldDoc "Whether the projection exposes filtering." .
+
+surf:ProjectionEnableSortField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 15 ;
+    aex:fieldName "enable_sort?" ;
+    aex:fieldType "boolean" ;
+    aex:fieldRequired false ;
+    aex:fieldDefault "true" ;
+    aex:fieldDoc "Whether the projection exposes sorting." .
+
+surf:ProjectionAllowedLoadsField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 16 ;
+    aex:fieldName "allowed_loads" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Allow-list of loadable fields; mutually exclusive with denied_loads." .
+
+surf:ProjectionDeniedLoadsField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 17 ;
+    aex:fieldName "denied_loads" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Deny-list of loadable fields; mutually exclusive with allowed_loads." .
+
+surf:ProjectionShowMetadataField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 18 ;
+    aex:fieldName "show_metadata" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Action metadata fields to expose: false or a list of atoms." .
+
+surf:ProjectionMetadataFieldNamesField a aex:EntitySchemaField ;
+    aex:fieldOf surf:ProjectionEntity ;
+    aex:fieldOrder 19 ;
+    aex:fieldName "metadata_field_names" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Keyword map of action metadata name to wire name." .
+
+## Typed queries (zod port wave3-09; ref ash_typescript rpc.ex typed_query).
+
+surf:TypedQueryEntity a aex:DslEntity ;
+    aex:entityOf surf:SurfaceSection ;
+    aex:entityOrder 2 ;
+    aex:entityName "typed_query" ;
+    aex:entityStruct "AshSurface.Dsl.TypedQuery" ;
+    aex:entityIdentifier "name" .
+
+surf:TypedQueryNameArg a aex:EntityArg ;
+    aex:argOf surf:TypedQueryEntity ;
+    aex:argOrder 1 ;
+    aex:argName "name" .
+
+surf:TypedQueryActionArg a aex:EntityArg ;
+    aex:argOf surf:TypedQueryEntity ;
+    aex:argOrder 2 ;
+    aex:argName "action" .
+
+surf:TypedQueryNameField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 1 ;
+    aex:fieldName "name" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired true ;
+    aex:fieldDoc "Typed query name; unique within the resource and a valid identifier." .
+
+surf:TypedQueryActionField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 2 ;
+    aex:fieldName "action" ;
+    aex:fieldType "atom" ;
+    aex:fieldRequired true ;
+    aex:fieldDoc "Public read action this typed query selects fields from." .
+
+surf:TypedQueryDescriptionField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 3 ;
+    aex:fieldName "description" ;
+    aex:fieldType "string" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Human description of the typed query (presentation fact)." .
+
+surf:TypedQueryResultTypeNameField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 4 ;
+    aex:fieldName "result_type_name" ;
+    aex:fieldType "string" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Name of the result type for the typed query (presentation fact)." .
+
+surf:TypedQueryFieldsConstNameField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 5 ;
+    aex:fieldName "fields_const_name" ;
+    aex:fieldType "string" ;
+    aex:fieldRequired false ;
+    aex:fieldDoc "Name of the reusable fields constant (presentation fact)." .
+
+surf:TypedQueryFieldsField a aex:EntitySchemaField ;
+    aex:fieldOf surf:TypedQueryEntity ;
+    aex:fieldOrder 6 ;
+    aex:fieldName "fields" ;
+    aex:fieldType "any" ;
+    aex:fieldRequired true ;
+    aex:fieldDoc "Field selection verified against the resource public attributes, calculations, aggregates and relationships." .
+
+
+## aex:Verifier rows: legality constraints enforced by AshSurface.Resource.Validator
+## (delegate branch of the generated Verify) and the typed-query field verifier.
+
+surf:VerifierUnknownActionProjection a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "unknown_action_projection" ;
+    aex:verifierDoc "Every projection must name a public action of the resource." ;
+    surf:enforcedBy "test/ash_surface/resource/validator_test.exs" .
+
+surf:VerifierGetAndGetByConflict a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "get_and_get_by_conflict" ;
+    aex:verifierDoc "A projection may not declare both get? and get_by." ;
+    surf:enforcedBy "test/ash_surface/resource/dsl_options_test.exs" .
+
+surf:VerifierAllowedDeniedLoadsConflict a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "allowed_and_denied_loads_conflict" ;
+    aex:verifierDoc "A projection may not declare both allowed_loads and denied_loads." ;
+    surf:enforcedBy "test/ash_surface/resource/dsl_options_test.exs" .
+
+surf:VerifierTypedQueryUnknownAction a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "typed_query_unknown_action" ;
+    aex:verifierDoc "A typed query must name an existing public action." ;
+    surf:enforcedBy "test/ash_surface/typed_query_fields_test.exs" .
+
+surf:VerifierTypedQueryNonReadAction a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "typed_query_non_read_action" ;
+    aex:verifierDoc "A typed query must name a read action." ;
+    surf:enforcedBy "test/ash_surface/typed_query_fields_test.exs" .
+
+surf:VerifierTypedQueryDuplicateName a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "typed_query_duplicate_name" ;
+    aex:verifierDoc "Typed query names must be unique within the resource." ;
+    surf:enforcedBy "test/ash_surface/typed_query_fields_test.exs" .
+
+surf:VerifierTypedQueryInvalidName a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "typed_query_invalid_name" ;
+    aex:verifierDoc "Typed query names must be valid lowercase identifiers." ;
+    surf:enforcedBy "test/ash_surface/typed_query_fields_test.exs" .
+
+surf:VerifierTypedQueryInvalidFields a aex:Verifier ;
+    aex:verifierOf surf:AshSurfaceSpec ;
+    aex:verifierName "typed_query_invalid_fields" ;
+    aex:verifierDoc "Typed query fields must be public, known, unique, nested where required, and calculations must not need arguments." ;
+    surf:enforcedBy "test/ash_surface/typed_query_fields_test.exs" .
+
 
 ## v26.9.16 law rows (ontology-law-rows-007).
 ## Admitted, not proposed: ggen.toml [ontology] source names this file as the

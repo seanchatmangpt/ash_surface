@@ -1,0 +1,101 @@
+[
+ {
+  "label": "int eq",
+  "expect": true,
+  "payload": {
+   "field": "count",
+   "op": "eq",
+   "value": 3
+  },
+  "target": "default"
+ },
+ {
+  "label": "string contains",
+  "expect": true,
+  "payload": {
+   "field": "name",
+   "op": "contains",
+   "value": "x"
+  },
+  "target": "default"
+ },
+ {
+  "label": "in list",
+  "expect": true,
+  "payload": {
+   "field": "count",
+   "op": "in",
+   "value": [
+    1,
+    2
+   ]
+  },
+  "target": "default"
+ },
+ {
+  "label": "and nesting",
+  "expect": true,
+  "payload": {
+   "op": "and",
+   "value": [
+    {
+     "field": "count",
+     "op": "gt",
+     "value": 1
+    },
+    {
+     "op": "not",
+     "value": {
+      "field": "name",
+      "op": "eq",
+      "value": "a"
+     }
+    }
+   ]
+  },
+  "target": "default"
+ },
+ {
+  "label": "op not valid for type (contains on int)",
+  "expect": false,
+  "payload": {
+   "field": "count",
+   "op": "contains",
+   "value": "x"
+  },
+  "target": "default"
+ },
+ {
+  "label": "wrong value type",
+  "expect": false,
+  "payload": {
+   "field": "count",
+   "op": "eq",
+   "value": "3"
+  },
+  "target": "default"
+ },
+ {
+  "label": "unknown field",
+  "expect": false,
+  "payload": {
+   "field": "nope",
+   "op": "eq",
+   "value": 1
+  },
+  "target": "default"
+ },
+ {
+  "label": "or with non-array",
+  "expect": false,
+  "payload": {
+   "op": "or",
+   "value": {
+    "field": "count",
+    "op": "eq",
+    "value": 1
+   }
+  },
+  "target": "default"
+ }
+]
