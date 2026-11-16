@@ -1,0 +1,16 @@
+data: {"type":"start"}
+
+data: {"type":"reasoning","text":"Intent matched. "}
+
+data: {"type":"tool-call","id":"call_1","name":"list_posts","args":{"limit":25}}
+
+data: {"type":"tool-result","id":"call_1","name":"list_posts","result":[{"id":"p1","title":"Hello","status":"draft"}]}
+
+data: {"type":"sources","sources":[{"title":"Post records","url":"/admin/api/resources/Playground.Blog.Post/records"}]}
+
+data: {"type":"text-delta","text":"Found 1 "}
+
+data: {"type":"text-delta","text":"post(s)."}
+
+data: {"type":"finish","reason":"stop"}
+

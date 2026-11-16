@@ -27,7 +27,21 @@ defmodule Playground.MixProject do
       {:phoenix_html, "~> 4.0"},
       {:bandit, "~> 1.5"},
       {:jason, "~> 1.4"},
-      {:phoenix_react_server, "~> 0.7"}
+      {:phoenix_react_server, "~> 0.7"},
+      {:phoenix_live_view, "~> 1.0"},
+      {:ash, "~> 3.5"},
+      {:ash_phoenix, "~> 2.3"},
+      {:simple_sat, "~> 0.1"},
+      {:ash_json_api, "~> 1.4"},
+      {:ash_ai, "~> 1.0"},
+      {:ash_oban, "~> 0.4"},
+      {:oban, "~> 2.19"},
+      {:ash_state_machine, "~> 0.2"},
+      {:ash_paper_trail, "~> 0.5"},
+      {:ash_archival, "~> 2.0"},
+      {:ash_authentication, "~> 4.9"},
+      {:ash_authentication_phoenix, "~> 2.10"},
+      {:ecto_sqlite3, "~> 0.17"} # lane:jobs
     ]
   end
 
@@ -35,9 +49,12 @@ defmodule Playground.MixProject do
     [
       setup: ["deps.get", &bun_install/1, &bun_bundle/1],
       "assets.build": [&bun_bundle/1],
-      test: [&bun_bundle/1, "test"]
+      test: [&maybe_bundle/1, "test"]
     ]
   end
+
+  # LANE_NO_BUNDLE=1: fan-out lanes must not rewrite the shared priv/ bundles concurrently.
+  defp maybe_bundle(arg), do: unless(System.get_env("LANE_NO_BUNDLE"), do: bun_bundle(arg))
 
   defp bun_install(_), do: run!("bun", ["install"])
   # Browser bundles (client + zod) and the react SSR server bundle.

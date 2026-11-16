@@ -1,0 +1,16 @@
+#!/bin/bash
+# Serializes mix invocations on the shared _build (bounded 10 min), no bundle rewrite, private
+# React render port per lane: bin/lane-mix <lane-number> <mix args...>
+lane="$1"; shift
+cd "$(dirname "$0")/.."
+lock=/tmp/ash_shadcn_mix.lock
+deadline=$((SECONDS+600))
+until mkdir "$lock" 2>/dev/null; do
+  # stale-lock guard: owner pid must be alive
+  if [ -f "$lock/pid" ] && ! kill -0 "$(cat "$lock/pid")" 2>/dev/null; then rm -rf "$lock"; continue; fi
+  [ $SECONDS -gt $deadline ] && { echo "lane-mix: lock timeout"; exit 3; }
+  sleep 2
+done
+echo $$ > "$lock/pid"
+trap 'rm -rf "$lock"' EXIT
+LANE_NO_BUNDLE=1 REACT_PORT=$((5300+lane)) mix "$@"

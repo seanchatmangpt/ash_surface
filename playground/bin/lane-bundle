@@ -1,0 +1,5 @@
+#!/bin/bash
+# Frontend check without touching shared priv/: bin/lane-bundle <lane-number>
+lane="$1"; cd "$(dirname "$0")/.."
+out=/tmp/ash_shadcn_lane$lane; mkdir -p $out
+bun build assets/admin_client.jsx --outdir $out --target browser --format esm --define 'process.env.NODE_ENV="production"' && echo "OK lane$lane bundle -> $out"
