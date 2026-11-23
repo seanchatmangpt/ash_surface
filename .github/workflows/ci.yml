@@ -13,7 +13,7 @@ jobs:
       # (test/ash_surface/lineage_court_test.exs) re-judge the real PR #7
       # ancestry claim and the checked-out head; a shallow clone makes them a
       # named skip, so CI would never judge the claim.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -52,7 +52,7 @@ jobs:
   javascript:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Assert exact subject
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -114,7 +114,7 @@ jobs:
   zero-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
@@ -142,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
@@ -171,7 +171,7 @@ jobs:
   zoe-package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.3"
