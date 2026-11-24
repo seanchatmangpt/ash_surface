@@ -124,7 +124,7 @@ defmodule AshSurface.MixProject do
       {:igniter, "~> 0.7", runtime: false},
       # Static success-typing analysis (gapfix-dialyzer-010). Dev-only: the
       # analysis tool never ships and never enters the boot path.
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       # ex_doc: hex.publish builds docs in the publishing env; dev-only,
       # never in the boot path or the package payload.
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
